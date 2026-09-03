@@ -7,7 +7,7 @@ from rest_framework.response import Response
 
 from .deepseek import ask_deepseek
 from .gemini import ask_gemini
-from .knowledge import SYSTEM_PROMPT, get_reply
+from .knowledge import SYSTEM_PROMPT, get_reply, is_greeting
 from .models import Conversation, Message
 from .rag import format_context, retrieve
 
@@ -23,6 +23,9 @@ def build_prompt(user_message: str) -> str:
 
 
 def generate_reply(user_message: str, history=None) -> str:
+    if is_greeting(user_message):
+        return get_reply(user_message)
+
     prompt = build_prompt(user_message)
     if settings.DEEPSEEK_API_KEY:
         try:

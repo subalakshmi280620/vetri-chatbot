@@ -1,5 +1,7 @@
 """Answers grounded in public content from https://vetrifresh.com/"""
 
+import re
+
 SITE_URL = "https://vetrifresh.com/"
 
 COURSES = [
@@ -140,7 +142,8 @@ Answer only about Vetri AI Coach at {SITE_URL}.
 Be concise and helpful.
 Treat every listed course equally. If the user names one course, answer that course only.
 Do not dump the full course list unless they ask what courses exist.
-If the question is not about Vetri AI Coach, or the fact is not in the list below
+If the user says hi, hello, hii, hey, or similar, greet them warmly and invite them to ask about courses, mock interviews, pricing, or contact.
+If the question is not a greeting and is not about Vetri AI Coach, or the fact is not in the list below
 or in retrieved documents, reply: this information is not available on Vetri AI Coach.
 Do not invent fees, batch dates, certificates, or a full syllabus for any course.
 
@@ -188,15 +191,25 @@ def match_course(message: str) -> str | None:
     return None
 
 
+def is_greeting(message: str) -> bool:
+    compact = _compact(message)
+    if re.fullmatch(r"(h+i+|hey+|hello+|hai+|helo+|hlo+|yo+|hai+)", compact):
+        return True
+    words = "".join(ch.lower() if ch.isalnum() else " " for ch in message).split()
+    if not words or len(words) > 5:
+        return False
+    greet_words = {"hi", "hii", "hiii", "hello", "hey", "hai", "helo", "hlo", "yo"}
+    return words[0] in greet_words
+
+
 def get_reply(message: str) -> str:
     text = message.strip().lower()
+    if is_greeting(text):
+        return REPLIES["greeting"]
+
     course_reply_text = match_course(text)
     if course_reply_text:
         return course_reply_text
-
-    compact_message = _compact(text)
-    if compact_message in {"hi", "hello", "hey", "hai"}:
-        return REPLIES["greeting"]
 
     for intent, keywords in INTENTS:
         if intent == "greeting":
