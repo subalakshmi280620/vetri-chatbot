@@ -241,6 +241,7 @@ function App() {
 
       {error && <p className="error">{error}</p>}
 
+      {!messages.some((msg) => msg.role === 'user') && (
       <div className="suggestions">
         {SUGGESTIONS.map((item) => (
           <button
@@ -253,6 +254,7 @@ function App() {
           </button>
         ))}
       </div>
+      )}
 
       <form className="composer" onSubmit={onSubmit}>
         <input
