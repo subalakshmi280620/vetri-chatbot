@@ -43,8 +43,11 @@ function App() {
   }, [])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+    if (!IS_EMBED || !widgetOpen) return
+    const savedId = window.sessionStorage.getItem('vetriConversationId')
+    if (!savedId) return
+    openConversation(savedId)
+  }, [widgetOpen])
 
   function rememberConversation(id) {
     setConversationId(id)
@@ -127,7 +130,9 @@ function App() {
     } catch (err) {
       const fallback =
         err instanceof TypeError
-          ? 'Cannot reach the backend. Make sure Django is running on port 8000.'
+          ? API_BASE.includes('127.0.0.1') || API_BASE.includes('localhost')
+            ? 'Cannot reach the backend. Make sure Django is running on port 8000.'
+            : `Cannot reach the API (${API_BASE}). On Render, set VITE_API_URL to the Web Service URL and redeploy the Static Site.`
           : err.message
       setError(fallback)
       setMessages((prev) => [
@@ -173,11 +178,19 @@ function App() {
           <button type="button" className="ghost" onClick={newChat}>
             New chat
           </button>
-          {!IS_EMBED && (
-            <button type="button" className="ghost" onClick={openHistory}>
-              History
-            </button>
-          )}
+          <button
+            type="button"
+            className="ghost"
+            onClick={() =>
+              IS_EMBED
+                ? conversationId
+                  ? openConversation(conversationId)
+                  : setError('No saved chat in this tab yet. Send a message first.')
+                : openHistory()
+            }
+          >
+            History
+          </button>
           {IS_EMBED && (
             <button type="button" className="ghost" onClick={() => setWidgetOpen(false)}>
               Close
