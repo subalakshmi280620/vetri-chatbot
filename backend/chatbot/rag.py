@@ -31,14 +31,23 @@ def _chunk_text(text: str, source: str) -> list[dict]:
     return chunks
 
 
+_CHUNKS_CACHE: list[dict] | None = None
+
+
 def load_chunks() -> list[dict]:
+    global _CHUNKS_CACHE
+    if _CHUNKS_CACHE is not None:
+        return _CHUNKS_CACHE
+
     chunks = []
     if not DATA_DIR.exists():
+        _CHUNKS_CACHE = chunks
         return chunks
     for path in sorted(DATA_DIR.glob("*")):
         if path.suffix.lower() not in {".md", ".txt"} or path.name == "README.txt":
             continue
         chunks.extend(_chunk_text(path.read_text(encoding="utf-8"), path.name))
+    _CHUNKS_CACHE = chunks
     return chunks
 
 

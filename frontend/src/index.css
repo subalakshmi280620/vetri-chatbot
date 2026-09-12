@@ -1,13 +1,27 @@
 :root {
-  --bg: #f4f6fb;
+  /* VIS Figma design tokens */
+  --vis-navy: #0c1e3d;
+  --vis-navy-deep: #061428;
+  --vis-green: #4ade80;
+  --vis-green-hover: #22c55e;
+  --vis-green-text: #0c1e3d;
+  --vis-blue: #2563eb;
+  --vis-gradient: linear-gradient(90deg, #4ade80 0%, #38bdf8 50%, #2563eb 100%);
+  --bg: #f8f9fb;
+  --section: #ffffff;
   --panel: #ffffff;
   --text: #111827;
   --muted: #6b7280;
   --border: #e5e7eb;
-  --bot: #eef2ff;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --bot: #ffffff;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 30px rgba(12, 30, 61, 0.12);
+  --radius: 8px;
+  --radius-pill: 999px;
+  font-family: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
   color: var(--text);
   background: var(--bg);
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
@@ -21,15 +35,8 @@ body,
   min-height: 100%;
 }
 
-body {
-  margin: 0;
-}
-
 #root {
-  max-width: 820px;
-  margin: 0 auto;
-  background: var(--panel);
-  box-shadow: 0 0 0 1px var(--border);
+  min-height: 100svh;
 }
 
 html.embed,

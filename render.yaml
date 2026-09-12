@@ -1,4 +1,10 @@
-# Optional Render Blueprint. You can also create the two services in the dashboard.
+# Optional Render Blueprint. You can also create the services in the dashboard.
+
+databases:
+  - name: vetri-chatbot-db
+    plan: free
+    databaseName: vetri_chatbot
+    user: vetri_chatbot
 
 services:
   - type: web
@@ -7,6 +13,7 @@ services:
     rootDir: backend
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput
     startCommand: gunicorn config.wsgi:application
+    healthCheckPath: /health/
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.8"
@@ -14,7 +21,28 @@ services:
         value: "False"
       - key: DJANGO_SECRET_KEY
         generateValue: true
+        # Render generateValue produces a long random secret (meets 50+ char requirement).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vetri-chatbot-db
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        value: vetri-chatbot-1.onrender.com
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://vetri-chatbot-ui.onrender.com,https://vetrifresh.com,https://www.vetrifresh.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://vetri-chatbot-1.onrender.com
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
         value: gemini-3.6-flash
+
+  - type: web
+    name: vetri-chatbot-ui
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://vetri-chatbot-1.onrender.com

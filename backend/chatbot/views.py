@@ -2,12 +2,15 @@ import logging
 import uuid
 
 from django.conf import settings
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
+
+from .throttles import ChatRateThrottle
 
 from .deepseek import ask_deepseek
 from .gemini import ask_gemini
-from .knowledge import SYSTEM_PROMPT, get_reply, is_greeting
+from .eligibility import handle_eligibility
+from .knowledge import SYSTEM_PROMPT, UNVERIFIED, get_reply, get_structured_reply
 from .models import Conversation, Message
 from .rag import format_context, retrieve
 
@@ -23,8 +26,18 @@ def build_prompt(user_message: str) -> str:
 
 
 def generate_reply(user_message: str, history=None) -> str:
-    if is_greeting(user_message):
-        return get_reply(user_message)
+    eligibility = handle_eligibility(user_message, history)
+    if eligibility:
+        return eligibility
+
+    # Fast path: answer from verified KB before calling any LLM API.
+    structured = get_structured_reply(user_message)
+    if structured:
+        return structured
+
+    kb_reply = get_reply(user_message)
+    if kb_reply and kb_reply != UNVERIFIED:
+        return kb_reply
 
     prompt = build_prompt(user_message)
     if settings.DEEPSEEK_API_KEY:
@@ -39,16 +52,34 @@ def generate_reply(user_message: str, history=None) -> str:
         except Exception as exc:
             logger.warning("Gemini unavailable: %s", exc)
 
-    return get_reply(user_message)
+    return kb_reply or get_reply(user_message)
 
 
-def get_or_create_conversation(conversation_id):
+def parse_client_token(value):
+    if not value:
+        return None
+    try:
+        return uuid.UUID(str(value))
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+def get_client_token_from_request(request):
+    if request.method == "POST":
+        return parse_client_token(request.data.get("client_token"))
+    return parse_client_token(request.query_params.get("client_token"))
+
+
+def resolve_conversation(conversation_id, client_token):
     if conversation_id:
         try:
-            return Conversation.objects.get(pk=uuid.UUID(str(conversation_id)))
+            conversation = Conversation.objects.get(pk=uuid.UUID(str(conversation_id)))
         except (Conversation.DoesNotExist, ValueError, TypeError):
-            pass
-    return Conversation.objects.create()
+            return Conversation.objects.create(client_token=client_token)
+        if conversation.client_token != client_token:
+            return None
+        return conversation
+    return Conversation.objects.create(client_token=client_token)
 
 
 def serialize_message(message: Message) -> dict:
@@ -60,6 +91,7 @@ def serialize_message(message: Message) -> dict:
 
 
 @api_view(["POST"])
+@throttle_classes([ChatRateThrottle])
 def chat(request):
     message = request.data.get("message")
 
@@ -69,8 +101,31 @@ def chat(request):
             status=400
         )
 
+    client_token = get_client_token_from_request(request)
+    if not client_token:
+        return Response({"error": "client_token is required."}, status=400)
+
     user_message = str(message)
-    conversation = get_or_create_conversation(request.data.get("conversation_id"))
+    max_length = settings.CHAT_MAX_MESSAGE_LENGTH
+    if len(user_message) > max_length:
+        return Response(
+            {
+                "error": (
+                    f"Message is too long. Maximum length is {max_length} characters."
+                ),
+            },
+            status=400,
+        )
+
+    conversation = resolve_conversation(
+        request.data.get("conversation_id"),
+        client_token,
+    )
+    if conversation is None:
+        return Response(
+            {"error": "You do not have access to this conversation."},
+            status=403,
+        )
     history = list(
         conversation.messages.order_by("-created_at")[:HISTORY_LIMIT]
         .values("role", "text")
@@ -97,8 +152,13 @@ def chat(request):
 
 @api_view(["GET"])
 def conversation_list(request):
+    client_token = get_client_token_from_request(request)
+    if not client_token:
+        return Response({"error": "client_token is required."}, status=400)
+
     items = []
-    for conversation in Conversation.objects.order_by("-created_at")[:30]:
+    queryset = Conversation.objects.filter(client_token=client_token).order_by("-created_at")[:30]
+    for conversation in queryset:
         first = conversation.messages.filter(role=Message.ROLE_USER).first()
         items.append({
             "id": str(conversation.id),
@@ -110,10 +170,20 @@ def conversation_list(request):
 
 @api_view(["GET"])
 def conversation_detail(request, conversation_id):
+    client_token = get_client_token_from_request(request)
+    if not client_token:
+        return Response({"error": "client_token is required."}, status=400)
+
     try:
         conversation = Conversation.objects.get(pk=uuid.UUID(str(conversation_id)))
     except (Conversation.DoesNotExist, ValueError, TypeError):
         return Response({"error": "Conversation not found"}, status=404)
+
+    if conversation.client_token != client_token:
+        return Response(
+            {"error": "You do not have access to this conversation."},
+            status=403,
+        )
 
     messages = [serialize_message(item) for item in conversation.messages.all()]
     return Response({

@@ -5,6 +5,7 @@ from django.db import models
 
 class Conversation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    client_token = models.UUIDField(default=uuid.uuid4, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

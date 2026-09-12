@@ -28,8 +28,13 @@ def home(request):
     })
 
 
+def health(request):
+    return JsonResponse({"status": "ok"})
+
+
 urlpatterns = [
     path("", home, name="home"),
+    path("health/", health, name="health"),
     path("admin/", admin.site.urls),
     path("api/chatbot/", include("chatbot.urls")),
 ]

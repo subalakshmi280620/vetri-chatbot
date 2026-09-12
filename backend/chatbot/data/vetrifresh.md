@@ -1,6 +1,6 @@
-# Vetri AI Coach — public site notes (https://vetrifresh.com/)
+# VIS / Vetri IT Systems — verified course notes
 
-Product: Vetri AI Coach by Vetri IT Systems.
+Product: VIS training and AI interview coaching by Vetri IT Systems (VIS).
 Tagline: Crack Your Dream Interview with AI.
 Promise: Prepare, Practice and Perform using AI-powered interview coaching tailored to every course the institute trains you on.
 
@@ -28,7 +28,21 @@ What courses are covered? Every course the institute trains, with role-specific 
 Phone: +91-8438164827
 Phone: +91-8438781327
 
-## Courses (treat all equally)
+## Verified course rules (all listed courses)
+Duration: 180 days.
+Eligibility: Any degree completion (B.Tech, B.Sc, BCA, B.Com, MBA, MCA, or any other completed UG/PG degree).
+
+## How to apply
+1. Confirm eligibility — any completed degree (UG/PG).
+2. Choose your preferred course from the listed programmes.
+3. Contact VIS admissions: +91-8438164827 / +91-8438781327. Share your qualification and course choice.
+4. Complete enrollment — the VIS team will guide registration and onboarding.
+
+## Verified vs not published
+Published: course names, mock-interview features, free registration, contact phones, 180-day duration, degree-completion eligibility.
+NOT published in this knowledge base (do not invent): exact training fees, certificates, placement packages, batch dates.
+If asked for unpublished details, say verified information was not found and ask the user to contact VIS.
+
 Each course has Explore roles and modules. The public homepage does not publish full syllabi. Do not invent module lists.
 
 ### Python Fullstack

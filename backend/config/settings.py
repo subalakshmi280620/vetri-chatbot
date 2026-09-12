@@ -13,8 +13,19 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+_INSECURE_SECRET_KEY = (
+    "django-insecure-a*@^tf6=h%yc^-k7=#5wgbu#nvtqnd1tu%w1+z2!c-1d+!hto^"
+)
+_PLACEHOLDER_SECRET_KEYS = {
+    "change-me-in-production",
+    _INSECURE_SECRET_KEY,
+}
+_MIN_SECRET_KEY_LENGTH = 50
 
 
 def load_env_file(path: Path) -> None:
@@ -31,19 +42,50 @@ def load_env_file(path: Path) -> None:
 load_env_file(BASE_DIR / ".env")
 
 
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-a*@^tf6=h%yc^-k7=#5wgbu#nvtqnd1tu%w1+z2!c-1d+!hto^",
-)
-DEBUG = os.environ.get("DEBUG", "True").lower() in {"1", "true", "yes"}
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-    if host.strip()
-]
-RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "")
-if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.lower() in {"1", "true", "yes"}
+
+
+DEBUG = _env_bool("DEBUG", True)
+_secret_from_env = os.environ.get("DJANGO_SECRET_KEY", "").strip()
+
+if DEBUG:
+    SECRET_KEY = _secret_from_env or _INSECURE_SECRET_KEY
+else:
+    if not _secret_from_env or _secret_from_env in _PLACEHOLDER_SECRET_KEYS:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY must be set to a unique, secure value when DEBUG=False."
+        )
+    if len(_secret_from_env) < _MIN_SECRET_KEY_LENGTH:
+        raise ImproperlyConfigured(
+            f"DJANGO_SECRET_KEY must be at least {_MIN_SECRET_KEY_LENGTH} characters "
+            "when DEBUG=False."
+        )
+    SECRET_KEY = _secret_from_env
+
+_DEV_ALLOWED_HOSTS = ("localhost", "127.0.0.1")
+RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
+
+if DEBUG:
+    # Local dev always accepts localhost — ignore stale production ALLOWED_HOSTS in the shell.
+    ALLOWED_HOSTS = list(_DEV_ALLOWED_HOSTS)
+else:
+    ALLOWED_HOSTS = [
+        host.strip()
+        for host in os.environ.get("ALLOWED_HOSTS", "").split(",")
+        if host.strip()
+    ]
+    if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+    local_only_hosts = set(_DEV_ALLOWED_HOSTS)
+    if not ALLOWED_HOSTS or set(ALLOWED_HOSTS).issubset(local_only_hosts):
+        raise ImproperlyConfigured(
+            "ALLOWED_HOSTS must include your production API hostname when DEBUG=False."
+        )
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
@@ -104,13 +146,27 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
+# Local dev: SQLite (no DATABASE_URL). Render production: PostgreSQL via DATABASE_URL.
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+_DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
+if _DATABASE_URL:
+    import dj_database_url
+
+    DATABASES = {
+        "default": dj_database_url.parse(
+            _DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+        ),
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
@@ -162,22 +218,78 @@ STORAGES = {
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+_EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
+
+if DEBUG:
+    MAILERS = {
+        "default": {
+            "BACKEND": "django.core.mail.backends.console.EmailBackend",
+        },
+    }
+elif _EMAIL_HOST:
+    MAILERS = {
+        "default": {
+            "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        },
+    }
+    EMAIL_HOST = _EMAIL_HOST
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+    EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
+    EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", False)
+    DEFAULT_FROM_EMAIL = os.environ.get(
+        "DEFAULT_FROM_EMAIL",
+        EMAIL_HOST_USER or "noreply@vetriit.com",
+    )
+else:
+    # Chatbot API does not send email; use a non-development backend for deploy checks.
+    MAILERS = {
+        "default": {
+            "BACKEND": "django.core.mail.backends.dummy.EmailBackend",
+        },
+    }
+_DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173,"
+    "http://127.0.0.1:5173,"
+    "https://vetrifresh.com,"
+    "https://www.vetrifresh.com,"
+    "https://vetri-chatbot-ui.onrender.com"
+)
+_PRODUCTION_CORS_ORIGINS = (
+    "https://vetri-chatbot-ui.onrender.com,"
+    "https://vetrifresh.com,"
+    "https://www.vetrifresh.com"
+)
+
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
         "CORS_ALLOWED_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173,https://vetrifresh.com,https://www.vetrifresh.com",
+        _PRODUCTION_CORS_ORIGINS if not DEBUG else _DEFAULT_CORS_ORIGINS,
     ).split(",")
     if origin.strip()
 ]
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.onrender\.com$",
-]
+# Explicit allow-list only — no wildcard regex origins.
+CORS_ALLOW_ALL_ORIGINS = False
+
+if DEBUG:
+    # Local development: HTTP is fine; do not force HTTPS redirects.
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_SSL_REDIRECT = False
+else:
+    # Production HTTPS and cookie security (Render terminates TLS at the proxy).
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+    X_FRAME_OPTIONS = "DENY"
 
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
@@ -191,3 +303,19 @@ GEMINI_BASE_URL = os.environ.get(
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
 if GEMINI_MODEL in {"gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"}:
     GEMINI_MODEL = "gemini-3.6-flash"
+
+CHAT_MAX_MESSAGE_LENGTH = int(os.environ.get("CHAT_MAX_MESSAGE_LENGTH", "2000"))
+CHAT_RATE_LIMIT = os.environ.get("CHAT_RATE_LIMIT", "30/minute")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "vetri-chatbot-default-cache",
+    },
+}
+
+REST_FRAMEWORK = {
+    "DEFAULT_THROTTLE_RATES": {
+        "chat": CHAT_RATE_LIMIT,
+    },
+}
