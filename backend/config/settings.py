@@ -252,14 +252,14 @@ else:
 _DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173,"
     "http://127.0.0.1:5173,"
-    "https://vetrifresh.com,"
-    "https://www.vetrifresh.com,"
+    "https://vetriitsystems.com,"
+    "https://www.vetriitsystems.com,"
     "https://vetri-chatbot-ui.onrender.com"
 )
 _PRODUCTION_CORS_ORIGINS = (
     "https://vetri-chatbot-ui.onrender.com,"
-    "https://vetrifresh.com,"
-    "https://www.vetrifresh.com"
+    "https://vetriitsystems.com,"
+    "https://www.vetriitsystems.com"
 )
 
 CORS_ALLOWED_ORIGINS = [

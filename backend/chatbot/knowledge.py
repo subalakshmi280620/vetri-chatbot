@@ -2,7 +2,7 @@
 
 import re
 
-SITE_URL = "https://vetrifresh.com/"
+SITE_URL = "https://vetriitsystems.com/"
 ORG_NAME = "Vetri IT Systems (VIS)"
 
 COURSES = [
