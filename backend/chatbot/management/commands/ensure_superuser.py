@@ -34,8 +34,15 @@ class Command(BaseCommand):
 
         user_model = get_user_model()
         if user_model.objects.filter(username=username).exists():
+            user = user_model.objects.get(username=username)
+            user.set_password(password)
+            user.is_staff = True
+            user.is_superuser = True
+            if email:
+                user.email = email
+            user.save()
             self.stdout.write(
-                self.style.SUCCESS(f"Superuser '{username}' already exists.")
+                self.style.SUCCESS(f"Updated superuser '{username}' from environment.")
             )
             return
 
