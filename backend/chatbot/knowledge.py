@@ -56,6 +56,17 @@ def duration_reply(course_name: str = "") -> str:
     )
 
 
+def general_eligibility_reply() -> str:
+    return (
+        "General Eligibility\n\n"
+        f"• Requirement: {ELIGIBILITY_REQUIREMENT}.\n"
+        "• Accepted examples include B.Tech, B.Sc, BCA, B.Com, MBA, MCA, and other "
+        "completed undergraduate or postgraduate degrees.\n\n"
+        "If you tell me your qualification and the course you are interested in, "
+        "I can help check your eligibility."
+    )
+
+
 def eligibility_reply(course_name: str = "") -> str:
     topic = f" — {course_name}" if course_name else ""
     return (
@@ -193,9 +204,9 @@ REPLIES = {
     ),
     "pricing": (
         "Course Fee Information\n\n"
-        "You may register for free and begin mock interview practice immediately.\n\n"
         "Verified training-course fee amounts are not listed in the available VIS course "
-        f"information.\n\n{CONTACT_LINE}."
+        "information. Please contact the VIS team for the current fee details.\n\n"
+        f"{CONTACT_LINE}."
     ),
     "contact": (
         f"Contact {ORG_NAME}\n\n"
@@ -216,12 +227,7 @@ REPLIES = {
         "Ask about a specific course for more detail, for example: "
         "Tell me about Python Fullstack."
     ),
-    "who_can_apply": (
-        "Admission Eligibility\n\n"
-        f"• Requirement: {ELIGIBILITY_REQUIREMENT}\n"
-        "• Accepted examples: B.Tech, B.Sc, BCA, B.Com, MBA, MCA, or any other completed "
-        "undergraduate or postgraduate degree."
-    ),
+    "who_can_apply": general_eligibility_reply(),
     "apply": (
         "How to Apply — VIS Training Programmes\n\n"
         "Step 1: Review eligibility\n"

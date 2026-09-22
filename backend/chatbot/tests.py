@@ -5,7 +5,10 @@ from unittest.mock import patch
 from django.core.cache import cache
 from django.test import TestCase
 
+from .eligibility import handle_eligibility
+from .knowledge import COURSES, get_structured_reply
 from .throttles import ChatRateThrottle
+from .views import generate_reply
 
 CLIENT_A = str(uuid.uuid4())
 CLIENT_B = str(uuid.uuid4())
@@ -124,3 +127,83 @@ class ConversationPrivacyTests(ChatApiTestCase):
         self.assertEqual(len(ids_a), 1)
         self.assertEqual(len(ids_b), 1)
         self.assertNotEqual(ids_a, ids_b)
+
+
+class EligibilityReplyTests(TestCase):
+    JAVA_HISTORY = [
+        {"role": "user", "text": "Tell me about Java Fullstack"},
+        {"role": "bot", "text": "Course Overview — Java Fullstack"},
+    ]
+
+    def test_general_eligibility_ignores_prior_course_in_history(self):
+        reply = handle_eligibility("What is the eligibility?", self.JAVA_HISTORY)
+        self.assertIn("General Eligibility", reply)
+        self.assertNotIn("Java Fullstack", reply)
+
+    def test_general_eligibility_questions(self):
+        for message in (
+            "What are the eligibility requirements?",
+            "Who can apply?",
+            "What qualification is required?",
+        ):
+            reply = handle_eligibility(message)
+            self.assertIn("General Eligibility", reply)
+            self.assertNotIn("Java Fullstack", reply)
+
+    def test_am_i_eligible_returns_general_information(self):
+        reply = handle_eligibility("Am I eligible?", self.JAVA_HISTORY)
+        self.assertIn("General Eligibility", reply)
+        self.assertNotIn("Java Fullstack", reply)
+
+    def test_course_specific_eligibility_when_course_named(self):
+        reply = handle_eligibility("What is the eligibility for Python Fullstack?")
+        self.assertIn("Eligibility Requirements — Python Fullstack", reply)
+        self.assertNotIn("General Eligibility", reply)
+
+    def test_eligibility_assessment_flow_still_works(self):
+        first = handle_eligibility("Am I eligible?")
+        second = handle_eligibility(
+            "B.Tech",
+            [
+                {"role": "user", "text": "Am I eligible?"},
+                {"role": "bot", "text": first},
+            ],
+        )
+        self.assertIn("Please select the course", second)
+
+        third = handle_eligibility(
+            "Java Fullstack",
+            [
+                {"role": "user", "text": "Am I eligible?"},
+                {"role": "bot", "text": first},
+                {"role": "user", "text": "B.Tech"},
+                {"role": "bot", "text": second},
+            ],
+        )
+        self.assertIn("Outcome: ELIGIBLE", third)
+        self.assertIn("Java Fullstack", third)
+
+
+class KnowledgeReplyTests(TestCase):
+    def test_courses_list_includes_all_programmes(self):
+        reply = get_structured_reply("Which courses are available?")
+        for course in COURSES:
+            self.assertIn(course, reply)
+
+    def test_fee_reply_does_not_claim_training_is_free(self):
+        reply = get_structured_reply("What are the fees?")
+        self.assertIn(
+            "Verified training-course fee amounts are not listed",
+            reply,
+        )
+        self.assertNotIn("register for free", reply.lower())
+        self.assertNotIn("training course is free", reply.lower())
+
+    def test_generate_reply_general_eligibility_via_api_path(self):
+        history = [
+            {"role": "user", "text": "Tell me about Java Fullstack"},
+            {"role": "bot", "text": "Course Overview — Java Fullstack"},
+        ]
+        reply = generate_reply("What is the eligibility?", history)
+        self.assertIn("General Eligibility", reply)
+        self.assertNotIn("Java Fullstack", reply)

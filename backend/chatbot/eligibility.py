@@ -1,10 +1,11 @@
 """Eligibility checks using only verified course rules. Never invent criteria."""
 
 from .knowledge import (
-    COURSES,
     CONTACT_LINE,
+    COURSES,
     ELIGIBILITY_REQUIREMENT,
     eligibility_reply,
+    general_eligibility_reply,
     match_course_id,
     match_course_name,
     qualification_meets_degree_requirement,
@@ -28,6 +29,8 @@ ELIGIBILITY_PHRASES = (
     "who can apply",
     "who can join",
     "qualification required",
+    "qualification is required",
+    "what qualification",
     "qualifications required",
     "qualify",
     "admission",
@@ -122,35 +125,47 @@ def _evaluate_eligibility(course_id: str, course_name: str, qualification: str) 
     )
 
 
+def _is_waiting_for_eligibility_details(last_bot: str) -> bool:
+    return any(
+        phrase in last_bot
+        for phrase in (
+            "which course are you interested",
+            "please select the course",
+            "education qualification",
+            "to check eligibility",
+            "eligibility assessment",
+            "eligibility check",
+            "qualification and the course",
+            "share your qualification",
+            "help check your eligibility",
+        )
+    )
+
+
 def handle_eligibility(user_message: str, history=None) -> str | None:
     text = user_message.strip()
     last_bot = _last_bot(history).lower()
-    waiting = (
-        "which course are you interested" in last_bot
-        or "education qualification" in last_bot
-        or "to check eligibility" in last_bot
-        or "eligibility assessment" in last_bot
-    )
+    waiting = _is_waiting_for_eligibility_details(last_bot)
     if not is_eligibility_intent(text) and not waiting:
         return None
 
-    combined = f"{_history_text(history)} {text}"
-    course_id = match_course_id(text) or match_course_id(combined)
-    course_name = match_course_name(course_id) if course_id else ""
+    explicit_course_id = match_course_id(text)
+    explicit_course_name = match_course_name(explicit_course_id)
 
     if not is_self_check(text) and not waiting:
-        if not course_id:
-            return (
-                "Eligibility Requirements\n\n"
-                f"• Requirement: {ELIGIBILITY_REQUIREMENT}\n"
-                "• Accepted examples: B.Tech, B.Sc, BCA, B.Com, MBA, MCA, or any other "
-                "completed undergraduate or postgraduate degree.\n\n"
-                "Please let me know which course you would like eligibility details for:\n"
-                + "\n".join(f"• {name}" for name in COURSES)
-            )
-        return eligibility_reply(course_name)
+        if explicit_course_id:
+            return eligibility_reply(explicit_course_name)
+        return general_eligibility_reply()
 
-    qualification = extract_qualification(text) or extract_qualification(combined)
+    combined = f"{_history_text(history)} {text}"
+    course_id = explicit_course_id or (match_course_id(combined) if waiting else None)
+    course_name = match_course_name(course_id) if course_id else ""
+    qualification = extract_qualification(text) or (
+        extract_qualification(combined) if waiting else ""
+    )
+
+    if not course_id and not qualification:
+        return general_eligibility_reply()
 
     if not course_id:
         return (
