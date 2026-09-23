@@ -183,6 +183,48 @@ class EligibilityReplyTests(TestCase):
         self.assertIn("Outcome: ELIGIBLE", third)
         self.assertIn("Java Fullstack", third)
 
+    def _eligibility_conversation_history(self):
+        first = handle_eligibility("What are the eligibility requirements?")
+        second = handle_eligibility(
+            "i am B.E graduate and i am interested in pythonfull stack",
+            [
+                {"role": "user", "text": "What are the eligibility requirements?"},
+                {"role": "bot", "text": first},
+            ],
+        )
+        return [
+            {"role": "user", "text": "What are the eligibility requirements?"},
+            {"role": "bot", "text": first},
+            {"role": "user", "text": "i am B.E graduate and i am interested in pythonfull stack"},
+            {"role": "bot", "text": second},
+        ]
+
+    def test_fees_after_eligibility_outcome_uses_kb_not_eligibility(self):
+        history = self._eligibility_conversation_history()
+        self.assertIsNone(handle_eligibility("what are the fees?", history))
+        reply = generate_reply("what are the fees?", history)
+        self.assertIn("Verified training-course fee amounts are not listed", reply)
+        self.assertNotIn("Outcome: ELIGIBLE", reply)
+
+    def test_apply_after_eligibility_outcome_uses_kb_not_eligibility(self):
+        history = self._eligibility_conversation_history()
+        self.assertIsNone(handle_eligibility("How do I apply for a course?", history))
+        reply = generate_reply("How do I apply for a course?", history)
+        self.assertIn("How to Apply", reply)
+        self.assertNotIn("Outcome: ELIGIBLE", reply)
+
+    def test_qualification_not_parsed_from_bot_general_eligibility_text(self):
+        first = handle_eligibility("What are the eligibility requirements?")
+        second = handle_eligibility(
+            "i am B.E graduate and i am interested in pythonfull stack",
+            [
+                {"role": "user", "text": "What are the eligibility requirements?"},
+                {"role": "bot", "text": first},
+            ],
+        )
+        self.assertIn("Outcome: ELIGIBLE", second)
+        self.assertNotIn("General Eligibility", second.split("Qualification provided:", 1)[-1])
+
 
 class KnowledgeReplyTests(TestCase):
     def test_courses_list_includes_all_programmes(self):

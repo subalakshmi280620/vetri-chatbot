@@ -9,7 +9,7 @@ from .throttles import ChatRateThrottle
 
 from .deepseek import ask_deepseek
 from .gemini import ask_gemini
-from .eligibility import handle_eligibility
+from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import SYSTEM_PROMPT, UNVERIFIED, get_reply, get_structured_reply
 from .models import Conversation, Message
 from .rag import format_context, retrieve
@@ -26,6 +26,12 @@ def build_prompt(user_message: str) -> str:
 
 
 def generate_reply(user_message: str, history=None) -> str:
+    # Fee, apply, contact, and similar FAQs should always use verified KB answers.
+    if is_non_eligibility_faq(user_message):
+        structured = get_structured_reply(user_message)
+        if structured:
+            return structured
+
     eligibility = handle_eligibility(user_message, history)
     if eligibility:
         return eligibility

@@ -289,7 +289,11 @@ INTENTS = (
     ("contact", ("contact", "phone", "call", "mobile number", "refund", "privacy", "terms")),
     ("login", ("login", "register", "sign up", "get started", "account")),
     ("features", ("feature", "what can you", "everything you need")),
-    ("courses", ("course", "courses", "what do you offer", "modules", "programs")),
+    ("courses", (
+        "courses", "which courses", "what courses", "courses available",
+        "courses are available", "list of courses", "what do you offer",
+        "modules", "programs", "programmes",
+    )),
     ("about", ("about vetri", "what is vetri", "who are you", "about vis")),
     ("who_can_apply", ("who can apply", "who can join", "who is eligible")),
     ("apply", (
@@ -339,11 +343,18 @@ def is_greeting(message: str) -> bool:
     return words[0] in greet_words
 
 
+def _matches_apply_intent(text: str) -> bool:
+    apply_keywords = next(keywords for intent, keywords in INTENTS if intent == "apply")
+    return any(keyword in text for keyword in apply_keywords)
+
+
 def get_structured_reply(message: str) -> str | None:
     """Return a verified KB answer for clear FAQ-style questions."""
     text = message.strip().lower()
     if is_greeting(text):
         return REPLIES["greeting"]
+    if _matches_apply_intent(text):
+        return REPLIES["apply"]
     if match_course_id(text):
         if any(key in text for key in ("duration", "how long", "how many months", "how many days")):
             return duration_reply(match_course_name(match_course_id(text)))
@@ -379,6 +390,9 @@ def get_reply(message: str) -> str:
     text = message.strip().lower()
     if is_greeting(text):
         return REPLIES["greeting"]
+
+    if _matches_apply_intent(text):
+        return REPLIES["apply"]
 
     if any(key in text for key in ("duration", "how long", "how many months", "how many days")):
         name = match_course_name(match_course_id(text))
