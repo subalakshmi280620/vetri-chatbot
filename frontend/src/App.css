@@ -311,9 +311,11 @@
 
 /* ── Workspace ─────────────────────────────────────────────── */
 .workspace {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .chat-panel {
@@ -325,28 +327,46 @@
   background: var(--bg);
 }
 
-/* ── History sidebar (right panel) ─────────────────────────── */
+/* ── History sidebar (slide-in drawer) ─────────────────────── */
+.history-overlay {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.38);
+  z-index: 20;
+  cursor: pointer;
+}
+
 .history-sidebar {
-  width: 300px;
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--border);
   background: var(--panel);
   text-align: left;
   min-height: 0;
+  z-index: 30;
 }
 
-.history-sidebar-full {
-  width: 100%;
-  border-left: none;
+.history-sidebar-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(340px, 92%);
+  border-left: 1px solid var(--border);
+  box-shadow: -10px 0 30px rgba(15, 23, 42, 0.12);
+  transform: translateX(100%);
+  transition: transform 0.24s ease;
+}
+
+.history-sidebar-drawer.open {
+  transform: translateX(0);
 }
 
 .history-sidebar-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--border);
   background: var(--vis-navy);
@@ -357,17 +377,40 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
-.history-back-btn {
-  color: #fff !important;
-  padding: 0;
-  font-size: 12px;
-  opacity: 0.9;
+.history-sidebar-sub {
+  font-size: 11px;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.history-sidebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.history-close-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.history-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .history-sidebar-head strong {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: #fff;
   letter-spacing: 0.02em;
@@ -376,6 +419,48 @@
 .history-sidebar-head .btn-green {
   background: var(--vis-green);
   color: var(--vis-green-text);
+}
+
+.history-sidebar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.history-toolbar-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.history-toolbar-link {
+  border: 0;
+  background: transparent;
+  color: var(--vis-green-hover);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.history-sidebar-foot {
+  margin-top: auto;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  background: #f8fafc;
+}
+
+.active-top-btn {
+  color: var(--vis-green) !important;
+  background: rgba(132, 204, 22, 0.12);
 }
 
 .history-empty {
@@ -431,6 +516,14 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-chat-started {
+  color: var(--muted);
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -866,20 +959,8 @@
 
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .workspace {
-    flex-direction: column;
-  }
-
-  .history-sidebar {
-    order: 2;
-    width: 100%;
-    max-height: 220px;
-    border-left: 0;
-    border-top: 1px solid var(--border);
-  }
-
-  .chat-panel {
-    order: 1;
+  .history-sidebar-drawer {
+    width: min(100%, 360px);
   }
 
   .app-standalone {

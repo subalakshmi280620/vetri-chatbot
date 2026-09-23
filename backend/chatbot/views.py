@@ -2,7 +2,7 @@ import logging
 import uuid
 
 from django.conf import settings
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Q
 from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
 
@@ -186,16 +186,27 @@ def conversation_list(request):
         .annotate(
             last_message_at=Max("messages__created_at"),
             message_count=Count("messages"),
+            question_count=Count(
+                "messages",
+                filter=Q(messages__role=Message.ROLE_USER),
+            ),
         )
+        .filter(question_count__gt=0)
         .order_by("-last_message_at", "-created_at")[:30]
     )
     for conversation in queryset:
+        latest_user = (
+            conversation.messages.filter(role=Message.ROLE_USER)
+            .order_by("-created_at")
+            .first()
+        )
         first_user = (
             conversation.messages.filter(role=Message.ROLE_USER)
             .order_by("created_at")
             .first()
         )
-        title = first_user.text[:80] if first_user else "New chat"
+        latest_text = latest_user.text[:80] if latest_user else "New chat"
+        first_text = first_user.text[:80] if first_user else ""
         items.append({
             "id": str(conversation.id),
             "created_at": conversation.created_at.isoformat(),
@@ -204,9 +215,11 @@ def conversation_list(request):
                 if conversation.last_message_at
                 else conversation.created_at.isoformat()
             ),
-            "title": title,
-            "preview": title,
+            "title": latest_text,
+            "preview": latest_text,
+            "first_question": first_text,
             "message_count": conversation.message_count,
+            "question_count": conversation.question_count,
         })
     return Response({"conversations": items})
 

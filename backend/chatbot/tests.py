@@ -128,7 +128,7 @@ class ConversationPrivacyTests(ChatApiTestCase):
         self.assertEqual(len(ids_b), 1)
         self.assertNotEqual(ids_a, ids_b)
 
-    def test_conversation_list_title_uses_first_user_message(self):
+    def test_conversation_list_title_uses_latest_user_message(self):
         first = self._post_chat("What are the eligibility requirements?", CLIENT_A)
         conversation_id = first.json()["conversation_id"]
         self._post_chat("What are the fees?", CLIENT_A, conversation_id=conversation_id)
@@ -136,8 +136,21 @@ class ConversationPrivacyTests(ChatApiTestCase):
         response = self.client.get(f"/api/chatbot/conversations/?client_token={CLIENT_A}")
         self.assertEqual(response.status_code, 200)
         item = response.json()["conversations"][0]
-        self.assertIn("eligibility", item["title"].lower())
-        self.assertGreaterEqual(item["message_count"], 4)
+        self.assertIn("fees", item["title"].lower())
+        self.assertIn("eligibility", item["first_question"].lower())
+        self.assertGreaterEqual(item["question_count"], 2)
+
+    def test_multiple_chats_appear_in_history(self):
+        first = self._post_chat("First chat question", CLIENT_A)
+        second = self._post_chat("Second chat question", CLIENT_A)
+        self.assertNotEqual(
+            first.json()["conversation_id"],
+            second.json()["conversation_id"],
+        )
+
+        response = self.client.get(f"/api/chatbot/conversations/?client_token={CLIENT_A}")
+        titles = [item["title"] for item in response.json()["conversations"]]
+        self.assertEqual(len(titles), 2)
 
     def test_client_can_delete_own_conversation(self):
         create_response = self._post_chat("Delete me", CLIENT_A)

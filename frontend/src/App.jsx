@@ -321,60 +321,99 @@ function HistorySidebar({
   onSelect,
   onNewChat,
   onDelete,
-  onBack,
-  fullWidth = false,
+  onClose,
+  open = true,
 }) {
   return (
-    <aside className={`history-sidebar ${fullWidth ? 'history-sidebar-full' : ''}`}>
-      <div className="history-sidebar-head">
-        <div className="history-sidebar-title">
-          {onBack && (
-            <button type="button" className="ghost history-back-btn" onClick={onBack}>
-              ← Back
+    <>
+      <button
+        type="button"
+        className="history-overlay"
+        aria-label="Close chat history"
+        onClick={onClose}
+      />
+      <aside className={`history-sidebar history-sidebar-drawer ${open ? 'open' : ''}`}>
+        <div className="history-sidebar-head">
+          <div className="history-sidebar-title">
+            <strong>Chat History</strong>
+            <span className="history-sidebar-sub">
+              {items.length} saved chat{items.length === 1 ? '' : 's'} on this device
+            </span>
+          </div>
+          <div className="history-sidebar-actions">
+            <button type="button" className="btn-green btn-sm" onClick={onNewChat}>
+              + New chat
             </button>
-          )}
-          <strong>Your chats</strong>
+            <button
+              type="button"
+              className="history-close-btn"
+              aria-label="Close history"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          </div>
         </div>
-        <button type="button" className="btn-green btn-sm" onClick={onNewChat}>
-          + New chat
-        </button>
-      </div>
-      {items.length === 0 ? (
-        <p className="muted history-empty">
-          No chats yet. Start a conversation and it will appear here on this device.
-        </p>
-      ) : (
-        <ul className="history-list">
-          {items.map((item) => (
-            <li key={item.id} className="history-list-item">
-              <button
-                type="button"
-                className={`history-chat-btn ${item.id === activeId ? 'active' : ''}`}
-                onClick={() => onSelect(item.id)}
-              >
+
+        <div className="history-sidebar-toolbar">
+          <span className="history-toolbar-label">Your conversations</span>
+          <button type="button" className="history-toolbar-link" onClick={onNewChat}>
+            Start new
+          </button>
+        </div>
+
+        {items.length === 0 ? (
+          <p className="muted history-empty">
+            No chats yet. Ask a question and your conversation will be saved here automatically.
+          </p>
+        ) : (
+          <ul className="history-list">
+            {items.map((item) => (
+              <li key={item.id} className="history-list-item">
+                <button
+                  type="button"
+                  className={`history-chat-btn ${item.id === activeId ? 'active' : ''}`}
+                  onClick={() => onSelect(item.id)}
+                >
                 <span className="history-chat-title">{item.title || item.preview}</span>
+                {item.first_question &&
+                  item.question_count > 1 &&
+                  item.first_question !== item.title && (
+                    <small className="history-chat-started">
+                      Started with: {item.first_question}
+                    </small>
+                  )}
                 <small className="history-chat-meta">
-                  {formatChatDate(item.updated_at || item.created_at)}
+                  {item.question_count || 1} question
+                  {(item.question_count || 1) === 1 ? '' : 's'}
                   {item.message_count ? ` · ${item.message_count} messages` : ''}
+                  {' · '}
+                  {formatChatDate(item.updated_at || item.created_at)}
                 </small>
-              </button>
-              <button
-                type="button"
-                className="history-delete-btn"
-                aria-label="Delete chat"
-                title="Delete chat"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onDelete(item.id)
-                }}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </aside>
+                </button>
+                <button
+                  type="button"
+                  className="history-delete-btn"
+                  aria-label="Delete chat"
+                  title="Delete chat"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onDelete(item.id)
+                  }}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <footer className="history-sidebar-foot">
+          Saved on this browser only. Other people and other devices cannot see your chats.
+          Use + New chat to start a separate conversation.
+        </footer>
+      </aside>
+    </>
   )
 }
 
@@ -438,11 +477,15 @@ function App() {
   async function bootstrapChat() {
     const conversations = await loadHistoryList()
     const savedId = getStoredItem(CONVERSATION_ID_KEY)
-    if (savedId) {
+    if (savedId && conversations.some((item) => item.id === savedId)) {
       await openConversation(savedId)
       return
     }
-    if (!IS_EMBED && conversations.length > 0) {
+    if (savedId) {
+      removeStoredItem(CONVERSATION_ID_KEY)
+      setConversationId('')
+    }
+    if (conversations.length > 0) {
       await openConversation(conversations[0].id)
     }
   }
@@ -450,13 +493,16 @@ function App() {
   async function loadHistoryList() {
     try {
       const res = await fetch(`${HISTORY_URL}?client_token=${encodeURIComponent(getClientToken())}`)
+      if (!res.ok) {
+        return []
+      }
       const data = await res.json()
       const conversations = data.conversations || []
       setHistoryList(conversations)
       return conversations
     } catch {
       if (!IS_EMBED) {
-        setError('Unable to load conversation history. Please try again.')
+        setError('Unable to load conversation history. Please check the backend is running.')
       }
       return []
     }
@@ -486,11 +532,11 @@ function App() {
       setMessages(loaded.length ? loaded : [WELCOME])
       setFollowUps([])
       setError('')
-      if (!IS_EMBED) {
-        await loadHistoryList()
-      }
+      await loadHistoryList()
+      return true
     } catch (err) {
       setError(err.message)
+      return false
     }
   }
 
@@ -557,6 +603,18 @@ function App() {
     setHistoryOpen(true)
   }
 
+  function closeHistoryPanel() {
+    setHistoryOpen(false)
+  }
+
+  function toggleHistoryPanel() {
+    if (historyOpen) {
+      closeHistoryPanel()
+      return
+    }
+    void openHistoryPanel()
+  }
+
   async function sendMessage(text) {
     const message = (text ?? input).trim()
     if (!message || loading) return
@@ -599,9 +657,7 @@ function App() {
       ])
       setFollowUps(data.suggestions || [])
 
-      if (!IS_EMBED) {
-        loadHistoryList()
-      }
+      loadHistoryList()
     } catch (err) {
       const fallback =
         err instanceof TypeError
@@ -661,18 +717,20 @@ function App() {
               </div>
             </div>
             <div className="top-actions">
+              <button type="button" className="ghost" onClick={newChat}>
+                New chat
+              </button>
+              <button
+                type="button"
+                className={`ghost ${historyOpen ? 'active-top-btn' : ''}`}
+                onClick={toggleHistoryPanel}
+              >
+                History
+              </button>
               {IS_EMBED && (
-                <>
-                  <button type="button" className="ghost" onClick={newChat}>
-                    New chat
-                  </button>
-                  <button type="button" className="ghost" onClick={openHistoryPanel}>
-                    History
-                  </button>
-                  <button type="button" className="ghost icon-btn" onClick={() => setWidgetOpen(false)}>
-                    ×
-                  </button>
-                </>
+                <button type="button" className="ghost icon-btn" onClick={() => setWidgetOpen(false)}>
+                  ×
+                </button>
               )}
               <span className={`status ${apiOnline ? '' : 'status-offline'}`}>
                 <span className="dot" />
@@ -682,20 +740,6 @@ function App() {
           </header>
 
           <div className="workspace">
-            {IS_EMBED && historyOpen ? (
-              <HistorySidebar
-                items={historyList}
-                activeId={conversationId}
-                onSelect={(id) => {
-                  openConversation(id)
-                  setHistoryOpen(false)
-                }}
-                onNewChat={newChat}
-                onDelete={deleteConversation}
-                onBack={() => setHistoryOpen(false)}
-                fullWidth
-              />
-            ) : (
             <div className="chat-panel">
               <main className="thread" aria-live="polite">
                 {showSuggestions && (
@@ -800,15 +844,19 @@ function App() {
                 Powered by Vetri IT Systems · Verified information only
               </footer>
             </div>
-            )}
 
-            {!IS_EMBED && (
+            {historyOpen && (
               <HistorySidebar
                 items={historyList}
                 activeId={conversationId}
-                onSelect={openConversation}
+                onSelect={(id) => {
+                  openConversation(id)
+                  closeHistoryPanel()
+                }}
                 onNewChat={newChat}
                 onDelete={deleteConversation}
+                onClose={closeHistoryPanel}
+                open={historyOpen}
               />
             )}
           </div>
