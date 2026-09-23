@@ -2,7 +2,7 @@ import logging
 import uuid
 
 from django.conf import settings
-from django.db.models import Max
+from django.db.models import Count, Max
 from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
 
@@ -14,6 +14,12 @@ from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import SYSTEM_PROMPT, UNVERIFIED, get_reply, get_structured_reply
 from .models import Conversation, Message
 from .rag import format_context, retrieve
+from .suggestions import get_follow_up_suggestions
+
+SOURCE_VERIFIED_KB = "verified_kb"
+SOURCE_ELIGIBILITY = "eligibility"
+SOURCE_AI = "ai"
+SOURCE_UNVERIFIED = "unverified"
 
 logger = logging.getLogger(__name__)
 HISTORY_LIMIT = 12
@@ -26,40 +32,42 @@ def build_prompt(user_message: str) -> str:
     return f"{SYSTEM_PROMPT}\n\n{context}"
 
 
-def generate_reply(user_message: str, history=None) -> str:
+def generate_reply(user_message: str, history=None) -> tuple[str, str]:
     # Fee, apply, contact, and similar FAQs should always use verified KB answers.
     if is_non_eligibility_faq(user_message):
         structured = get_structured_reply(user_message)
         if structured:
-            return structured
+            return structured, SOURCE_VERIFIED_KB
 
     eligibility = handle_eligibility(user_message, history)
     if eligibility:
-        return eligibility
+        return eligibility, SOURCE_ELIGIBILITY
 
     # Fast path: answer from verified KB before calling any LLM API.
     structured = get_structured_reply(user_message)
     if structured:
-        return structured
+        return structured, SOURCE_VERIFIED_KB
 
     kb_reply = get_reply(user_message)
     if kb_reply and kb_reply != UNVERIFIED:
-        return kb_reply
+        return kb_reply, SOURCE_VERIFIED_KB
 
     prompt = build_prompt(user_message)
     if settings.DEEPSEEK_API_KEY:
         try:
-            return ask_deepseek(user_message, prompt, history)
+            return ask_deepseek(user_message, prompt, history), SOURCE_AI
         except Exception as exc:
             logger.warning("DeepSeek unavailable: %s", exc)
 
     if settings.GEMINI_API_KEY:
         try:
-            return ask_gemini(user_message, prompt, history)
+            return ask_gemini(user_message, prompt, history), SOURCE_AI
         except Exception as exc:
             logger.warning("Gemini unavailable: %s", exc)
 
-    return kb_reply or get_reply(user_message)
+    fallback = kb_reply or get_reply(user_message)
+    source = SOURCE_UNVERIFIED if fallback == UNVERIFIED else SOURCE_VERIFIED_KB
+    return fallback, source
 
 
 def parse_client_token(value):
@@ -91,8 +99,11 @@ def resolve_conversation(conversation_id, client_token):
 
 def serialize_message(message: Message) -> dict:
     return {
+        "id": message.id,
         "role": message.role,
         "text": message.text,
+        "source": message.source or "",
+        "feedback": message.feedback or "",
         "created_at": message.created_at.isoformat(),
     }
 
@@ -139,21 +150,27 @@ def chat(request):
     )
     history.reverse()
 
-    reply = generate_reply(user_message, history)
+    reply, source = generate_reply(user_message, history)
+    suggestions = get_follow_up_suggestions(user_message, reply, source)
+
     Message.objects.create(
         conversation=conversation,
         role=Message.ROLE_USER,
         text=user_message,
     )
-    Message.objects.create(
+    bot_message = Message.objects.create(
         conversation=conversation,
         role=Message.ROLE_BOT,
         text=reply,
+        source=source,
     )
 
     return Response({
         "reply": reply,
         "conversation_id": str(conversation.id),
+        "message_id": bot_message.id,
+        "source": source,
+        "suggestions": suggestions,
     })
 
 
@@ -166,15 +183,19 @@ def conversation_list(request):
     items = []
     queryset = (
         Conversation.objects.filter(client_token=client_token)
-        .annotate(last_message_at=Max("messages__created_at"))
+        .annotate(
+            last_message_at=Max("messages__created_at"),
+            message_count=Count("messages"),
+        )
         .order_by("-last_message_at", "-created_at")[:30]
     )
     for conversation in queryset:
-        latest_user = (
+        first_user = (
             conversation.messages.filter(role=Message.ROLE_USER)
-            .order_by("-created_at")
+            .order_by("created_at")
             .first()
         )
+        title = first_user.text[:80] if first_user else "New chat"
         items.append({
             "id": str(conversation.id),
             "created_at": conversation.created_at.isoformat(),
@@ -183,12 +204,14 @@ def conversation_list(request):
                 if conversation.last_message_at
                 else conversation.created_at.isoformat()
             ),
-            "preview": (latest_user.text[:80] if latest_user else "Empty chat"),
+            "title": title,
+            "preview": title,
+            "message_count": conversation.message_count,
         })
     return Response({"conversations": items})
 
 
-@api_view(["GET"])
+@api_view(["GET", "DELETE"])
 def conversation_detail(request, conversation_id):
     client_token = get_client_token_from_request(request)
     if not client_token:
@@ -205,8 +228,42 @@ def conversation_detail(request, conversation_id):
             status=403,
         )
 
+    if request.method == "DELETE":
+        conversation.delete()
+        return Response(status=204)
+
     messages = [serialize_message(item) for item in conversation.messages.all()]
     return Response({
         "conversation_id": str(conversation.id),
         "messages": messages,
     })
+
+
+@api_view(["POST"])
+def message_feedback(request):
+    client_token = get_client_token_from_request(request)
+    if not client_token:
+        return Response({"error": "client_token is required."}, status=400)
+
+    message_id = request.data.get("message_id")
+    rating = str(request.data.get("rating", "")).lower()
+    if rating not in {"up", "down"}:
+        return Response({"error": "rating must be 'up' or 'down'."}, status=400)
+
+    try:
+        message = Message.objects.select_related("conversation").get(pk=message_id)
+    except (Message.DoesNotExist, ValueError, TypeError):
+        return Response({"error": "Message not found"}, status=404)
+
+    if message.role != Message.ROLE_BOT:
+        return Response({"error": "Only assistant messages can be rated."}, status=400)
+
+    if message.conversation.client_token != client_token:
+        return Response(
+            {"error": "You do not have access to this conversation."},
+            status=403,
+        )
+
+    message.feedback = rating
+    message.save(update_fields=["feedback"])
+    return Response({"status": "ok", "feedback": rating})

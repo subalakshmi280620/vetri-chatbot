@@ -5,14 +5,41 @@ import './App.css'
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
 const API_URL = `${API_BASE}/api/chatbot/chat/`
 const HISTORY_URL = `${API_BASE}/api/chatbot/conversations/`
+const FEEDBACK_URL = `${API_BASE}/api/chatbot/messages/feedback/`
+const HEALTH_URL = `${API_BASE}/health/`
 const IS_EMBED = new URLSearchParams(window.location.search).get('embed') === '1'
+const CLIENT_TOKEN_KEY = 'visClientToken'
+const CONVERSATION_ID_KEY = 'visConversationId'
+
+function migrateLegacySessionStorage() {
+  for (const key of [CLIENT_TOKEN_KEY, CONVERSATION_ID_KEY]) {
+    const legacyValue = window.sessionStorage.getItem(key)
+    if (legacyValue && !window.localStorage.getItem(key)) {
+      window.localStorage.setItem(key, legacyValue)
+    }
+    window.sessionStorage.removeItem(key)
+  }
+}
+
+migrateLegacySessionStorage()
+
+function getStoredItem(key) {
+  return window.localStorage.getItem(key)
+}
+
+function setStoredItem(key, value) {
+  window.localStorage.setItem(key, value)
+}
+
+function removeStoredItem(key) {
+  window.localStorage.removeItem(key)
+}
 
 function getClientToken() {
-  const key = 'visClientToken'
-  let token = window.sessionStorage.getItem(key)
+  let token = getStoredItem(CLIENT_TOKEN_KEY)
   if (!token) {
     token = crypto.randomUUID()
-    window.sessionStorage.setItem(key, token)
+    setStoredItem(CLIENT_TOKEN_KEY, token)
   }
   return token
 }
@@ -39,6 +66,7 @@ const SECTION_LABELS = [
   'Welcome to',
   'Course Overview',
   'Course Duration',
+  'General Eligibility',
   'Eligibility Requirements',
   'Eligibility Check',
   'Eligibility Assessment',
@@ -54,6 +82,13 @@ const SECTION_LABELS = [
   'Step 3:',
   'Step 4:',
 ]
+
+const SOURCE_LABELS = {
+  verified_kb: 'Verified VIS answer',
+  eligibility: 'Eligibility check',
+  ai: 'AI-assisted answer',
+  unverified: 'Limited information',
+}
 
 function ChatIcon() {
   return (
@@ -117,8 +152,28 @@ function formatMessage(text) {
   })
 }
 
-function MessageBubble({ role, text }) {
+function MessageBubble({
+  role,
+  text,
+  source,
+  feedback,
+  messageId,
+  onFeedback,
+  showActions = false,
+}) {
   const isBot = role === 'bot'
+  const [copied, setCopied] = useState(false)
+
+  async function copyText() {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      setCopied(false)
+    }
+  }
+
   return (
     <div className={`bubble-row ${role}`}>
       {isBot && (
@@ -130,8 +185,66 @@ function MessageBubble({ role, text }) {
         </span>
       )}
       <div className="bubble-wrap">
-        {isBot && <span className="bubble-label">Coach AI</span>}
+        {isBot && (
+          <div className="bubble-meta">
+            <span className="bubble-label">Coach AI</span>
+            {source && (
+              <span className={`source-badge source-${source}`}>
+                {SOURCE_LABELS[source] || 'Coach AI'}
+              </span>
+            )}
+          </div>
+        )}
         <div className="bubble">{formatMessage(text)}</div>
+        {isBot && showActions && (
+          <div className="bubble-actions">
+            <button type="button" className="bubble-action-btn" onClick={copyText}>
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+            {messageId && (
+              <>
+                <button
+                  type="button"
+                  className={`bubble-action-btn ${feedback === 'up' ? 'active' : ''}`}
+                  onClick={() => onFeedback(messageId, 'up')}
+                  aria-label="Helpful answer"
+                >
+                  👍
+                </button>
+                <button
+                  type="button"
+                  className={`bubble-action-btn ${feedback === 'down' ? 'active' : ''}`}
+                  onClick={() => onFeedback(messageId, 'down')}
+                  aria-label="Not helpful"
+                >
+                  👎
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function FollowUpChips({ items, disabled, onSelect }) {
+  if (!items?.length) return null
+  return (
+    <div className="follow-up-chips">
+      <p className="follow-up-label">Suggested next questions</p>
+      <div className="follow-up-list">
+        {items.map((item) => (
+          <button
+            key={item}
+            type="button"
+            className="follow-up-chip"
+            disabled={disabled}
+            onClick={() => onSelect(item)}
+          >
+            {item}
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -189,30 +302,73 @@ function SiteFooter() {
   )
 }
 
-function HistorySidebar({ items, activeId, onSelect, onNewChat }) {
+function formatChatDate(iso) {
+  if (!iso) return ''
+  const date = new Date(iso)
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  const isYesterday = date.toDateString() === yesterday.toDateString()
+  if (isToday) return `Today · ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  if (isYesterday) return `Yesterday · ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  return date.toLocaleString()
+}
+
+function HistorySidebar({
+  items,
+  activeId,
+  onSelect,
+  onNewChat,
+  onDelete,
+  onBack,
+  fullWidth = false,
+}) {
   return (
-    <aside className="history-sidebar">
+    <aside className={`history-sidebar ${fullWidth ? 'history-sidebar-full' : ''}`}>
       <div className="history-sidebar-head">
-        <strong>History</strong>
+        <div className="history-sidebar-title">
+          {onBack && (
+            <button type="button" className="ghost history-back-btn" onClick={onBack}>
+              ← Back
+            </button>
+          )}
+          <strong>Your chats</strong>
+        </div>
         <button type="button" className="btn-green btn-sm" onClick={onNewChat}>
-          New chat
+          + New chat
         </button>
       </div>
       {items.length === 0 ? (
-        <p className="muted history-empty">No saved conversations yet.</p>
+        <p className="muted history-empty">
+          No chats yet. Start a conversation and it will appear here on this device.
+        </p>
       ) : (
         <ul className="history-list">
           {items.map((item) => (
-            <li key={item.id}>
+            <li key={item.id} className="history-list-item">
               <button
                 type="button"
-                className={item.id === activeId ? 'active' : ''}
+                className={`history-chat-btn ${item.id === activeId ? 'active' : ''}`}
                 onClick={() => onSelect(item.id)}
               >
-                <span>{item.preview}</span>
-                <small>
-                  {new Date(item.updated_at || item.created_at).toLocaleString()}
+                <span className="history-chat-title">{item.title || item.preview}</span>
+                <small className="history-chat-meta">
+                  {formatChatDate(item.updated_at || item.created_at)}
+                  {item.message_count ? ` · ${item.message_count} messages` : ''}
                 </small>
+              </button>
+              <button
+                type="button"
+                className="history-delete-btn"
+                aria-label="Delete chat"
+                title="Delete chat"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onDelete(item.id)
+                }}
+              >
+                ×
               </button>
             </li>
           ))}
@@ -225,13 +381,16 @@ function HistorySidebar({ items, activeId, onSelect, onNewChat }) {
 function App() {
   const [messages, setMessages] = useState([WELCOME])
   const [conversationId, setConversationId] = useState(
-    () => window.sessionStorage.getItem('visConversationId') || ''
+    () => getStoredItem(CONVERSATION_ID_KEY) || ''
   )
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [historyList, setHistoryList] = useState([])
   const [widgetOpen, setWidgetOpen] = useState(!IS_EMBED)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [apiOnline, setApiOnline] = useState(true)
+  const [followUps, setFollowUps] = useState([])
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -245,38 +404,61 @@ function App() {
 
   useEffect(() => {
     if (IS_EMBED) return
-    loadHistoryList()
-    const savedId = window.sessionStorage.getItem('visConversationId')
-    if (savedId) {
-      openConversation(savedId)
-    }
+    void bootstrapChat()
   }, [])
 
   useEffect(() => {
     if (!IS_EMBED || !widgetOpen) return
-    const savedId = window.sessionStorage.getItem('visConversationId')
-    if (!savedId) return
-    openConversation(savedId)
+    void bootstrapChat()
   }, [widgetOpen])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+  }, [messages, loading, followUps])
+
+  useEffect(() => {
+    async function checkHealth() {
+      try {
+        const res = await fetch(HEALTH_URL)
+        setApiOnline(res.ok)
+      } catch {
+        setApiOnline(false)
+      }
+    }
+    checkHealth()
+    const timer = window.setInterval(checkHealth, 60000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   function rememberConversation(id) {
     setConversationId(id)
-    window.sessionStorage.setItem('visConversationId', id)
+    setStoredItem(CONVERSATION_ID_KEY, id)
+  }
+
+  async function bootstrapChat() {
+    const conversations = await loadHistoryList()
+    const savedId = getStoredItem(CONVERSATION_ID_KEY)
+    if (savedId) {
+      await openConversation(savedId)
+      return
+    }
+    if (!IS_EMBED && conversations.length > 0) {
+      await openConversation(conversations[0].id)
+    }
   }
 
   async function loadHistoryList() {
     try {
       const res = await fetch(`${HISTORY_URL}?client_token=${encodeURIComponent(getClientToken())}`)
       const data = await res.json()
-      setHistoryList(data.conversations || [])
+      const conversations = data.conversations || []
+      setHistoryList(conversations)
+      return conversations
     } catch {
       if (!IS_EMBED) {
         setError('Unable to load conversation history. Please try again.')
       }
+      return []
     }
   }
 
@@ -287,25 +469,92 @@ function App() {
       )
       const data = await res.json()
       if (!res.ok) {
+        if (res.status === 403 || res.status === 404) {
+          removeStoredItem(CONVERSATION_ID_KEY)
+          setConversationId('')
+        }
         throw new Error(data.error || 'Conversation not found')
       }
       rememberConversation(id)
       const loaded = (data.messages || []).map((item) => ({
         role: item.role,
         text: item.text,
+        source: item.source || '',
+        feedback: item.feedback || '',
+        messageId: item.id || null,
       }))
       setMessages(loaded.length ? loaded : [WELCOME])
+      setFollowUps([])
       setError('')
+      if (!IS_EMBED) {
+        await loadHistoryList()
+      }
     } catch (err) {
       setError(err.message)
     }
   }
 
   function newChat() {
-    window.sessionStorage.removeItem('visConversationId')
+    removeStoredItem(CONVERSATION_ID_KEY)
     setConversationId('')
     setMessages([WELCOME])
+    setFollowUps([])
     setError('')
+    setHistoryOpen(false)
+  }
+
+  async function submitFeedback(messageId, rating) {
+    try {
+      const res = await fetch(FEEDBACK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message_id: messageId,
+          rating,
+          client_token: getClientToken(),
+        }),
+      })
+      if (!res.ok) return
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.messageId === messageId ? { ...msg, feedback: rating } : msg
+        )
+      )
+    } catch {
+      // Feedback is optional; ignore network errors quietly.
+    }
+  }
+
+  async function deleteConversation(id) {
+    if (!window.confirm('Delete this chat from your history?')) return
+
+    try {
+      const wasActive = id === conversationId
+      const res = await fetch(
+        `${HISTORY_URL}${id}/?client_token=${encodeURIComponent(getClientToken())}`,
+        { method: 'DELETE' }
+      )
+      if (!res.ok && res.status !== 204) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Could not delete chat.')
+      }
+
+      const conversations = await loadHistoryList()
+      if (wasActive) {
+        if (conversations.length > 0) {
+          await openConversation(conversations[0].id)
+        } else {
+          newChat()
+        }
+      }
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function openHistoryPanel() {
+    await loadHistoryList()
+    setHistoryOpen(true)
   }
 
   async function sendMessage(text) {
@@ -315,6 +564,7 @@ function App() {
     setError('')
     setInput('')
     setMessages((prev) => [...prev, { role: 'user', text: message }])
+    setFollowUps([])
     setLoading(true)
 
     try {
@@ -339,8 +589,15 @@ function App() {
 
       setMessages((prev) => [
         ...prev,
-        { role: 'bot', text: data.reply || 'No reply received.' },
+        {
+          role: 'bot',
+          text: data.reply || 'No reply received.',
+          source: data.source || '',
+          messageId: data.message_id || null,
+          feedback: '',
+        },
       ])
+      setFollowUps(data.suggestions || [])
 
       if (!IS_EMBED) {
         loadHistoryList()
@@ -373,6 +630,10 @@ function App() {
   }
 
   const showSuggestions = !messages.some((msg) => msg.role === 'user')
+  const lastBotIndex = messages.reduce(
+    (index, msg, current) => (msg.role === 'bot' ? current : index),
+    -1
+  )
 
   return (
     <div className={IS_EMBED ? 'widget-root' : 'page'}>
@@ -405,15 +666,7 @@ function App() {
                   <button type="button" className="ghost" onClick={newChat}>
                     New chat
                   </button>
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() =>
-                      conversationId
-                        ? openConversation(conversationId)
-                        : setError('No saved conversation in this tab yet. Please send a message first.')
-                    }
-                  >
+                  <button type="button" className="ghost" onClick={openHistoryPanel}>
                     History
                   </button>
                   <button type="button" className="ghost icon-btn" onClick={() => setWidgetOpen(false)}>
@@ -421,14 +674,28 @@ function App() {
                   </button>
                 </>
               )}
-              <span className="status">
+              <span className={`status ${apiOnline ? '' : 'status-offline'}`}>
                 <span className="dot" />
-                Online
+                {apiOnline ? 'Online' : 'Offline'}
               </span>
             </div>
           </header>
 
           <div className="workspace">
+            {IS_EMBED && historyOpen ? (
+              <HistorySidebar
+                items={historyList}
+                activeId={conversationId}
+                onSelect={(id) => {
+                  openConversation(id)
+                  setHistoryOpen(false)
+                }}
+                onNewChat={newChat}
+                onDelete={deleteConversation}
+                onBack={() => setHistoryOpen(false)}
+                fullWidth
+              />
+            ) : (
             <div className="chat-panel">
               <main className="thread" aria-live="polite">
                 {showSuggestions && (
@@ -445,8 +712,25 @@ function App() {
                 )}
 
                 {messages.map((msg, index) => (
-                  <MessageBubble key={index} role={msg.role} text={msg.text} />
+                  <MessageBubble
+                    key={msg.messageId || `${msg.role}-${index}`}
+                    role={msg.role}
+                    text={msg.text}
+                    source={msg.source}
+                    feedback={msg.feedback}
+                    messageId={msg.messageId}
+                    onFeedback={submitFeedback}
+                    showActions={msg.role === 'bot' && index === lastBotIndex && !loading}
+                  />
                 ))}
+
+                {!loading && (
+                  <FollowUpChips
+                    items={followUps}
+                    disabled={loading}
+                    onSelect={sendMessage}
+                  />
+                )}
 
                 {loading && (
                   <div className="bubble-row bot">
@@ -516,6 +800,7 @@ function App() {
                 Powered by Vetri IT Systems · Verified information only
               </footer>
             </div>
+            )}
 
             {!IS_EMBED && (
               <HistorySidebar
@@ -523,6 +808,7 @@ function App() {
                 activeId={conversationId}
                 onSelect={openConversation}
                 onNewChat={newChat}
+                onDelete={deleteConversation}
               />
             )}
           </div>

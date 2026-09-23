@@ -27,6 +27,8 @@ class Message(models.Model):
     )
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     text = models.TextField()
+    source = models.CharField(max_length=20, blank=True, default="")
+    feedback = models.CharField(max_length=10, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

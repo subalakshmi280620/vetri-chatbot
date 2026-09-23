@@ -128,16 +128,30 @@ class ConversationPrivacyTests(ChatApiTestCase):
         self.assertEqual(len(ids_b), 1)
         self.assertNotEqual(ids_a, ids_b)
 
-    def test_conversation_list_preview_uses_latest_user_message(self):
+    def test_conversation_list_title_uses_first_user_message(self):
         first = self._post_chat("What are the eligibility requirements?", CLIENT_A)
         conversation_id = first.json()["conversation_id"]
         self._post_chat("What are the fees?", CLIENT_A, conversation_id=conversation_id)
 
         response = self.client.get(f"/api/chatbot/conversations/?client_token={CLIENT_A}")
         self.assertEqual(response.status_code, 200)
-        preview = response.json()["conversations"][0]["preview"]
-        self.assertIn("fees", preview.lower())
-        self.assertNotIn("eligibility requirements", preview.lower())
+        item = response.json()["conversations"][0]
+        self.assertIn("eligibility", item["title"].lower())
+        self.assertGreaterEqual(item["message_count"], 4)
+
+    def test_client_can_delete_own_conversation(self):
+        create_response = self._post_chat("Delete me", CLIENT_A)
+        conversation_id = create_response.json()["conversation_id"]
+
+        delete_response = self.client.delete(
+            f"/api/chatbot/conversations/{conversation_id}/?client_token={CLIENT_A}"
+        )
+        self.assertEqual(delete_response.status_code, 204)
+
+        detail_response = self.client.get(
+            f"/api/chatbot/conversations/{conversation_id}/?client_token={CLIENT_A}"
+        )
+        self.assertEqual(detail_response.status_code, 404)
 
 
 class EligibilityReplyTests(TestCase):
@@ -213,16 +227,18 @@ class EligibilityReplyTests(TestCase):
     def test_fees_after_eligibility_outcome_uses_kb_not_eligibility(self):
         history = self._eligibility_conversation_history()
         self.assertIsNone(handle_eligibility("what are the fees?", history))
-        reply = generate_reply("what are the fees?", history)
+        reply, source = generate_reply("what are the fees?", history)
         self.assertIn("Verified training-course fee amounts are not listed", reply)
         self.assertNotIn("Outcome: ELIGIBLE", reply)
+        self.assertEqual(source, "verified_kb")
 
     def test_apply_after_eligibility_outcome_uses_kb_not_eligibility(self):
         history = self._eligibility_conversation_history()
         self.assertIsNone(handle_eligibility("How do I apply for a course?", history))
-        reply = generate_reply("How do I apply for a course?", history)
+        reply, source = generate_reply("How do I apply for a course?", history)
         self.assertIn("How to Apply", reply)
         self.assertNotIn("Outcome: ELIGIBLE", reply)
+        self.assertEqual(source, "verified_kb")
 
     def test_qualification_not_parsed_from_bot_general_eligibility_text(self):
         first = handle_eligibility("What are the eligibility requirements?")
@@ -257,6 +273,33 @@ class KnowledgeReplyTests(TestCase):
             {"role": "user", "text": "Tell me about Java Fullstack"},
             {"role": "bot", "text": "Course Overview — Java Fullstack"},
         ]
-        reply = generate_reply("What is the eligibility?", history)
+        reply, source = generate_reply("What is the eligibility?", history)
         self.assertIn("General Eligibility", reply)
         self.assertNotIn("Java Fullstack", reply)
+        self.assertEqual(source, "eligibility")
+
+
+class ChatAdvancedFeatureTests(ChatApiTestCase):
+    def test_chat_returns_source_and_suggestions(self):
+        response = self._post_chat("What courses are available?")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["source"], "verified_kb")
+        self.assertIn("message_id", data)
+        self.assertGreaterEqual(len(data["suggestions"]), 1)
+
+    def test_client_can_rate_bot_message(self):
+        chat_response = self._post_chat("What courses are available?", CLIENT_A)
+        message_id = chat_response.json()["message_id"]
+
+        feedback_response = self.client.post(
+            "/api/chatbot/messages/feedback/",
+            data=json.dumps({
+                "message_id": message_id,
+                "rating": "up",
+                "client_token": CLIENT_A,
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(feedback_response.status_code, 200)
+        self.assertEqual(feedback_response.json()["feedback"], "up")
