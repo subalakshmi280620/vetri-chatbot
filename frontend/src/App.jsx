@@ -210,7 +210,9 @@ function HistorySidebar({ items, activeId, onSelect, onNewChat }) {
                 onClick={() => onSelect(item.id)}
               >
                 <span>{item.preview}</span>
-                <small>{new Date(item.created_at).toLocaleString()}</small>
+                <small>
+                  {new Date(item.updated_at || item.created_at).toLocaleString()}
+                </small>
               </button>
             </li>
           ))}
@@ -244,6 +246,10 @@ function App() {
   useEffect(() => {
     if (IS_EMBED) return
     loadHistoryList()
+    const savedId = window.sessionStorage.getItem('visConversationId')
+    if (savedId) {
+      openConversation(savedId)
+    }
   }, [])
 
   useEffect(() => {

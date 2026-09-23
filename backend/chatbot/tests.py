@@ -128,6 +128,17 @@ class ConversationPrivacyTests(ChatApiTestCase):
         self.assertEqual(len(ids_b), 1)
         self.assertNotEqual(ids_a, ids_b)
 
+    def test_conversation_list_preview_uses_latest_user_message(self):
+        first = self._post_chat("What are the eligibility requirements?", CLIENT_A)
+        conversation_id = first.json()["conversation_id"]
+        self._post_chat("What are the fees?", CLIENT_A, conversation_id=conversation_id)
+
+        response = self.client.get(f"/api/chatbot/conversations/?client_token={CLIENT_A}")
+        self.assertEqual(response.status_code, 200)
+        preview = response.json()["conversations"][0]["preview"]
+        self.assertIn("fees", preview.lower())
+        self.assertNotIn("eligibility requirements", preview.lower())
+
 
 class EligibilityReplyTests(TestCase):
     JAVA_HISTORY = [

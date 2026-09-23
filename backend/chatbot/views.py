@@ -2,6 +2,7 @@ import logging
 import uuid
 
 from django.conf import settings
+from django.db.models import Max
 from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
 
@@ -163,13 +164,26 @@ def conversation_list(request):
         return Response({"error": "client_token is required."}, status=400)
 
     items = []
-    queryset = Conversation.objects.filter(client_token=client_token).order_by("-created_at")[:30]
+    queryset = (
+        Conversation.objects.filter(client_token=client_token)
+        .annotate(last_message_at=Max("messages__created_at"))
+        .order_by("-last_message_at", "-created_at")[:30]
+    )
     for conversation in queryset:
-        first = conversation.messages.filter(role=Message.ROLE_USER).first()
+        latest_user = (
+            conversation.messages.filter(role=Message.ROLE_USER)
+            .order_by("-created_at")
+            .first()
+        )
         items.append({
             "id": str(conversation.id),
             "created_at": conversation.created_at.isoformat(),
-            "preview": (first.text[:80] if first else "Empty chat"),
+            "updated_at": (
+                conversation.last_message_at.isoformat()
+                if conversation.last_message_at
+                else conversation.created_at.isoformat()
+            ),
+            "preview": (latest_user.text[:80] if latest_user else "Empty chat"),
         })
     return Response({"conversations": items})
 
