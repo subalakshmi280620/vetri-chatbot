@@ -90,6 +90,24 @@ const SOURCE_LABELS = {
   unverified: 'Limited information',
 }
 
+function VisLogo({ size = 36, className = '' }) {
+  return (
+    <span
+      className={`vis-logo ${className}`.trim()}
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 40 40" width={size} height={size} fill="none">
+        <rect width="40" height="40" rx="10" fill="currentColor" />
+        <path
+          d="M11 27V13h3.2l4.1 8.2 4.1-8.2H25.5v14h-2.8v-8.4l-3.6 7.2h-1.8l-3.6-7.2V27H11Z"
+          fill="var(--vis-logo-mark, #0c1e3d)"
+        />
+      </svg>
+    </span>
+  )
+}
+
 function ChatIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -255,7 +273,7 @@ function SiteNav() {
     <nav className="site-nav" aria-label="Vetri IT Systems">
       <div className="site-nav-inner">
         <div className="site-brand">
-          <span className="site-logo">V</span>
+          <VisLogo size={36} className="site-logo-mark" />
           <div>
             <span className="site-name">Vetri IT Systems</span>
             <span className="site-sub">Private Limited</span>
@@ -695,6 +713,22 @@ function App() {
     <div className={IS_EMBED ? 'widget-root' : 'page'}>
       {!IS_EMBED && <SiteNav />}
 
+      {!IS_EMBED && (
+        <section className="page-hero" aria-label="Coach AI introduction">
+          <div className="page-hero-inner">
+            <VisLogo size={48} className="hero-logo-mark" />
+            <div>
+              <h1 className="page-hero-title">
+                Coach AI <span>Assistant</span>
+              </h1>
+              <p className="page-hero-text">
+                Your virtual guide for VIS courses — duration, eligibility, how to apply, and contact details.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {IS_EMBED && !widgetOpen && (
         <button
           type="button"
@@ -702,7 +736,9 @@ function App() {
           onClick={() => setWidgetOpen(true)}
           aria-label="Open Coach AI"
         >
+          <span className="launcher-pulse" aria-hidden="true" />
           <ChatIcon />
+          <span className="launcher-label">Coach AI</span>
         </button>
       )}
 
@@ -710,7 +746,7 @@ function App() {
         <div className={`app ${IS_EMBED ? 'app-embed' : 'app-standalone'}`}>
           <header className="topbar">
             <div className="brand">
-              <span className="logo" aria-hidden="true">AI</span>
+              <VisLogo size={42} className="chat-logo-mark" />
               <div>
                 <h1>Coach AI</h1>
                 <p>Vetri IT Systems · Course Assistant</p>

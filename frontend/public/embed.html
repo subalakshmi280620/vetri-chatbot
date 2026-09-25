@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VIS Website — Coach AI Preview</title>
+    <title>VIS Website — Coach AI Embed Preview</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -39,9 +39,9 @@
         border-radius: 999px;
       }
       main {
-        max-width: 720px;
+        max-width: 760px;
         margin: 0 auto;
-        padding: 48px 24px;
+        padding: 48px 24px 120px;
       }
       main h1 {
         color: var(--vis-navy);
@@ -49,6 +49,30 @@
       }
       main h1 span { color: #22c55e; }
       main p { color: #6b7280; line-height: 1.65; }
+      .embed-box {
+        margin-top: 28px;
+        padding: 18px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #fff;
+      }
+      .embed-box h2 {
+        margin: 0 0 10px;
+        font-size: 15px;
+        color: var(--vis-navy);
+      }
+      pre {
+        margin: 0;
+        padding: 14px;
+        border-radius: 6px;
+        background: #0c1e3d;
+        color: #e2e8f0;
+        font-size: 12px;
+        line-height: 1.55;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
       iframe {
         position: fixed;
         right: 0;
@@ -59,6 +83,12 @@
         background: transparent;
         z-index: 99999;
       }
+      @media (max-width: 480px) {
+        iframe {
+          width: 100%;
+          height: min(600px, 88svh);
+        }
+      }
     </style>
   </head>
   <body>
@@ -67,11 +97,20 @@
       <span class="site-cta">Coach AI</span>
     </nav>
     <main>
-      <h1>Coach AI <span>Widget</span></h1>
+      <h1>Coach AI <span>Embed Kit</span></h1>
       <p>
-        This page simulates the VIS website with the Coach AI chatbot embedded
-        in the bottom-right corner — matching the Figma design.
+        This page previews how Coach AI appears on the VIS website — green launcher
+        in the bottom-right corner, matching the Figma design.
       </p>
+      <div class="embed-box">
+        <h2>Copy this snippet into vetriitsystems.com (before &lt;/body&gt;)</h2>
+        <pre>&lt;iframe
+  src="https://vetri-chatbot-ui.onrender.com/?embed=1"
+  title="Coach AI — Vetri IT Systems"
+  style="position:fixed;right:0;bottom:0;width:400px;height:600px;border:0;background:transparent;z-index:99999;"
+  loading="lazy"
+&gt;&lt;/iframe&gt;</pre>
+      </div>
     </main>
     <iframe src="/?embed=1" title="Coach AI"></iframe>
   </body>
