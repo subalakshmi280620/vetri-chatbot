@@ -1,8 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 
+const PRODUCTION_API_URL = 'https://vetri-chatbot-1.onrender.com'
+
+function resolveApiBase() {
+  const fromEnv = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+  if (fromEnv) return fromEnv
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host.includes('onrender.com') || host.includes('vetriitsystems.com')) {
+      return PRODUCTION_API_URL
+    }
+  }
+
+  return 'http://127.0.0.1:8000'
+}
+
 // Set via VITE_API_URL (.env locally, Render env vars at build time for production).
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
+const API_BASE = resolveApiBase()
 const API_URL = `${API_BASE}/api/chatbot/chat/`
 const HISTORY_URL = `${API_BASE}/api/chatbot/conversations/`
 const FEEDBACK_URL = `${API_BASE}/api/chatbot/messages/feedback/`
@@ -59,7 +75,13 @@ const SUGGESTIONS = [
   'What services does VIS provide?',
   'Tell me about Vetri Bills',
   'What is your mission and vision?',
-  'How can I get a quotation?',
+  'How can I contact the VIS team?',
+]
+
+const QUICK_ACTIONS = [
+  { label: 'Get Quotation', message: 'How can I get a quotation?' },
+  { label: 'Book Consultation', message: 'I want to book a consultation' },
+  { label: 'Request Demo', message: 'I want to request a product demo' },
 ]
 
 const SECTION_LABELS = [
@@ -273,6 +295,27 @@ function FollowUpChips({ items, disabled, onSelect }) {
   )
 }
 
+function QuickActionChips({ items, disabled, onSelect }) {
+  return (
+    <div className="quick-actions">
+      <p className="quick-actions-label">Quick actions</p>
+      <div className="quick-actions-list">
+        {items.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            className="quick-action-chip"
+            disabled={disabled}
+            onClick={() => onSelect(item.message)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function SiteNav() {
   return (
     <nav className="site-nav" aria-label="Vetri IT Systems">
@@ -349,6 +392,22 @@ function HistorySidebar({
   onClose,
   open = true,
 }) {
+  const [query, setQuery] = useState('')
+  const normalizedQuery = query.trim().toLowerCase()
+  const filteredItems = normalizedQuery
+    ? items.filter((item) => {
+        const haystack = [
+          item.title,
+          item.preview,
+          item.first_question,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(normalizedQuery)
+      })
+    : items
+
   return (
     <>
       <button
@@ -387,13 +446,28 @@ function HistorySidebar({
           </button>
         </div>
 
+        {items.length > 0 && (
+          <div className="history-search-wrap">
+            <input
+              type="search"
+              className="history-search-input"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search chats…"
+              aria-label="Search chat history"
+            />
+          </div>
+        )}
+
         {items.length === 0 ? (
           <p className="muted history-empty">
             No chats yet. Ask a question and your conversation will be saved here automatically.
           </p>
+        ) : filteredItems.length === 0 ? (
+          <p className="muted history-empty">No chats match your search.</p>
         ) : (
           <ul className="history-list">
-            {items.map((item) => (
+            {filteredItems.map((item) => (
               <li key={item.id} className="history-list-item">
                 <button
                   type="button"
@@ -453,9 +527,10 @@ function App() {
   const [historyList, setHistoryList] = useState([])
   const [widgetOpen, setWidgetOpen] = useState(!IS_EMBED)
   const [historyOpen, setHistoryOpen] = useState(false)
-  const [apiOnline, setApiOnline] = useState(true)
+  const [apiStatus, setApiStatus] = useState('checking')
   const [followUps, setFollowUps] = useState([])
   const bottomRef = useRef(null)
+  const abortRef = useRef(null)
 
   useEffect(() => {
     document.documentElement.classList.toggle('embed', IS_EMBED)
@@ -480,19 +555,39 @@ function App() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading, followUps])
 
-  useEffect(() => {
-    async function checkHealth() {
+  const checkHealth = useCallback(async ({ retries = 4, delayMs = 4000 } = {}) => {
+    setApiStatus('checking')
+    for (let attempt = 0; attempt < retries; attempt += 1) {
       try {
-        const res = await fetch(HEALTH_URL)
-        setApiOnline(res.ok)
+        const controller = new AbortController()
+        const timeoutId = window.setTimeout(() => controller.abort(), 90000)
+        const res = await fetch(HEALTH_URL, {
+          signal: controller.signal,
+          cache: 'no-store',
+        })
+        window.clearTimeout(timeoutId)
+        if (res.ok) {
+          setApiStatus('online')
+          return true
+        }
       } catch {
-        setApiOnline(false)
+        // Render free tier may be waking up — retry.
+      }
+      if (attempt < retries - 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs))
       }
     }
-    checkHealth()
-    const timer = window.setInterval(checkHealth, 60000)
-    return () => window.clearInterval(timer)
+    setApiStatus('offline')
+    return false
   }, [])
+
+  useEffect(() => {
+    void checkHealth()
+    const timer = window.setInterval(() => {
+      void checkHealth({ retries: 1, delayMs: 0 })
+    }, 60000)
+    return () => window.clearInterval(timer)
+  }, [checkHealth])
 
   function rememberConversation(id) {
     setConversationId(id)
@@ -640,6 +735,24 @@ function App() {
     void openHistoryPanel()
   }
 
+  function stopGenerating() {
+    abortRef.current?.abort()
+  }
+
+  function exportChat() {
+    if (messages.length === 0) return
+    const transcript = messages
+      .map((msg) => `${msg.role === 'user' ? 'You' : 'Coach AI'}:\n${msg.text}`)
+      .join('\n\n')
+    const blob = new Blob([transcript], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `coach-ai-chat-${new Date().toISOString().slice(0, 10)}.txt`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function sendMessage(text) {
     const message = (text ?? input).trim()
     if (!message || loading) return
@@ -650,6 +763,9 @@ function App() {
     setFollowUps([])
     setLoading(true)
 
+    const controller = new AbortController()
+    abortRef.current = controller
+
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -659,6 +775,7 @@ function App() {
           client_token: getClientToken(),
           conversation_id: conversationId || undefined,
         }),
+        signal: controller.signal,
       })
       const data = await res.json()
 
@@ -681,14 +798,24 @@ function App() {
         },
       ])
       setFollowUps(data.suggestions || [])
+      setApiStatus('online')
 
       loadHistoryList()
     } catch (err) {
+      if (err.name === 'AbortError') {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'bot', text: 'Response stopped.' },
+        ])
+        return
+      }
+
+      setApiStatus('offline')
       const fallback =
         err instanceof TypeError
           ? API_BASE.includes('127.0.0.1') || API_BASE.includes('localhost')
             ? 'The assistant is temporarily unavailable. Please ensure the backend service is running on port 8000.'
-            : `The assistant is temporarily unavailable. Please verify the API connection (${API_BASE}).`
+            : 'The assistant is waking up or temporarily unavailable. Please wait a moment and tap Retry.'
           : err.message
       setError(fallback)
       setMessages((prev) => [
@@ -697,10 +824,11 @@ function App() {
           role: 'bot',
           text:
             'We apologise for the inconvenience. I am unable to respond at the moment. ' +
-            'Please try again in a few moments.',
+            'Please try again in a few moments, or contact support@vetri-it.com.',
         },
       ])
     } finally {
+      abortRef.current = null
       setLoading(false)
     }
   }
@@ -756,10 +884,13 @@ function App() {
               <VisLogo size={42} className="chat-logo-mark" />
               <div>
                 <h1>Coach AI</h1>
-                <p>Vetri IT Systems · Course Assistant</p>
+                <p>Vetri IT Systems · VIS Assistant</p>
               </div>
             </div>
             <div className="top-actions">
+              <button type="button" className="ghost" onClick={exportChat} title="Export chat">
+                Export
+              </button>
               <button type="button" className="ghost" onClick={newChat}>
                 New chat
               </button>
@@ -775,15 +906,35 @@ function App() {
                   ×
                 </button>
               )}
-              <span className={`status ${apiOnline ? '' : 'status-offline'}`}>
+              <button
+                type="button"
+                className={`status status-btn ${
+                  apiStatus === 'offline'
+                    ? 'status-offline'
+                    : apiStatus === 'checking'
+                      ? 'status-checking'
+                      : ''
+                }`}
+                onClick={() => void checkHealth()}
+                title="Check connection"
+              >
                 <span className="dot" />
-                {apiOnline ? 'Online' : 'Offline'}
-              </span>
+                {apiStatus === 'checking' ? 'Connecting…' : apiStatus === 'online' ? 'Online' : 'Offline'}
+              </button>
             </div>
           </header>
 
           <div className="workspace">
             <div className="chat-panel">
+              {apiStatus === 'offline' && (
+                <div className="offline-banner" role="status">
+                  <span>Server is waking up or unreachable. Free hosting may take up to a minute on first visit.</span>
+                  <button type="button" className="offline-retry-btn" onClick={() => void checkHealth()}>
+                    Retry
+                  </button>
+                </div>
+              )}
+
               <main className="thread" aria-live="polite">
                 {showSuggestions && (
                   <div className="welcome-card">
@@ -792,9 +943,14 @@ function App() {
                       How can we help you <span className="highlight">today?</span>
                     </h2>
                     <p>
-                      Ask about courses, products, services, eligibility, fees, or how to apply.
+                      Ask about products, services, quotations, training courses, or contact details.
                       I share only verified VIS information.
                     </p>
+                    <QuickActionChips
+                      items={QUICK_ACTIONS}
+                      disabled={loading || apiStatus === 'offline'}
+                      onSelect={sendMessage}
+                    />
                   </div>
                 )}
 
@@ -873,14 +1029,25 @@ function App() {
                   disabled={loading}
                   aria-label="Chat message"
                 />
-                <button
-                  type="submit"
-                  className="btn-green send-btn"
-                  disabled={loading || !input.trim()}
-                  aria-label="Send message"
-                >
-                  <SendIcon />
-                </button>
+                {loading ? (
+                  <button
+                    type="button"
+                    className="btn-green send-btn stop-btn"
+                    onClick={stopGenerating}
+                    aria-label="Stop response"
+                  >
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    className="btn-green send-btn"
+                    disabled={!input.trim()}
+                    aria-label="Send message"
+                  >
+                    <SendIcon />
+                  </button>
+                )}
               </form>
 
               <footer className="chat-footer">

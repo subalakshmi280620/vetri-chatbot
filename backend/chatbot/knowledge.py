@@ -571,7 +571,8 @@ INTENTS = (
     ("greeting", ("hi", "hello", "hey", "good morning", "good evening")),
     ("quotation", (
         "quotation", "quote", "get quotation", "request a quotation", "pricing",
-        "how much", "cost", "price",
+        "how much", "cost", "price", "book a consultation", "book consultation",
+        "request a product demo", "request demo", "product demo", "contact sales",
     )),
     ("portfolio", ("portfolio", "portfolios", "case study", "projects delivered", "our work")),
     ("why_vis", ("why vis", "why vetri", "why choose", "what sets you apart")),
