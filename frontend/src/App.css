@@ -36,23 +36,15 @@
 }
 
 .vis-logo {
-  display: inline-flex;
+  display: inline-grid;
+  place-items: center;
   flex-shrink: 0;
-}
-
-.site-logo-mark {
-  color: var(--vis-green);
-  --vis-logo-mark: var(--vis-navy);
-}
-
-.chat-logo-mark {
-  color: var(--vis-green);
-  --vis-logo-mark: var(--vis-navy);
-}
-
-.hero-logo-mark {
-  color: var(--vis-green);
-  --vis-logo-mark: var(--vis-navy);
+  background: var(--vis-green);
+  color: var(--vis-navy);
+  font-weight: 800;
+  border-radius: 10px;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 .site-name {

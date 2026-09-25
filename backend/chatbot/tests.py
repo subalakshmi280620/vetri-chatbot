@@ -6,7 +6,7 @@ from django.core.cache import cache
 from django.test import TestCase
 
 from .eligibility import handle_eligibility
-from .knowledge import COURSES, get_structured_reply
+from .knowledge import COURSES, PRODUCTS, SERVICES, get_structured_reply
 from .throttles import ChatRateThrottle
 from .views import generate_reply
 
@@ -241,7 +241,7 @@ class EligibilityReplyTests(TestCase):
         history = self._eligibility_conversation_history()
         self.assertIsNone(handle_eligibility("what are the fees?", history))
         reply, source = generate_reply("what are the fees?", history)
-        self.assertIn("Verified training-course fee amounts are not listed", reply)
+        self.assertIn("Pricing & Quotation", reply)
         self.assertNotIn("Outcome: ELIGIBLE", reply)
         self.assertEqual(source, "verified_kb")
 
@@ -272,14 +272,11 @@ class KnowledgeReplyTests(TestCase):
         for course in COURSES:
             self.assertIn(course, reply)
 
-    def test_fee_reply_does_not_claim_training_is_free(self):
+    def test_fee_reply_points_to_quotation_contact(self):
         reply = get_structured_reply("What are the fees?")
-        self.assertIn(
-            "Verified training-course fee amounts are not listed",
-            reply,
-        )
+        self.assertIn("Pricing & Quotation", reply)
+        self.assertIn("support@vetri-it.com", reply)
         self.assertNotIn("register for free", reply.lower())
-        self.assertNotIn("training course is free", reply.lower())
 
     def test_generate_reply_general_eligibility_via_api_path(self):
         history = [
@@ -290,6 +287,42 @@ class KnowledgeReplyTests(TestCase):
         self.assertIn("General Eligibility", reply)
         self.assertNotIn("Java Fullstack", reply)
         self.assertEqual(source, "eligibility")
+
+    def test_products_reply_lists_all_vis_products(self):
+        reply = get_structured_reply("What products does VIS offer?")
+        for product in PRODUCTS:
+            self.assertIn(product, reply)
+
+    def test_services_reply_lists_all_vis_services(self):
+        reply = get_structured_reply("What services does VIS provide?")
+        for service in SERVICES:
+            self.assertIn(service, reply)
+
+    def test_portfolio_reply_points_to_contact(self):
+        reply = get_structured_reply("Show me your portfolio")
+        self.assertIn("Portfolio", reply)
+        self.assertIn("support@vetri-it.com", reply)
+
+    def test_vetri_bills_product_detail(self):
+        reply = get_structured_reply("Tell me about Vetri Bills")
+        self.assertIn("Vetri Bills", reply)
+        self.assertIn("GST", reply)
+
+    def test_mission_vision_reply(self):
+        reply = get_structured_reply("What is your mission and vision?")
+        self.assertIn("Mission & Vision", reply)
+        self.assertIn("AI-Powered Business For Everyone", reply)
+
+    def test_contact_has_new_details(self):
+        reply = get_structured_reply("How can I contact you?")
+        self.assertIn("84381 54827", reply)
+        self.assertIn("support@vetri-it.com", reply)
+        self.assertIn("Surandai", reply)
+
+    def test_digital_marketing_course_still_returns_course_when_in_course_context(self):
+        reply = get_structured_reply("Tell me about Digital Marketing course")
+        self.assertIn("Course Overview", reply)
+        self.assertIn("Digital Marketing", reply)
 
 
 class ChatAdvancedFeatureTests(ChatApiTestCase):

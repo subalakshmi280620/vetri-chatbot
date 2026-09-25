@@ -57,6 +57,10 @@ NON_ELIGIBILITY_FAQ_PHRASES = (
     "duration", "how long", "how many months", "how many days",
     "which courses", "what courses", "courses available", "courses are available",
     "mock interview", "login", "sign up", "get started",
+    "product", "products", "service", "services", "portfolio", "lms", "crm",
+    "vetri bills", "web development", "printing", "hardware", "networking",
+    "backup", "maintenance", "amc", "quotation", "quote", "about vis",
+    "about company", "about vetri",
 )
 
 

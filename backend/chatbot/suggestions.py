@@ -1,12 +1,42 @@
 """Contextual follow-up question suggestions for Coach AI."""
 
 DEFAULT_SUGGESTIONS = (
-    "What courses are available?",
-    "What are the eligibility requirements?",
-    "How do I apply for a course?",
+    "What products does VIS offer?",
+    "What services does VIS provide?",
+    "How can I get a quotation?",
 )
 
 TOPIC_SUGGESTIONS = {
+    "products": (
+        "Tell me about Vetri Bills",
+        "What services does VIS provide?",
+        "How can I get a quotation?",
+    ),
+    "services": (
+        "What products does VIS offer?",
+        "Tell me about AI Solutions",
+        "How can I contact the VIS team?",
+    ),
+    "portfolio": (
+        "What products does VIS offer?",
+        "What is your mission and vision?",
+        "How can I get a quotation?",
+    ),
+    "about": (
+        "What products does VIS offer?",
+        "What services does VIS provide?",
+        "Why should I choose VIS?",
+    ),
+    "quotation": (
+        "What products does VIS offer?",
+        "Book a consultation",
+        "How can I contact the VIS team?",
+    ),
+    "contact": (
+        "What products does VIS offer?",
+        "What services does VIS provide?",
+        "How can I get a quotation?",
+    ),
     "courses": (
         "What are the eligibility requirements?",
         "How do I apply for a course?",
@@ -14,7 +44,7 @@ TOPIC_SUGGESTIONS = {
     ),
     "eligibility": (
         "How do I apply for a course?",
-        "What are the fees?",
+        "What courses are available?",
         "How can I contact the VIS team?",
     ),
     "apply": (
@@ -23,14 +53,9 @@ TOPIC_SUGGESTIONS = {
         "How can I contact the VIS team?",
     ),
     "fees": (
-        "How do I apply for a course?",
+        "How can I get a quotation?",
         "What courses are available?",
         "How can I contact the VIS team?",
-    ),
-    "contact": (
-        "What courses are available?",
-        "How do I apply for a course?",
-        "What are the eligibility requirements?",
     ),
     "duration": (
         "What courses are available?",
@@ -42,6 +67,16 @@ TOPIC_SUGGESTIONS = {
         "How do I apply for this course?",
         "What is the course duration?",
     ),
+    "ai_solutions": (
+        "What products does VIS offer?",
+        "What services does VIS provide?",
+        "How can I get a quotation?",
+    ),
+    "vision": (
+        "Why should I choose VIS?",
+        "What products does VIS offer?",
+        "How can I contact the VIS team?",
+    ),
 }
 
 
@@ -51,15 +86,31 @@ def _detect_topic(user_message: str, reply: str) -> str:
         return "eligibility"
     if "how to apply" in combined or "step 1:" in combined:
         return "apply"
-    if "course fee" in combined or "fee amounts" in combined:
+    if "pricing & quotation" in combined or "get quotation" in combined:
+        return "quotation"
+    if "course fee" in combined or "indicative pricing" in combined:
         return "fees"
-    if "contact" in combined and "+91" in combined:
+    if "mission & vision" in combined or "our vision" in combined:
+        return "vision"
+    if "ai solutions" in combined or "data → context" in combined:
+        return "ai_solutions"
+    if "contact" in combined and ("support@vetri-it.com" in combined or "+91" in combined):
         return "contact"
     if "course duration" in combined or "180 days" in combined:
         return "duration"
-    if "available courses" in combined or "course overview" in combined:
-        return "courses" if "available courses" in combined else "course_detail"
-    if any(word in combined for word in ("course", "fullstack", "data science", "ui/ux")):
+    if "our products" in combined or "vetri bills" in combined:
+        return "products"
+    if "our services" in combined or "end-to-end capability" in combined:
+        return "services"
+    if "portfolio" in combined:
+        return "portfolio"
+    if any(phrase in combined for phrase in ("about vetri", "about vis", "about us")):
+        return "about"
+    if "available courses" in combined or "training courses" in combined:
+        return "courses"
+    if "course overview" in combined:
+        return "course_detail"
+    if any(word in combined for word in ("course", "fullstack", "data science")):
         return "course_detail"
     return ""
 

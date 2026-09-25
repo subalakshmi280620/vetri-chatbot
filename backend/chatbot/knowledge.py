@@ -1,9 +1,47 @@
-"""Answers grounded in verified VIS / Vetri IT Systems course information."""
+"""Answers grounded in the new VIS website Figma design — not the old live site."""
 
 import re
 
-SITE_URL = "https://vetriitsystems.com/"
 ORG_NAME = "Vetri IT Systems (VIS)"
+ORG_LEGAL = "Vetri IT Systems Pvt Ltd"
+TAGLINE = (
+    "Enterprise Software, Applied AI And Digital Transformation "
+    "For Businesses That Intend To Lead Their Category."
+)
+
+CONTACT_PHONE = "+91 84381 54827"
+CONTACT_EMAIL = "support@vetri-it.com"
+CONTACT_ADDRESS = "Vetri Academy, Aerial Complex, Behind Bus Stand, Surandai"
+
+CONTACT_LINE = (
+    f"Please contact our team: {CONTACT_PHONE} or {CONTACT_EMAIL}"
+)
+
+PRODUCTS = [
+    "Vetri Bills",
+    "Vetri Files",
+    "Vetri Project Management",
+    "Coach AI",
+    "Vetri AI Assistant",
+    "Vetri CRM",
+    "Vetri Training Management System",
+]
+
+SERVICES = [
+    "Website Development",
+    "Mobile App Development",
+    "UI/UX Design",
+    "AI Solutions",
+    "Generative AI",
+    "Simplify Operations",
+    "CRM Development",
+    "Google Ads",
+    "ERP Development",
+    "Digital Marketing",
+    "SEO",
+    "Meta Ads",
+    "Cloud Services",
+]
 
 COURSES = [
     "Python Fullstack",
@@ -18,11 +56,6 @@ COURSES = [
     "Digital Marketing",
 ]
 
-CONTACT_LINE = (
-    "Please contact the VIS team for confirmation: "
-    f"+91-8438164827 / +91-8438781327"
-)
-
 COURSE_DURATION = "180 days"
 ELIGIBILITY_REQUIREMENT = "Any degree completion"
 
@@ -34,10 +67,132 @@ DEGREE_INDICATORS = (
     "ba ", "b.a", "ma ", "m.a", "phd", "doctorate",
 )
 
+PRODUCT_DETAILS = {
+    "vetri_bills": (
+        "Vetri Bills — GST Billing & Invoicing\n\n"
+        "Fast, compliant billing for retail and distribution — from customer entry "
+        "to GST invoice download in seconds.\n\n"
+        "Features: GST Ready, POS, E-Invoice, Reports.\n\n"
+        f"For a demo or quotation, {CONTACT_LINE.lower()}."
+    ),
+    "vetri_files": (
+        "Vetri Files — Document Management\n\n"
+        "Secure enterprise document vault with OCR indexing, granular permissions "
+        "and a complete audit trail.\n\n"
+        "Features: OCR Search, Versioning, Audit Trail, Cloud.\n\n"
+        f"For a demo or quotation, {CONTACT_LINE.lower()}."
+    ),
+    "vetri_pm": (
+        "Vetri Project Management — Project & Delivery\n\n"
+        "Plan sprints, track effort and forecast delivery with resource heatmaps "
+        "and real-time project health.\n\n"
+        "Features: Sprints, Timesheets, Gantt, Analytics.\n\n"
+        f"For a demo or quotation, {CONTACT_LINE.lower()}."
+    ),
+    "coach_ai": (
+        "Coach AI — AI Learning Platform\n\n"
+        "Adaptive AI coaching that assesses skill gaps and builds personalised "
+        "learning journeys for every employee.\n\n"
+        "Coach AI also supports VIS training programmes. Ask about available "
+        "courses, eligibility, duration, or how to apply.\n\n"
+        f"For a product demo, {CONTACT_LINE.lower()}."
+    ),
+    "vetri_ai_assistant": (
+        "Vetri AI Assistant — Generative AI\n\n"
+        "A private AI assistant trained on your company knowledge that answers, "
+        "drafts and triggers real actions.\n\n"
+        f"For a demo or deployment discussion, {CONTACT_LINE.lower()}."
+    ),
+    "vetri_crm": (
+        "Vetri CRM — Sales & Customer\n\n"
+        "Capture every lead, automate follow-ups and close faster with AI-scored "
+        "pipelines and instant quotations.\n\n"
+        f"For a demo or quotation, {CONTACT_LINE.lower()}."
+    ),
+    "vetri_tms": (
+        "Vetri Training Management System\n\n"
+        "Enterprise training management for institutes and teams.\n\n"
+        f"For product details or a demo, {CONTACT_LINE.lower()}."
+    ),
+}
+
+PRODUCT_ALIASES = (
+    ("vetri_bills", ("vetri bills", "vetribills", "gst billing", "invoicing", "billing software")),
+    ("vetri_files", ("vetri files", "vetrifiles", "document management", "document vault")),
+    ("vetri_pm", (
+        "vetri project management", "project management", "project & delivery",
+        "project and delivery",
+    )),
+    ("coach_ai", ("coach ai", "coachai", "ai learning platform", "ai coaching")),
+    ("vetri_ai_assistant", ("vetri ai assistant", "ai assistant", "generative ai assistant")),
+    ("vetri_crm", ("vetri crm", "vetricrm", "crm software", "sales crm")),
+    ("vetri_tms", (
+        "vetri training management", "training management system",
+        "vetri lms", "learning management",
+    )),
+)
+
+SERVICE_DETAILS = {
+    "website development": (
+        "Website Development\n\n"
+        "High-performance static and dynamic websites engineered for conversion."
+    ),
+    "mobile app development": (
+        "Mobile App Development\n\n"
+        "Native-grade Android & iOS apps with offline-first architecture."
+    ),
+    "ui/ux design": (
+        "UI/UX Design\n\n"
+        "Research-led interfaces, design systems and usability testing."
+    ),
+    "ai solutions": (
+        "AI Solutions\n\n"
+        "Custom models, assistants and agents mapped to real business KPIs.\n\n"
+        "VIS AI process: DATA → CONTEXT → MODEL → ACTION → IMPACT."
+    ),
+    "generative ai": (
+        "Generative AI\n\n"
+        "Content, code and document intelligence built on secure LLM pipelines."
+    ),
+    "simplify operations": (
+        "Simplify Operations\n\n"
+        "Replace scattered tools and manual processes with one connected platform "
+        "that handles billing, HR, projects and customer management."
+    ),
+    "crm development": (
+        "CRM Development\n\n"
+        "Pipeline, quotation and follow-up automation tailored to your sales motion."
+    ),
+    "google ads": (
+        "Google Ads\n\n"
+        "Search and performance-max campaigns tuned for cost per qualified lead."
+    ),
+    "erp development": (
+        "ERP Development\n\n"
+        "Inventory, production and finance modules that fit how you operate."
+    ),
+    "digital marketing": (
+        "Digital Marketing\n\n"
+        "Full-funnel campaigns with attribution you can actually trust."
+    ),
+    "seo": (
+        "SEO\n\n"
+        "Technical SEO, content strategy and authority building that compounds."
+    ),
+    "meta ads": (
+        "Meta Ads\n\n"
+        "Creative testing and re-targeting engines across Facebook & Instagram."
+    ),
+    "cloud services": (
+        "Cloud Services\n\n"
+        "Cloud architecture, deployment and managed support for modern businesses."
+    ),
+}
+
 UNVERIFIED = (
     "Thank you for your question.\n\n"
-    "I could not find verified information about that in the available VIS course "
-    f"information.\n\n{CONTACT_LINE}."
+    "I could not find that information in the available VIS website content.\n\n"
+    f"{CONTACT_LINE}."
 )
 
 
@@ -51,8 +206,7 @@ def duration_reply(course_name: str = "") -> str:
     return (
         f"Course Duration{topic}\n\n"
         f"The verified course duration is {COURSE_DURATION}.\n\n"
-        "This duration applies to all listed VIS training programmes unless stated "
-        f"otherwise.\n\n{CONTACT_LINE}."
+        f"{CONTACT_LINE}."
     )
 
 
@@ -82,47 +236,25 @@ def course_card(name: str, extra: str = "") -> str:
     extra_block = f"\n{extra.strip()}\n" if extra else ""
     return (
         f"Course Overview — {name}\n\n"
-        "About the programme:\n"
-        f"{name} is offered by {ORG_NAME} with structured training and "
-        "role-specific interview preparation support.\n"
+        f"{name} is a VIS training programme supported by Coach AI — our AI Learning Platform.\n"
         f"{extra_block}\n"
-        f"Duration:\n{COURSE_DURATION}\n\n"
-        f"Eligibility:\n{ELIGIBILITY_REQUIREMENT}\n\n"
-        "Key skills and practice areas:\n"
-        "• Role-specific interview roadmap\n"
-        "• AI mock interviews (technical, HR, and behavioural)\n"
-        "• Instant AI feedback and performance reports\n"
-        "• Learning roadmap aligned with institute course material\n\n"
-        "How to apply:\n"
-        "• Confirm you meet the eligibility requirement (any degree completion)\n"
-        "• Contact the VIS admissions team to register for your chosen programme\n"
-        "• Share your qualification and preferred course for enrollment confirmation\n\n"
-        f"For fee details or admission confirmation, {CONTACT_LINE.lower()}."
+        f"Duration: {COURSE_DURATION}\n"
+        f"Eligibility: {ELIGIBILITY_REQUIREMENT}\n\n"
+        f"For fees or enrollment, {CONTACT_LINE.lower()}."
     )
 
 
-def course_reply(name: str, extra: str = "") -> str:
-    return course_card(name, extra)
-
-
 COURSE_DETAILS = {
-    "java": course_reply(
-        "Java Fullstack",
-        "The platform demo includes a Java Backend live mock interview. "
-        'Example prompt: "Tell me about a time you handled a production bug under pressure."',
-    ),
-    "python": course_reply("Python Fullstack"),
-    "prompt": course_reply("Prompt Engineering"),
-    "uiux": course_reply("UI/UX"),
-    "testing": course_reply("Software Testing"),
-    "analytics": course_reply("Data Analytics"),
-    "mobile": course_reply("Mobile App Development"),
-    "aws": course_reply(
-        "AWS & DevOps",
-        "This course is listed on the platform as AWS & Deveops.",
-    ),
-    "datascience": course_reply("Data Science"),
-    "marketing": course_reply("Digital Marketing"),
+    "java": course_card("Java Fullstack"),
+    "python": course_card("Python Fullstack"),
+    "prompt": course_card("Prompt Engineering"),
+    "uiux": course_card("UI/UX"),
+    "testing": course_card("Software Testing"),
+    "analytics": course_card("Data Analytics"),
+    "mobile": course_card("Mobile App Development"),
+    "aws": course_card("AWS & DevOps"),
+    "datascience": course_card("Data Science"),
+    "marketing": course_card("Digital Marketing"),
 }
 
 COURSE_ALIASES = (
@@ -135,7 +267,7 @@ COURSE_ALIASES = (
     ("mobile", ("mobile app development", "mobileapp", "android", "flutter")),
     ("aws", ("aws", "devops", "deveops")),
     ("datascience", ("data science", "datascience")),
-    ("marketing", ("digital marketing", "digitalmarketing")),
+    ("marketing", ("digital marketing course", "digitalmarketing course")),
 )
 
 COURSE_NAMES = {
@@ -151,162 +283,227 @@ COURSE_NAMES = {
     "marketing": "Digital Marketing",
 }
 
+
+def products_reply() -> str:
+    return (
+        f"Our Products — {ORG_NAME}\n\n"
+        + "\n".join(f"• {name}" for name in PRODUCTS)
+        + "\n\n"
+        "Enterprise products with live workflow previews:\n"
+        "• Vetri Bills — GST billing & invoicing (GST Ready, POS, E-Invoice, Reports)\n"
+        "• Vetri Files — document management (OCR Search, Versioning, Audit Trail, Cloud)\n"
+        "• Vetri Project Management — sprints, timesheets, Gantt, analytics\n"
+        "• Coach AI — AI learning platform for personalised employee coaching\n"
+        "• Vetri AI Assistant — private generative AI for your company knowledge\n"
+        "• Vetri CRM — AI-scored sales pipelines and instant quotations\n"
+        "• Vetri Training Management System — enterprise training management\n\n"
+        f"Request a product demo: {CONTACT_LINE.lower()}."
+    )
+
+
+def services_reply() -> str:
+    lines = "\n".join(
+        f"• {name} — {SERVICE_DETAILS[name.lower()].split(chr(10), 2)[-1].strip()}"
+        for name in SERVICES
+        if name.lower() in SERVICE_DETAILS
+    )
+    return (
+        f"Our Services — {ORG_NAME}\n\n"
+        "End-to-end capability, from idea to scale — one accountable partner across "
+        "design, engineering, AI, cloud and growth.\n\n"
+        f"{lines}\n\n"
+        f"Book a consultation or request a quotation: {CONTACT_LINE.lower()}."
+    )
+
+
+def ai_solutions_reply() -> str:
+    return (
+        "AI Solutions — Vetri IT Systems\n\n"
+        "Intelligence layered across every business process.\n\n"
+        "We design AI systems that are grounded, governed and measurable — deployed "
+        "inside your workflows, not bolted on beside them.\n\n"
+        "Our AI process: DATA → CONTEXT → MODEL → ACTION → IMPACT\n\n"
+        "Capabilities:\n"
+        "• Generative AI — content, code and document generation on secure pipelines\n"
+        "• Smart Productivity Tools — meeting notes, summaries and drafting\n"
+        "• Business Intelligence — live dashboards and forecasting\n"
+        "• AI Agents — goal-driven agents for multi-step business tasks\n"
+        "• AI Assistants — domain assistants trained on your knowledge base\n"
+        "• Workflow Automation — approvals, data entry and hand-offs\n"
+        "• Future AI Products — new AI products on a quarterly R&D roadmap\n\n"
+        f"{CONTACT_LINE}."
+    )
+
+
+def vision_mission_reply() -> str:
+    return (
+        "Mission & Vision — Vetri IT Systems\n\n"
+        "Our Vision: An AI-Powered Business For Everyone\n"
+        "To become the trusted AI and digital transformation partner for growing "
+        "enterprises — where every process is automated, every decision is data-backed, "
+        "and every team is amplified by AI.\n\n"
+        "Our Mission: Make Enterprise Technology Effortless\n"
+        "To deliver dependable, intelligent software that removes manual work, gives "
+        "leaders real-time clarity, and lets businesses of every size compete with "
+        "the very best."
+    )
+
+
+def why_vis_reply() -> str:
+    return (
+        "Why VIS — Vetri IT Systems\n\n"
+        "Technology Built Around Your Business.\n\n"
+        "Focus areas:\n"
+        "• Digital Transformation — Process → Platform\n"
+        "• Applied AI — Assistants, agents & automation\n"
+        "• Engineering Depth — Web, mobile, cloud, data\n\n"
+        "What sets us apart:\n"
+        "• Enterprise Trust — compliance, security and support in every engagement\n"
+        "• Cloud Native — scalable, secure modern cloud architectures\n"
+        "• Product Mindset — seven shipped enterprise products\n"
+        "• AI-first Engineering — intelligence and automation at the core\n\n"
+        "Track record: 50+ projects delivered · 10+ enterprise products · "
+        "20+ business clients · 10+ AI solutions · 2+ years of experience\n\n"
+        "ISO-grade delivery · 24x7 support · Made in India"
+    )
+
+
 REPLIES = {
     "greeting": (
         f"Welcome to {ORG_NAME}.\n\n"
-        "I am your VIS virtual assistant. I can help you with course information, "
-        "duration, eligibility, mock interview support, and contact details.\n\n"
-        "I provide only verified information from our official VIS course data. "
+        "I am Coach AI, your VIS assistant. I can help with:\n"
+        "• Products — Vetri Bills, Vetri Files, Vetri CRM, Coach AI, and more\n"
+        "• Services — web development, AI solutions, digital marketing, ERP, and more\n"
+        "• Company info — about us, mission, vision, and why VIS\n"
+        "• Training courses — duration, eligibility, and how to apply\n"
+        "• Contact — phone, email, address, quotations, and demos\n\n"
         "How may I assist you today?"
     ),
     "about": (
         f"About {ORG_NAME}\n\n"
-        "We provide professional IT training with AI-powered interview coaching: "
-        "Prepare, Practice, and Perform.\n\n"
-        "Our programmes include: "
-        + ", ".join(COURSES)
-        + "."
-    ),
-    "courses": (
-        f"Available Courses — {ORG_NAME}\n\n"
-        + "\n".join(f"• {name}" for name in COURSES)
-        + "\n\nEach programme includes role-specific mock interview preparation and "
-        "structured learning support.\n\n"
-        "To view details for a specific course, please ask by name — for example: "
-        "\"Tell me about Python Fullstack.\""
-    ),
-    "mock": (
-        "AI Mock Interview is a live session with technical, HR, and behavioral questions. "
-        "It is available for every course. Questions are grounded in the institute's course "
-        "material and question bank wherever available."
-    ),
-    "feedback": (
-        "After every answer you get instant AI feedback: strengths, gaps, and ideal answers. "
-        "You can also track growth with performance reports. This applies across all courses."
-    ),
-    "features": (
-        "VIS training and coaching includes:\n"
-        "- Interview Preparation (role-specific roadmaps)\n"
-        "- AI Mock Interview\n"
-        "- AI Feedback\n"
-        "- Performance Reports\n"
-        "- Learning Roadmap\n"
-        "- Role Based Practice\n\n"
-        "These features apply to every listed course."
-    ),
-    "how": (
-        "How it works for every course: Choose Job → Prepare → Practice → "
-        "AI Evaluation → Improve."
-    ),
-    "free": (
-        "Yes. You can register for free and start preparing and practicing mock interviews "
-        "immediately."
-    ),
-    "pricing": (
-        "Course Fee Information\n\n"
-        "Verified training-course fee amounts are not listed in the available VIS course "
-        "information. Please contact the VIS team for the current fee details.\n\n"
+        f"{TAGLINE}\n\n"
+        "At Vetri IT Systems, we believe technology should solve real business "
+        "problems — not create more complexity.\n\n"
+        "We work with businesses to understand their goals, identify the right "
+        "technology approach and build solutions that are practical, scalable and "
+        "ready for the future — from custom software and digital applications to "
+        "AI-powered solutions.\n\n"
         f"{CONTACT_LINE}."
+    ),
+    "products": products_reply(),
+    "services": services_reply(),
+    "ai_solutions": ai_solutions_reply(),
+    "vision_mission": vision_mission_reply(),
+    "why_vis": why_vis_reply(),
+    "portfolio": (
+        f"Portfolio — {ORG_NAME}\n\n"
+        "VIS has delivered 50+ projects across enterprise software, applied AI, "
+        "and digital transformation for 20+ business clients.\n\n"
+        f"For portfolio details or case studies, {CONTACT_LINE.lower()}."
+    ),
+    "quotation": (
+        "Get Quotation — Vetri IT Systems\n\n"
+        "Tell us what you're trying to achieve. You'll get a tailored proposal, "
+        "timeline and indicative pricing — no obligation.\n\n"
+        "You can also:\n"
+        "• Book a Consultation\n"
+        "• Request a Product Demo\n"
+        "• Contact Sales Team\n\n"
+        f"Phone: {CONTACT_PHONE}\n"
+        f"Email: {CONTACT_EMAIL}\n"
+        f"Address: {CONTACT_ADDRESS}"
     ),
     "contact": (
         f"Contact {ORG_NAME}\n\n"
-        "• Phone: +91-8438164827\n"
-        "• Phone: +91-8438781327\n\n"
-        f"{CONTACT_LINE}."
+        f"• Phone: {CONTACT_PHONE}\n"
+        f"• Email: {CONTACT_EMAIL}\n"
+        f"• Address: {CONTACT_ADDRESS}\n\n"
+        "Enquiry options:\n"
+        "• Request a quotation\n"
+        "• Book a consultation\n"
+        "• Request a product demo\n"
+        "• Contact sales team"
     ),
-    "login": (
-        "Use Login or Get Started on the platform to create a free account and "
-        "begin mock interviews for your course."
+    "courses": (
+        f"Training Courses — Coach AI / {ORG_NAME}\n\n"
+        + "\n".join(f"• {name}" for name in COURSES)
+        + f"\n\nDuration: {COURSE_DURATION}\n"
+        f"Eligibility: {ELIGIBILITY_REQUIREMENT}\n\n"
+        f"For fees or enrollment, {CONTACT_LINE.lower()}."
     ),
-    "skills": (
-        "Key skills and practice areas across VIS courses include:\n"
-        "- Role-specific interview roadmaps\n"
-        "- AI mock interviews (technical, HR, and behavioral)\n"
-        "- Instant AI feedback and performance reports\n"
-        "- Learning roadmap based on institute course material\n\n"
-        "Ask about a specific course for more detail, for example: "
-        "Tell me about Python Fullstack."
+    "pricing": (
+        "Pricing & Quotation\n\n"
+        "Exact pricing depends on your product or service requirement.\n\n"
+        "Tell us what you're trying to achieve and our team will share a tailored "
+        "proposal, timeline and indicative pricing — no obligation.\n\n"
+        f"Phone: {CONTACT_PHONE}\n"
+        f"Email: {CONTACT_EMAIL}"
     ),
     "who_can_apply": general_eligibility_reply(),
     "apply": (
         "How to Apply — VIS Training Programmes\n\n"
-        "Step 1: Review eligibility\n"
-        f"• Ensure you meet the requirement: {ELIGIBILITY_REQUIREMENT}\n\n"
-        "Step 2: Choose your course\n"
-        "• Select from our available programmes (for example, Python Fullstack, Java Fullstack, "
-        "Data Science, or UI/UX)\n\n"
-        "Step 3: Contact the VIS admissions team\n"
-        "• Phone: +91-8438164827\n"
-        "• Phone: +91-8438781327\n"
-        "• Share your qualification, preferred course, and contact details\n\n"
-        "Step 4: Complete enrollment\n"
-        "• The VIS team will guide you through registration and programme onboarding\n\n"
-        f"{CONTACT_LINE}."
+        "Step 1: Confirm eligibility — any completed degree (UG/PG)\n"
+        "Step 2: Choose your preferred course\n"
+        "Step 3: Contact the VIS team with your qualification and course choice\n"
+        "Step 4: Complete enrollment with VIS team guidance\n\n"
+        f"Phone: {CONTACT_PHONE}\n"
+        f"Email: {CONTACT_EMAIL}"
     ),
 }
 
 STRUCTURED_TRIGGERS = (
-    "duration", "how long", "how many months", "how many days",
-    "fee", "fees", "tuition", "course cost", "course fee", "price", "pricing",
-    "skill", "learn", "what will i", "course", "courses", "contact", "phone",
-    "eligib", "who can apply", "mock", "register", "login",
-    "how to apply", "how do i apply", "application", "admission process", "enroll",
+    "duration", "how long", "fee", "fees", "course", "courses", "contact", "phone",
+    "email", "address", "eligib", "who can apply", "how to apply", "product", "products",
+    "service", "services", "portfolio", "quotation", "quote", "consultation", "demo",
+    "vision", "mission", "about", "why vis", "ai solution", "generative ai", "vetri bills",
+    "vetri files", "vetri crm", "coach ai", "erp", "seo", "google ads", "meta ads",
+    "cloud", "crm", "lms", "training management",
 )
 
-SYSTEM_PROMPT = f"""You are the official VIS assistant for {ORG_NAME}.
-Be professional, friendly, clear, and concise. Use short labelled sections when describing a course.
-Treat every listed course equally. If the user names one course, answer that course only.
-Do not dump the full course list unless they ask what courses exist.
-Greet warmly for hi, hello, hii, hey.
-Never invent course fees, certificates, batches, or placement figures.
-If a fact is not in the facts below or in retrieved documents, say you could not find verified VIS course information and suggest contacting VIS (+91-8438164827 / +91-8438781327).
-For eligibility ("am I eligible"): use the listed rule — {ELIGIBILITY_REQUIREMENT}. Ask which course and qualification if needed, then respond with Outcome: ELIGIBLE, NOT ELIGIBLE, or CANNOT DETERMINE.
+SYSTEM_PROMPT = f"""You are Coach AI, the official assistant for {ORG_NAME}.
+Answer only from the verified VIS new website content below. Be professional and concise.
+Never invent pricing, clients, or features not listed.
+If unsure, direct users to {CONTACT_PHONE} or {CONTACT_EMAIL}.
 
-Facts:
-- Organization: {ORG_NAME}.
-- Product: AI interview coaching — Prepare, Practice, Perform.
-- Tagline: Crack Your Dream Interview with AI.
-- Features: Interview Preparation, AI Mock Interview, AI Feedback, Performance Reports, Learning Roadmap, Role Based Practice.
-- Mock interviews: live sessions with technical, HR, and behavioral questions, grounded in institute course material, for every course.
-- How it works: Choose Job → Prepare → Practice → AI Evaluation → Improve.
-- Free to register and start mock interviews immediately. Exact classroom/course fee amounts are not in the public notes.
-- Course duration: {COURSE_DURATION} for all listed training courses.
-- Eligibility: {ELIGIBILITY_REQUIREMENT} for all listed training courses.
-- How to apply: (1) confirm eligibility, (2) choose a course, (3) contact VIS admissions by phone, (4) complete enrollment with VIS team guidance.
-- Courses: {", ".join(COURSES)}.
-- Java Fullstack demo is Java Backend; example prompt about handling a production bug under pressure.
-- AWS & DevOps is spelled AWS & Deveops on the platform.
-- Phone: +91-8438164827, +91-8438781327.
+Organization: {ORG_LEGAL}. {TAGLINE}
+Hero: Transforming Businesses with AI-Powered Digital Solutions.
+Stats: 50+ projects, 10+ enterprise products, 20+ business clients, 10+ AI solutions, 2+ years experience.
+Contact: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}.
+Products: {", ".join(PRODUCTS)}.
+Services: {", ".join(SERVICES)}.
+Training courses (Coach AI): {", ".join(COURSES)}. Duration {COURSE_DURATION}. Eligibility: {ELIGIBILITY_REQUIREMENT}.
+AI process: DATA → CONTEXT → MODEL → ACTION → IMPACT.
+Enquiries: quotation, consultation, product demo, contact sales.
 """
-
-INTENTS = (
-    ("greeting", ("hi", "hello", "hey", "good morning", "good evening")),
-    ("mock", ("mock", "interview question", "live interview", "practice interview")),
-    ("feedback", ("feedback", "report", "score", "evaluation")),
-    ("how", ("how it works", "how does", "roadmap", "process")),
-    ("free", ("free", "cost nothing", "without paying")),
-    ("pricing", ("price", "pricing", "paid", "plan", "subscription", "course fee", "tuition")),
-    ("contact", ("contact", "phone", "call", "mobile number", "refund", "privacy", "terms")),
-    ("login", ("login", "register", "sign up", "get started", "account")),
-    ("features", ("feature", "what can you", "everything you need")),
-    ("courses", (
-        "courses", "which courses", "what courses", "courses available",
-        "courses are available", "list of courses", "what do you offer",
-        "modules", "programs", "programmes",
-    )),
-    ("about", ("about vetri", "what is vetri", "who are you", "about vis")),
-    ("who_can_apply", ("who can apply", "who can join", "who is eligible")),
-    ("apply", (
-        "how to apply", "how do i apply", "how can i apply", "application process",
-        "admission process", "how to enroll", "how to join", "how to register for course",
-        "apply for course", "apply for admission",
-    )),
-    ("skills", ("what skills", "skills will i learn", "key skills", "what will i learn")),
-)
 
 
 def _compact(text: str) -> str:
     return "".join(ch.lower() for ch in text if ch.isalnum())
+
+
+def match_product_id(message: str) -> str | None:
+    lowered = message.lower()
+    compact = _compact(message)
+    for product_id, aliases in PRODUCT_ALIASES:
+        for alias in aliases:
+            if alias in lowered or alias.replace(" ", "") in compact:
+                return product_id
+    return None
+
+
+def match_product(message: str) -> str | None:
+    product_id = match_product_id(message)
+    if not product_id:
+        return None
+    return PRODUCT_DETAILS.get(product_id)
+
+
+def match_service(message: str) -> str | None:
+    lowered = message.lower()
+    for service_name, detail in SERVICE_DETAILS.items():
+        if service_name in lowered:
+            return f"{detail}\n\n{CONTACT_LINE}."
+    return None
 
 
 def match_course_id(message: str) -> str | None:
@@ -343,78 +540,123 @@ def is_greeting(message: str) -> bool:
     return words[0] in greet_words
 
 
+def _matches_products_intent(text: str) -> bool:
+    return any(k in text for k in (
+        "product", "products", "our product", "what products", "software product",
+    ))
+
+
+def _matches_services_intent(text: str) -> bool:
+    return any(k in text for k in (
+        "service", "services", "our service", "what services", "what do you offer",
+        "explore our services", "end-to-end capability",
+    ))
+
+
+def _is_course_context(text: str) -> bool:
+    return any(marker in text for marker in (
+        "course", "training programme", "training program", "fullstack", "eligib",
+        "duration", "apply for course", "admission", "degree", "enroll",
+    ))
+
+
 def _matches_apply_intent(text: str) -> bool:
-    apply_keywords = next(keywords for intent, keywords in INTENTS if intent == "apply")
-    return any(keyword in text for keyword in apply_keywords)
+    return any(k in text for k in (
+        "how to apply", "how do i apply", "how can i apply", "application process",
+        "admission process", "how to enroll", "apply for course", "apply for admission",
+    ))
 
 
-def get_structured_reply(message: str) -> str | None:
-    """Return a verified KB answer for clear FAQ-style questions."""
+INTENTS = (
+    ("greeting", ("hi", "hello", "hey", "good morning", "good evening")),
+    ("quotation", (
+        "quotation", "quote", "get quotation", "request a quotation", "pricing",
+        "how much", "cost", "price",
+    )),
+    ("portfolio", ("portfolio", "portfolios", "case study", "projects delivered", "our work")),
+    ("why_vis", ("why vis", "why vetri", "why choose", "what sets you apart")),
+    ("vision_mission", ("vision", "mission", "mission and vision", "mission & vision")),
+    ("ai_solutions", (
+        "ai solution", "ai solutions", "agentic ai", "workflow automation",
+        "ai agents", "ai assistant", "business intelligence",
+    )),
+    ("products", ("product", "products", "our product", "what products")),
+    ("services", ("service", "services", "our service", "what services")),
+    ("about", ("about us", "about vis", "about vetri", "who are you", "what is vis")),
+    ("contact", ("contact", "phone", "email", "address", "call", "location", "where are you")),
+    ("courses", (
+        "courses", "which courses", "what courses", "courses available",
+        "training courses", "training programmes", "training programs",
+    )),
+    ("who_can_apply", ("who can apply", "who can join", "who is eligible", "eligib")),
+)
+
+
+def _route_faq(message: str) -> str | None:
     text = message.strip().lower()
+
     if is_greeting(text):
         return REPLIES["greeting"]
     if _matches_apply_intent(text):
         return REPLIES["apply"]
+
+    product_text = match_product(text)
+    if product_text:
+        return product_text
+
+    service_text = match_service(text)
+    if service_text and not _is_course_context(text):
+        return service_text
+
     if match_course_id(text):
-        if any(key in text for key in ("duration", "how long", "how many months", "how many days")):
+        if any(k in text for k in ("duration", "how long")):
             return duration_reply(match_course_name(match_course_id(text)))
-        if any(key in text for key in ("fee", "fees", "tuition", "course cost", "course fee")):
+        if any(k in text for k in ("fee", "fees", "tuition", "course fee")):
             return REPLIES["pricing"]
         course_text = match_course(text)
         if course_text:
             return course_text
-    if any(key in text for key in ("duration", "how long", "how many months", "how many days")):
+
+    if any(k in text for k in ("duration", "how long")) and _is_course_context(text):
         return duration_reply(match_course_name(match_course_id(text)))
-    if any(key in text for key in ("fee", "fees", "tuition", "course cost", "course fee")):
+
+    if _matches_products_intent(text) and not _is_course_context(text):
+        return REPLIES["products"]
+    if _matches_services_intent(text) and not _is_course_context(text):
+        return REPLIES["services"]
+
+    if any(k in text for k in ("fee", "fees", "tuition", "course fee", "how much", "cost", "price")):
         return REPLIES["pricing"]
-    if any(key in text for key in ("skill", "learn", "what will i")):
-        course_text = match_course(text)
-        return course_text or REPLIES["skills"]
-    course_text = match_course(text)
-    if course_text:
-        return course_text
+
     for intent, keywords in INTENTS:
         if intent == "greeting":
             continue
         if any(keyword in text for keyword in keywords):
+            if intent == "pricing" and _is_course_context(text):
+                return REPLIES["pricing"]
             return REPLIES[intent]
+
+    course_text = match_course(text)
+    if course_text:
+        return course_text
+
     return None
+
+
+def get_structured_reply(message: str) -> str | None:
+    return _route_faq(message)
 
 
 def should_prefer_kb(message: str) -> bool:
     text = message.strip().lower()
-    return is_greeting(text) or any(trigger in text for trigger in STRUCTURED_TRIGGERS) or bool(match_course_id(text))
+    return (
+        is_greeting(text)
+        or any(trigger in text for trigger in STRUCTURED_TRIGGERS)
+        or bool(match_course_id(text))
+        or bool(match_product_id(text))
+    )
 
 
 def get_reply(message: str) -> str:
-    text = message.strip().lower()
-    if is_greeting(text):
-        return REPLIES["greeting"]
-
-    if _matches_apply_intent(text):
-        return REPLIES["apply"]
-
-    if any(key in text for key in ("duration", "how long", "how many months", "how many days")):
-        name = match_course_name(match_course_id(text))
-        return duration_reply(name)
-
-    if any(key in text for key in ("fee", "fees", "tuition", "course cost", "course fee")):
-        return REPLIES["pricing"]
-
-    if any(key in text for key in ("skill", "learn", "what will i")):
-        course_reply_text = match_course(text)
-        if course_reply_text:
-            return course_reply_text
-        return REPLIES["skills"]
-
-    course_reply_text = match_course(text)
-    if course_reply_text:
-        return course_reply_text
-
-    for intent, keywords in INTENTS:
-        if intent == "greeting":
-            continue
-        if any(keyword in text for keyword in keywords):
-            return REPLIES[intent]
-
-    return UNVERIFIED
+    reply = _route_faq(message)
+    return reply if reply else UNVERIFIED

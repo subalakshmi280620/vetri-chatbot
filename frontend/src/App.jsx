@@ -47,19 +47,19 @@ function getClientToken() {
 const WELCOME = {
   role: 'bot',
   text:
-    'Welcome to Vetri IT Systems (VIS).\n\n' +
-    'I am Coach AI, your virtual assistant for course information, duration, ' +
-    'eligibility, how to apply, and contact details.\n\n' +
-    'I provide only verified information from our official VIS course data. ' +
+    'Welcome to Vetri IT Systems.\n\n' +
+    'I am Coach AI — your assistant for VIS products, services, company info, ' +
+    'training courses, quotations, and contact details.\n\n' +
+    'Transforming Businesses with AI-Powered Digital Solutions.\n\n' +
     'How may I assist you today?',
 }
 
 const SUGGESTIONS = [
-  'What courses are available?',
-  'How do I apply for a course?',
-  'What is the course duration?',
-  'What are the eligibility requirements?',
-  'How can I contact the VIS team?',
+  'What products does VIS offer?',
+  'What services does VIS provide?',
+  'Tell me about Vetri Bills',
+  'What is your mission and vision?',
+  'How can I get a quotation?',
 ]
 
 const SECTION_LABELS = [
@@ -76,6 +76,17 @@ const SECTION_LABELS = [
   'Course Fee Information',
   'Contact',
   'About',
+  'Our Products',
+  'Our Services',
+  'Portfolio',
+  'Mission & Vision',
+  'Why VIS',
+  'AI Solutions',
+  'Get Quotation',
+  'Pricing & Quotation',
+  'Technology Built',
+  'Our Vision',
+  'Our Mission',
   'Outcome:',
   'Step 1:',
   'Step 2:',
@@ -94,16 +105,10 @@ function VisLogo({ size = 36, className = '' }) {
   return (
     <span
       className={`vis-logo ${className}`.trim()}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.3) }}
       aria-hidden="true"
     >
-      <svg viewBox="0 0 40 40" width={size} height={size} fill="none">
-        <rect width="40" height="40" rx="10" fill="currentColor" />
-        <path
-          d="M11 27V13h3.2l4.1 8.2 4.1-8.2H25.5v14h-2.8v-8.4l-3.6 7.2h-1.8l-3.6-7.2V27H11Z"
-          fill="var(--vis-logo-mark, #0c1e3d)"
-        />
-      </svg>
+      VIS
     </span>
   )
 }
@@ -283,9 +288,11 @@ function SiteNav() {
           <span>Home</span>
           <span>Services</span>
           <span>Products</span>
+          <span>Portfolios</span>
+          <span>Why VIS</span>
           <span>Contact</span>
         </div>
-        <span className="site-cta">Coach AI</span>
+        <span className="site-cta">Get Quotation</span>
       </div>
     </nav>
   )
@@ -297,20 +304,20 @@ function SiteFooter() {
       <div className="site-footer-grid">
         <div className="footer-col">
           <strong>Vetri IT Systems</strong>
-          <p>Enterprise Software, Applied AI and Digital Transformation for businesses that impact.</p>
+          <p>Enterprise Software, Applied AI And Digital Transformation For Businesses That Intend To Lead Their Category.</p>
         </div>
         <div className="footer-col">
           <strong>Quick Links</strong>
-          <p>Home · Services · Portfolio · Contact</p>
+          <p>Home · About Us · Services · Products · Why VIS · Contact</p>
         </div>
         <div className="footer-col">
           <strong>Our Products</strong>
-          <p>Coach AI · Vetri AI Assistant · Vetri LMS</p>
+          <p>Vetri Bills · Vetri Files · Coach AI · Vetri AI Assistant · Vetri CRM</p>
         </div>
         <div className="footer-col">
           <strong>Contact</strong>
-          <p>+91-8438164827</p>
-          <p>+91-8438781327</p>
+          <p>+91 84381 54827</p>
+          <p>support@vetri-it.com</p>
         </div>
       </div>
       <div className="site-footer-copy">
@@ -719,10 +726,10 @@ function App() {
             <VisLogo size={48} className="hero-logo-mark" />
             <div>
               <h1 className="page-hero-title">
-                Coach AI <span>Assistant</span>
+                Transforming Businesses with <span>AI-Powered Digital Solutions</span>
               </h1>
               <p className="page-hero-text">
-                Your virtual guide for VIS courses — duration, eligibility, how to apply, and contact details.
+                AI-first enterprise technology — products, services, training, and support from Vetri IT Systems.
               </p>
             </div>
           </div>
@@ -785,7 +792,7 @@ function App() {
                       How can we help you <span className="highlight">today?</span>
                     </h2>
                     <p>
-                      Ask about courses, duration, eligibility, fees, or how to apply.
+                      Ask about courses, products, services, eligibility, fees, or how to apply.
                       I share only verified VIS information.
                     </p>
                   </div>

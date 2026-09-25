@@ -1,12 +1,35 @@
-# VIS / Vetri IT Systems — verified course notes
+# VIS / Vetri IT Systems — verified company and course notes
 
-Product: VIS training and AI interview coaching by Vetri IT Systems (VIS).
-Tagline: Crack Your Dream Interview with AI.
-Promise: Prepare, Practice and Perform using AI-powered interview coaching tailored to every course the institute trains you on.
+Organization: Vetri IT Systems (VIS) Private Limited.
+Website: https://vetriitsystems.com/
+Tagline: Enterprise Software, Applied AI and Digital Transformation.
+Training tagline: Crack Your Dream Interview with AI.
+Training promise: Prepare, Practice and Perform using AI-powered interview coaching tailored to every course the institute trains you on.
 
 ## Site pages
-Home, About, Contact, Pricing, Login, Get Started.
+Home, About, Services, Products, Portfolio, Contact, Pricing, Login, Get Started.
 Policies: Terms and Conditions, Privacy Policy, Refund Policy.
+
+## Our Products
+- Coach AI — AI course assistant for VIS training programmes
+- Vetri AI Assistant — AI assistant for business workflows
+- Vetri LMS — learning management system
+- CRM — customer relationship management
+- Vetri Bills — billing and invoicing software
+- Customer Support Solutions — helpdesk and support tooling
+
+## Our Services
+- Web Development
+- Digital Marketing
+- Printing
+- Hardware
+- IT Networking
+- Maintenance & Repair
+- Maintenance & AMC
+- Backup Solutions
+
+For product demos, service quotations, or portfolio references, contact VIS:
+Phone: +91-8438164827 / +91-8438781327
 
 ## Features (all courses)
 - Interview Preparation: structured, role-specific roadmaps.
