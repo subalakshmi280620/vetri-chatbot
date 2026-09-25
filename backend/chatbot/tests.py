@@ -319,6 +319,20 @@ class KnowledgeReplyTests(TestCase):
         self.assertIn("support@vetri-it.com", reply)
         self.assertIn("Surandai", reply)
 
+    def test_quotation_and_consultation_have_distinct_replies(self):
+        quote = get_structured_reply("How can I get a quotation?")
+        consult = get_structured_reply("I want to book a consultation")
+        self.assertIn("Get Quotation", quote)
+        self.assertIn("tailored proposal", quote.lower())
+        self.assertIn("Book a Consultation", consult)
+        self.assertIn("solution consultant", consult.lower())
+        self.assertNotEqual(quote, consult)
+
+    def test_product_demo_has_distinct_reply(self):
+        reply = get_structured_reply("I want to request a product demo")
+        self.assertIn("Request a Product Demo", reply)
+        self.assertIn("live workflow", reply.lower())
+
     def test_digital_marketing_course_still_returns_course_when_in_course_context(self):
         reply = get_structured_reply("Tell me about Digital Marketing course")
         self.assertIn("Course Overview", reply)

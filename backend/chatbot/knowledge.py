@@ -403,12 +403,39 @@ REPLIES = {
     ),
     "quotation": (
         "Get Quotation — Vetri IT Systems\n\n"
-        "Tell us what you're trying to achieve. You'll get a tailored proposal, "
-        "timeline and indicative pricing — no obligation.\n\n"
-        "You can also:\n"
-        "• Book a Consultation\n"
-        "• Request a Product Demo\n"
-        "• Contact Sales Team\n\n"
+        "Tell us what you're trying to achieve. Our team will prepare a tailored "
+        "proposal with scope, timeline, and indicative pricing — no obligation.\n\n"
+        "Please share:\n"
+        "• Your name and company\n"
+        "• Product or service of interest\n"
+        "• A brief description of your requirement\n\n"
+        f"Submit via {CONTACT_EMAIL} or call {CONTACT_PHONE}."
+    ),
+    "consultation": (
+        "Book a Consultation — Vetri IT Systems\n\n"
+        "Speak directly with a VIS solution consultant — no call centres, no scripts.\n\n"
+        "A consultation helps you:\n"
+        "• Clarify your business goal and technical needs\n"
+        "• Choose the right VIS product or service\n"
+        "• Plan next steps before a formal quotation\n\n"
+        f"Phone: {CONTACT_PHONE}\n"
+        f"Email: {CONTACT_EMAIL}\n"
+        f"Address: {CONTACT_ADDRESS}"
+    ),
+    "product_demo": (
+        "Request a Product Demo — Vetri IT Systems\n\n"
+        "See VIS enterprise products with live workflow previews — including "
+        "Vetri Bills, Vetri Files, Vetri Project Management, Coach AI, "
+        "Vetri AI Assistant, and Vetri CRM.\n\n"
+        "Tell us which product you want to explore and your use case. "
+        "Our team will arrange a guided demo.\n\n"
+        f"Phone: {CONTACT_PHONE}\n"
+        f"Email: {CONTACT_EMAIL}"
+    ),
+    "contact_sales": (
+        "Contact Sales Team — Vetri IT Systems\n\n"
+        "Our sales team can help with product selection, pricing discussions, "
+        "deployment planning, and enterprise requirements.\n\n"
         f"Phone: {CONTACT_PHONE}\n"
         f"Email: {CONTACT_EMAIL}\n"
         f"Address: {CONTACT_ADDRESS}"
@@ -567,13 +594,37 @@ def _matches_apply_intent(text: str) -> bool:
     ))
 
 
+def _matches_consultation_intent(text: str) -> bool:
+    return any(k in text for k in (
+        "book a consultation", "book consultation", "schedule a consultation",
+        "want to book a consultation", "speak to a consultant", "talk to your team",
+    ))
+
+
+def _matches_demo_intent(text: str) -> bool:
+    return any(k in text for k in (
+        "request a product demo", "request product demo", "request a demo",
+        "request demo", "product demo", "want a demo", "want to request a product demo",
+        "live workflow preview",
+    ))
+
+
+def _matches_quotation_intent(text: str) -> bool:
+    return any(k in text for k in (
+        "quotation", "quote", "get quotation", "request a quotation", "get a quotation",
+        "how can i get a quotation", "pricing", "how much", "cost", "price",
+    ))
+
+
+def _matches_sales_intent(text: str) -> bool:
+    return any(k in text for k in (
+        "contact sales", "sales team", "talk to sales", "speak to sales",
+    ))
+
+
 INTENTS = (
     ("greeting", ("hi", "hello", "hey", "good morning", "good evening")),
-    ("quotation", (
-        "quotation", "quote", "get quotation", "request a quotation", "pricing",
-        "how much", "cost", "price", "book a consultation", "book consultation",
-        "request a product demo", "request demo", "product demo", "contact sales",
-    )),
+    ("quotation", ("quotation", "quote", "get quotation", "request a quotation")),
     ("portfolio", ("portfolio", "portfolios", "case study", "projects delivered", "our work")),
     ("why_vis", ("why vis", "why vetri", "why choose", "what sets you apart")),
     ("vision_mission", ("vision", "mission", "mission and vision", "mission & vision")),
@@ -600,6 +651,14 @@ def _route_faq(message: str) -> str | None:
         return REPLIES["greeting"]
     if _matches_apply_intent(text):
         return REPLIES["apply"]
+    if _matches_consultation_intent(text):
+        return REPLIES["consultation"]
+    if _matches_demo_intent(text):
+        return REPLIES["product_demo"]
+    if _matches_sales_intent(text):
+        return REPLIES["contact_sales"]
+    if _matches_quotation_intent(text) and not _is_course_context(text):
+        return REPLIES["quotation"]
 
     product_text = match_product(text)
     if product_text:
@@ -626,7 +685,9 @@ def _route_faq(message: str) -> str | None:
     if _matches_services_intent(text) and not _is_course_context(text):
         return REPLIES["services"]
 
-    if any(k in text for k in ("fee", "fees", "tuition", "course fee", "how much", "cost", "price")):
+    if any(k in text for k in ("fee", "fees", "tuition", "course fee")):
+        return REPLIES["pricing"]
+    if any(k in text for k in ("how much", "cost", "price")) and _is_course_context(text):
         return REPLIES["pricing"]
 
     for intent, keywords in INTENTS:

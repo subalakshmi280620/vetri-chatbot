@@ -28,9 +28,19 @@ TOPIC_SUGGESTIONS = {
         "Why should I choose VIS?",
     ),
     "quotation": (
+        "I want to book a consultation",
+        "I want to request a product demo",
         "What products does VIS offer?",
-        "Book a consultation",
+    ),
+    "consultation": (
+        "How can I get a quotation?",
+        "I want to request a product demo",
         "How can I contact the VIS team?",
+    ),
+    "demo": (
+        "What products does VIS offer?",
+        "How can I get a quotation?",
+        "I want to book a consultation",
     ),
     "contact": (
         "What products does VIS offer?",
@@ -86,7 +96,11 @@ def _detect_topic(user_message: str, reply: str) -> str:
         return "eligibility"
     if "how to apply" in combined or "step 1:" in combined:
         return "apply"
-    if "pricing & quotation" in combined or "get quotation" in combined:
+    if "book a consultation" in combined:
+        return "consultation"
+    if "request a product demo" in combined or "product demo" in combined:
+        return "demo"
+    if "get quotation" in combined or "pricing & quotation" in combined:
         return "quotation"
     if "course fee" in combined or "indicative pricing" in combined:
         return "fees"
