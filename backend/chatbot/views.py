@@ -12,7 +12,7 @@ from .deepseek import ask_deepseek
 from .gemini import ask_gemini
 from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import SYSTEM_PROMPT, UNVERIFIED, get_reply, get_structured_reply
-from .models import Conversation, Message
+from .models import Conversation, Enquiry, Message
 from .rag import format_context, retrieve
 from .suggestions import get_follow_up_suggestions
 
@@ -280,3 +280,99 @@ def message_feedback(request):
     message.feedback = rating
     message.save(update_fields=["feedback"])
     return Response({"status": "ok", "feedback": rating})
+
+
+ENQUIRY_CONFIRMATIONS = {
+    Enquiry.TYPE_QUOTATION: (
+        "Enquiry Submitted — Get Quotation\n\n"
+        "Thank you. Our team will review your requirement and share a tailored "
+        "proposal with scope, timeline, and indicative pricing.\n\n"
+        "We will contact you at the email or phone you provided."
+    ),
+    Enquiry.TYPE_CONSULTATION: (
+        "Enquiry Submitted — Book a Consultation\n\n"
+        "Thank you. A VIS solution consultant will reach out to discuss your "
+        "goals and recommend the right next steps.\n\n"
+        "We will contact you at the email or phone you provided."
+    ),
+    Enquiry.TYPE_DEMO: (
+        "Enquiry Submitted — Product Demo\n\n"
+        "Thank you. Our team will arrange a guided demo for the product or "
+        "service you selected.\n\n"
+        "We will contact you at the email or phone you provided."
+    ),
+    Enquiry.TYPE_SALES: (
+        "Enquiry Submitted — Sales Team\n\n"
+        "Thank you. Our sales team will contact you about your requirement."
+    ),
+    Enquiry.TYPE_GENERAL: (
+        "Enquiry Submitted\n\n"
+        "Thank you. The VIS team will review your message and get back to you soon."
+    ),
+}
+
+
+def _normalize_enquiry_type(value: str) -> str:
+    allowed = {choice[0] for choice in Enquiry.TYPE_CHOICES}
+    cleaned = str(value or Enquiry.TYPE_GENERAL).strip().lower()
+    return cleaned if cleaned in allowed else Enquiry.TYPE_GENERAL
+
+
+@api_view(["POST"])
+@throttle_classes([ChatRateThrottle])
+def submit_enquiry(request):
+    client_token = get_client_token_from_request(request)
+    if not client_token:
+        return Response({"error": "client_token is required."}, status=400)
+
+    full_name = str(request.data.get("full_name", "")).strip()
+    company = str(request.data.get("company", "")).strip()
+    email = str(request.data.get("email", "")).strip()
+    phone = str(request.data.get("phone", "")).strip()
+    interest = str(request.data.get("interest", "")).strip()
+    message = str(request.data.get("message", "")).strip()
+    enquiry_type = _normalize_enquiry_type(request.data.get("enquiry_type"))
+
+    if not full_name:
+        return Response({"error": "full_name is required."}, status=400)
+    if not email:
+        return Response({"error": "email is required."}, status=400)
+    if not message:
+        return Response({"error": "message is required."}, status=400)
+    if len(full_name) > 120 or len(company) > 120 or len(phone) > 30 or len(interest) > 120:
+        return Response({"error": "One or more fields are too long."}, status=400)
+    if len(message) > 2000:
+        return Response({"error": "message must be 2000 characters or fewer."}, status=400)
+
+    conversation = None
+    conversation_id = request.data.get("conversation_id")
+    if conversation_id:
+        conversation = resolve_conversation(conversation_id, client_token)
+        if conversation is None:
+            return Response(
+                {"error": "You do not have access to this conversation."},
+                status=403,
+            )
+
+    enquiry = Enquiry.objects.create(
+        enquiry_type=enquiry_type,
+        full_name=full_name,
+        company=company,
+        email=email,
+        phone=phone,
+        interest=interest,
+        message=message,
+        client_token=client_token,
+        conversation=conversation,
+    )
+
+    confirmation = ENQUIRY_CONFIRMATIONS.get(
+        enquiry_type,
+        ENQUIRY_CONFIRMATIONS[Enquiry.TYPE_GENERAL],
+    )
+    return Response({
+        "status": "ok",
+        "enquiry_id": enquiry.id,
+        "enquiry_type": enquiry_type,
+        "confirmation": confirmation,
+    })

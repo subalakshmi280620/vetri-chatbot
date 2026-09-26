@@ -1,0 +1,73 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1>Coach AI Analytics</h1>
+<p>Usage summary for Vetri IT Systems Coach AI chatbot.</p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:20px 0;">
+  <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;">
+    <strong>Conversations</strong><div style="font-size:28px;">{{ stats.conversations }}</div>
+  </div>
+  <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;">
+    <strong>Messages</strong><div style="font-size:28px;">{{ stats.messages }}</div>
+  </div>
+  <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;">
+    <strong>User questions</strong><div style="font-size:28px;">{{ stats.user_messages }}</div>
+  </div>
+  <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;">
+    <strong>Enquiries</strong><div style="font-size:28px;">{{ stats.enquiries }}</div>
+    <small>{{ stats.enquiries_new }} new</small>
+  </div>
+  <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;">
+    <strong>👍 Helpful</strong><div style="font-size:28px;">{{ stats.feedback_up }}</div>
+  </div>
+  <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;">
+    <strong>👎 Not helpful</strong><div style="font-size:28px;">{{ stats.feedback_down }}</div>
+  </div>
+  <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;">
+    <strong>Verified KB replies</strong><div style="font-size:28px;">{{ stats.verified_replies }}</div>
+  </div>
+  <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;">
+    <strong>AI replies</strong><div style="font-size:28px;">{{ stats.ai_replies }}</div>
+  </div>
+</div>
+
+<h2>Enquiries by type</h2>
+<ul>
+  {% for item in enquiry_breakdown %}
+    <li>{{ item.enquiry_type }} — {{ item.total }}</li>
+  {% empty %}
+    <li>No enquiries yet.</li>
+  {% endfor %}
+</ul>
+
+<h2>Recent enquiries</h2>
+<table style="width:100%;border-collapse:collapse;">
+  <thead>
+    <tr>
+      <th align="left">Type</th>
+      <th align="left">Name</th>
+      <th align="left">Email</th>
+      <th align="left">Interest</th>
+      <th align="left">When</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for enquiry in recent_enquiries %}
+      <tr>
+        <td>{{ enquiry.get_enquiry_type_display }}</td>
+        <td>{{ enquiry.full_name }}</td>
+        <td>{{ enquiry.email }}</td>
+        <td>{{ enquiry.interest }}</td>
+        <td>{{ enquiry.created_at }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">No enquiries yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p style="margin-top:24px;">
+  <a href="{% url 'admin:chatbot_enquiry_changelist' %}">View all enquiries</a>
+</p>
+{% endblock %}

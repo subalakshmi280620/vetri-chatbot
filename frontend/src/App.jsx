@@ -22,6 +22,7 @@ const API_BASE = resolveApiBase()
 const API_URL = `${API_BASE}/api/chatbot/chat/`
 const HISTORY_URL = `${API_BASE}/api/chatbot/conversations/`
 const FEEDBACK_URL = `${API_BASE}/api/chatbot/messages/feedback/`
+const ENQUIRY_URL = `${API_BASE}/api/chatbot/enquiries/`
 const HEALTH_URL = `${API_BASE}/health/`
 const IS_EMBED = new URLSearchParams(window.location.search).get('embed') === '1'
 const CLIENT_TOKEN_KEY = 'visClientToken'
@@ -79,10 +80,48 @@ const SUGGESTIONS = [
 ]
 
 const QUICK_ACTIONS = [
-  { label: 'Get Quotation', message: 'How can I get a quotation?' },
-  { label: 'Book Consultation', message: 'I want to book a consultation' },
-  { label: 'Request Demo', message: 'I want to request a product demo' },
+  { label: 'Get Quotation', type: 'quotation' },
+  { label: 'Book Consultation', type: 'consultation' },
+  { label: 'Request Demo', type: 'demo' },
 ]
+
+const ENQUIRY_TITLES = {
+  quotation: 'Get Quotation',
+  consultation: 'Book a Consultation',
+  demo: 'Request a Product Demo',
+  sales: 'Contact Sales Team',
+  general: 'Submit Enquiry',
+}
+
+const INTEREST_OPTIONS = [
+  'Vetri Bills',
+  'Vetri Files',
+  'Vetri Project Management',
+  'Coach AI',
+  'Vetri AI Assistant',
+  'Vetri CRM',
+  'Vetri Training Management System',
+  'Website Development',
+  'Mobile App Development',
+  'UI/UX Design',
+  'AI Solutions',
+  'Generative AI',
+  'ERP Development',
+  'Digital Marketing',
+  'SEO',
+  'Cloud Services',
+  'Training Course',
+  'Other',
+]
+
+const EMPTY_ENQUIRY_FORM = {
+  full_name: '',
+  company: '',
+  email: '',
+  phone: '',
+  interest: '',
+  message: '',
+}
 
 const SECTION_LABELS = [
   'Welcome to',
@@ -106,6 +145,7 @@ const SECTION_LABELS = [
   'AI Solutions',
   'Get Quotation',
   'Pricing & Quotation',
+  'Enquiry Submitted',
   'Technology Built',
   'Our Vision',
   'Our Mission',
@@ -306,11 +346,113 @@ function QuickActionChips({ items, disabled, onSelect }) {
             type="button"
             className="quick-action-chip"
             disabled={disabled}
-            onClick={() => onSelect(item.message)}
+            onClick={() => onSelect(item.type)}
           >
             {item.label}
           </button>
         ))}
+      </div>
+    </div>
+  )
+}
+
+function EnquiryModal({
+  open,
+  enquiryType,
+  form,
+  onChange,
+  onClose,
+  onSubmit,
+  submitting,
+  error,
+}) {
+  if (!open) return null
+
+  return (
+    <div className="enquiry-overlay" onClick={onClose}>
+      <div
+        className="enquiry-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="enquiry-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="enquiry-modal-head">
+          <h2 id="enquiry-title">{ENQUIRY_TITLES[enquiryType] || ENQUIRY_TITLES.general}</h2>
+          <button type="button" className="enquiry-close-btn" onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+
+        <p className="enquiry-modal-sub">
+          Tell us what you need. Our VIS team will contact you by email or phone.
+        </p>
+
+        <form className="enquiry-form" onSubmit={onSubmit}>
+          <label>
+            Full name *
+            <input
+              value={form.full_name}
+              onChange={(event) => onChange('full_name', event.target.value)}
+              placeholder="Your name"
+              required
+            />
+          </label>
+          <label>
+            Company
+            <input
+              value={form.company}
+              onChange={(event) => onChange('company', event.target.value)}
+              placeholder="Company name"
+            />
+          </label>
+          <label>
+            Work email *
+            <input
+              type="email"
+              value={form.email}
+              onChange={(event) => onChange('email', event.target.value)}
+              placeholder="you@company.com"
+              required
+            />
+          </label>
+          <label>
+            Phone
+            <input
+              value={form.phone}
+              onChange={(event) => onChange('phone', event.target.value)}
+              placeholder="+91"
+            />
+          </label>
+          <label>
+            Product / service of interest
+            <select
+              value={form.interest}
+              onChange={(event) => onChange('interest', event.target.value)}
+            >
+              <option value="">Select product / service</option>
+              {INTEREST_OPTIONS.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            How can we help? *
+            <textarea
+              value={form.message}
+              onChange={(event) => onChange('message', event.target.value)}
+              placeholder="Describe your requirement"
+              rows={4}
+              required
+            />
+          </label>
+
+          {error && <p className="enquiry-error">{error}</p>}
+
+          <button type="submit" className="btn-green enquiry-submit-btn" disabled={submitting}>
+            {submitting ? 'Submitting…' : 'Submit Enquiry'}
+          </button>
+        </form>
       </div>
     </div>
   )
@@ -529,6 +671,11 @@ function App() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [apiStatus, setApiStatus] = useState('checking')
   const [followUps, setFollowUps] = useState([])
+  const [enquiryOpen, setEnquiryOpen] = useState(false)
+  const [enquiryType, setEnquiryType] = useState('quotation')
+  const [enquiryForm, setEnquiryForm] = useState(EMPTY_ENQUIRY_FORM)
+  const [enquirySubmitting, setEnquirySubmitting] = useState(false)
+  const [enquiryError, setEnquiryError] = useState('')
   const bottomRef = useRef(null)
   const abortRef = useRef(null)
 
@@ -739,6 +886,69 @@ function App() {
     abortRef.current?.abort()
   }
 
+  function openEnquiry(type = 'general') {
+    setEnquiryType(type)
+    setEnquiryError('')
+    setEnquiryOpen(true)
+  }
+
+  function closeEnquiry() {
+    if (enquirySubmitting) return
+    setEnquiryOpen(false)
+    setEnquiryError('')
+  }
+
+  function updateEnquiryField(field, value) {
+    setEnquiryForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  async function submitEnquiryForm(event) {
+    event.preventDefault()
+    if (enquirySubmitting) return
+
+    setEnquiryError('')
+    setEnquirySubmitting(true)
+
+    try {
+      const res = await fetch(ENQUIRY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...enquiryForm,
+          enquiry_type: enquiryType,
+          client_token: getClientToken(),
+          conversation_id: conversationId || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not submit enquiry.')
+      }
+
+      setEnquiryOpen(false)
+      setEnquiryForm(EMPTY_ENQUIRY_FORM)
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'user',
+          text:
+            `Submitted enquiry: ${ENQUIRY_TITLES[enquiryType] || ENQUIRY_TITLES.general}\n` +
+            `Name: ${enquiryForm.full_name}\nEmail: ${enquiryForm.email}`,
+        },
+        {
+          role: 'bot',
+          text: data.confirmation || 'Thank you. Your enquiry has been submitted.',
+          source: 'verified_kb',
+        },
+      ])
+      setApiStatus('online')
+    } catch (err) {
+      setEnquiryError(err.message || 'Could not submit enquiry.')
+    } finally {
+      setEnquirySubmitting(false)
+    }
+  }
+
   function exportChat() {
     if (messages.length === 0) return
     const transcript = messages
@@ -860,7 +1070,7 @@ function App() {
                 AI-first enterprise technology — products, services, training, and support from Vetri IT Systems.
               </p>
             </div>
-          </div>
+        </div>
         </section>
       )}
 
@@ -886,8 +1096,11 @@ function App() {
                 <h1>Coach AI</h1>
                 <p>Vetri IT Systems · VIS Assistant</p>
               </div>
-            </div>
+        </div>
             <div className="top-actions">
+              <button type="button" className="ghost enquiry-top-btn" onClick={() => openEnquiry('quotation')}>
+                Enquiry
+              </button>
               <button type="button" className="ghost" onClick={exportChat} title="Export chat">
                 Export
               </button>
@@ -948,8 +1161,8 @@ function App() {
                     </p>
                     <QuickActionChips
                       items={QUICK_ACTIONS}
-                      disabled={loading || apiStatus === 'offline'}
-                      onSelect={sendMessage}
+                      disabled={loading}
+                      onSelect={openEnquiry}
                     />
                   </div>
                 )}
@@ -981,7 +1194,7 @@ function App() {
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
                         <path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
+                </svg>
                     </span>
                     <div className="bubble-wrap">
                       <span className="bubble-label">Coach AI</span>
@@ -1074,6 +1287,17 @@ function App() {
       )}
 
       {!IS_EMBED && <SiteFooter />}
+
+      <EnquiryModal
+        open={enquiryOpen}
+        enquiryType={enquiryType}
+        form={enquiryForm}
+        onChange={updateEnquiryField}
+        onClose={closeEnquiry}
+        onSubmit={submitEnquiryForm}
+        submitting={enquirySubmitting}
+        error={enquiryError}
+      />
     </div>
   )
 }

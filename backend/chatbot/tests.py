@@ -7,6 +7,7 @@ from django.test import TestCase
 
 from .eligibility import handle_eligibility
 from .knowledge import COURSES, PRODUCTS, SERVICES, get_structured_reply
+from .models import Enquiry
 from .throttles import ChatRateThrottle
 from .views import generate_reply
 
@@ -337,6 +338,54 @@ class KnowledgeReplyTests(TestCase):
         reply = get_structured_reply("Tell me about Digital Marketing course")
         self.assertIn("Course Overview", reply)
         self.assertIn("Digital Marketing", reply)
+
+
+class EnquiryApiTests(ChatApiTestCase):
+    def _post_enquiry(self, payload, client_token: str = CLIENT_A):
+        return self.client.post(
+            "/api/chatbot/enquiries/",
+            data=json.dumps({**payload, "client_token": client_token}),
+            content_type="application/json",
+        )
+
+    def test_submit_quotation_enquiry(self):
+        response = self._post_enquiry({
+            "enquiry_type": "quotation",
+            "full_name": "Test User",
+            "email": "test@example.com",
+            "message": "Need pricing for Vetri Bills",
+            "interest": "Vetri Bills",
+        })
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["enquiry_type"], "quotation")
+        self.assertIn("Enquiry Submitted", data["confirmation"])
+        self.assertEqual(Enquiry.objects.count(), 1)
+
+    def test_submit_consultation_enquiry_has_distinct_confirmation(self):
+        quote = self._post_enquiry({
+            "enquiry_type": "quotation",
+            "full_name": "Quote User",
+            "email": "quote@example.com",
+            "message": "Need a quote",
+        }).json()["confirmation"]
+        consult = self._post_enquiry({
+            "enquiry_type": "consultation",
+            "full_name": "Consult User",
+            "email": "consult@example.com",
+            "message": "Need a consultation",
+        }).json()["confirmation"]
+        self.assertIn("Get Quotation", quote)
+        self.assertIn("Book a Consultation", consult)
+        self.assertNotEqual(quote, consult)
+
+    def test_enquiry_requires_email_and_message(self):
+        response = self._post_enquiry({
+            "enquiry_type": "demo",
+            "full_name": "Test User",
+            "message": "",
+        })
+        self.assertEqual(response.status_code, 400)
 
 
 class ChatAdvancedFeatureTests(ChatApiTestCase):
