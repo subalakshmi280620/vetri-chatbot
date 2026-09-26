@@ -93,6 +93,23 @@ const ENQUIRY_TITLES = {
   general: 'Submit Enquiry',
 }
 
+const ENQUIRY_TYPE_TABS = [
+  { type: 'quotation', label: 'Quotation' },
+  { type: 'consultation', label: 'Consultation' },
+  { type: 'demo', label: 'Product Demo' },
+]
+
+const ENQUIRY_SUBTEXT = {
+  quotation:
+    'Tell us what you want to achieve. You will get a tailored proposal, timeline, and indicative pricing.',
+  consultation:
+    'Speak directly with a VIS solution consultant — no call centres, no scripts.',
+  demo:
+    'See VIS enterprise products with live workflow previews. Tell us which product to explore.',
+  sales: 'Our sales team will help with product selection and enterprise requirements.',
+  general: 'Tell us what you need. Our VIS team will contact you by email or phone.',
+}
+
 const INTEREST_OPTIONS = [
   'Vetri Bills',
   'Vetri Files',
@@ -361,12 +378,17 @@ function EnquiryModal({
   enquiryType,
   form,
   onChange,
+  onTypeChange,
   onClose,
   onSubmit,
   submitting,
   error,
 }) {
   if (!open) return null
+
+  const activeType = ENQUIRY_TYPE_TABS.some((tab) => tab.type === enquiryType)
+    ? enquiryType
+    : 'quotation'
 
   return (
     <div className="enquiry-overlay" onClick={onClose}>
@@ -378,14 +400,29 @@ function EnquiryModal({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="enquiry-modal-head">
-          <h2 id="enquiry-title">{ENQUIRY_TITLES[enquiryType] || ENQUIRY_TITLES.general}</h2>
+          <h2 id="enquiry-title">{ENQUIRY_TITLES[activeType] || ENQUIRY_TITLES.general}</h2>
           <button type="button" className="enquiry-close-btn" onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>
 
+        <div className="enquiry-type-tabs" role="tablist" aria-label="Enquiry type">
+          {ENQUIRY_TYPE_TABS.map((tab) => (
+            <button
+              key={tab.type}
+              type="button"
+              role="tab"
+              aria-selected={activeType === tab.type}
+              className={`enquiry-type-tab ${activeType === tab.type ? 'active' : ''}`}
+              onClick={() => onTypeChange(tab.type)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <p className="enquiry-modal-sub">
-          Tell us what you need. Our VIS team will contact you by email or phone.
+          {ENQUIRY_SUBTEXT[activeType] || ENQUIRY_SUBTEXT.general}
         </p>
 
         <form className="enquiry-form" onSubmit={onSubmit}>
@@ -1293,6 +1330,7 @@ function App() {
         enquiryType={enquiryType}
         form={enquiryForm}
         onChange={updateEnquiryField}
+        onTypeChange={setEnquiryType}
         onClose={closeEnquiry}
         onSubmit={submitEnquiryForm}
         submitting={enquirySubmitting}
