@@ -23,6 +23,41 @@ const API_URL = `${API_BASE}/api/chatbot/chat/`
 const HISTORY_URL = `${API_BASE}/api/chatbot/conversations/`
 const FEEDBACK_URL = `${API_BASE}/api/chatbot/messages/feedback/`
 const ENQUIRY_URL = `${API_BASE}/api/chatbot/enquiries/`
+const MAX_ATTACHMENTS = 3
+const ACCEPTED_FILE_TYPES =
+  'image/jpeg,image/png,image/webp,image/gif,.pdf,.txt,.md,text/plain,text/markdown,application/pdf'
+const SPEECH_RECOGNITION =
+  typeof window !== 'undefined'
+    ? window.SpeechRecognition || window.webkitSpeechRecognition
+    : null
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}.`))
+    reader.readAsDataURL(file)
+  })
+}
+
+function dataUrlToBase64(dataUrl) {
+  const parts = String(dataUrl).split(',')
+  return parts.length > 1 ? parts[1] : parts[0]
+}
+
+async function buildAttachmentFromFile(file) {
+  const dataUrl = await readFileAsDataUrl(file)
+  const mimeType = file.type || 'application/octet-stream'
+  const isImage = mimeType.startsWith('image/')
+  return {
+    id: `${file.name}-${file.size}-${file.lastModified}`,
+    name: file.name,
+    mime_type: mimeType,
+    type: isImage ? 'image' : 'document',
+    data: dataUrlToBase64(dataUrl),
+    previewUrl: isImage ? dataUrl : '',
+  }
+}
 const HEALTH_URL = `${API_BASE}/health/`
 const IS_EMBED = new URLSearchParams(window.location.search).get('embed') === '1'
 const CLIENT_TOKEN_KEY = 'visClientToken'
@@ -242,6 +277,32 @@ function SendIcon() {
   )
 }
 
+function MicIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 15a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function AttachIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M16 7.5V15a4 4 0 0 1-8 0V6.5a3 3 0 0 1 6 0V14a2 2 0 0 1-4 0V7"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 function ChevronIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -281,6 +342,7 @@ function formatMessage(text) {
 function MessageBubble({
   role,
   text,
+  attachments = [],
   source,
   feedback,
   messageId,
@@ -319,6 +381,19 @@ function MessageBubble({
                 {SOURCE_LABELS[source]}
               </span>
             )}
+          </div>
+        )}
+        {attachments.length > 0 && (
+          <div className="bubble-attachments">
+            {attachments.map((item) => (
+              <div key={item.id || item.name} className="bubble-attachment">
+                {item.previewUrl ? (
+                  <img src={item.previewUrl} alt={item.name} className="attachment-preview" />
+                ) : (
+                  <span className="attachment-file">📄 {item.name}</span>
+                )}
+              </div>
+            ))}
           </div>
         )}
         <div className="bubble">{formatMessage(text)}</div>
@@ -729,6 +804,8 @@ function App() {
     () => getStoredItem(CONVERSATION_ID_KEY) || ''
   )
   const [input, setInput] = useState('')
+  const [pendingAttachments, setPendingAttachments] = useState([])
+  const [isListening, setIsListening] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [historyList, setHistoryList] = useState([])
@@ -743,6 +820,9 @@ function App() {
   const [enquiryError, setEnquiryError] = useState('')
   const bottomRef = useRef(null)
   const abortRef = useRef(null)
+  const fileInputRef = useRef(null)
+  const speechRef = useRef(null)
+  const voiceSupported = Boolean(SPEECH_RECOGNITION)
 
   useEffect(() => {
     document.documentElement.classList.toggle('embed', IS_EMBED)
@@ -1028,13 +1108,96 @@ function App() {
     URL.revokeObjectURL(url)
   }
 
-  async function sendMessage(text) {
+  useEffect(() => {
+    return () => {
+      if (speechRef.current) {
+        speechRef.current.stop()
+        speechRef.current = null
+      }
+    }
+  }, [])
+
+  function removePendingAttachment(id) {
+    setPendingAttachments((prev) => prev.filter((item) => item.id !== id))
+  }
+
+  async function handleAttachmentSelect(event) {
+    const files = Array.from(event.target.files || [])
+    event.target.value = ''
+    if (!files.length) return
+
+    const remaining = MAX_ATTACHMENTS - pendingAttachments.length
+    if (remaining <= 0) {
+      setError(`You can attach up to ${MAX_ATTACHMENTS} files per message.`)
+      return
+    }
+
+    try {
+      const selected = files.slice(0, remaining)
+      const built = await Promise.all(selected.map((file) => buildAttachmentFromFile(file)))
+      setPendingAttachments((prev) => [...prev, ...built])
+      setError('')
+    } catch (err) {
+      setError(err.message || 'Could not read the selected file.')
+    }
+  }
+
+  function toggleVoiceInput() {
+    if (!voiceSupported || loading) return
+
+    if (isListening && speechRef.current) {
+      speechRef.current.stop()
+      return
+    }
+
+    const recognition = new SPEECH_RECOGNITION()
+    recognition.lang = 'en-IN'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+
+    recognition.onstart = () => setIsListening(true)
+    recognition.onend = () => {
+      setIsListening(false)
+      speechRef.current = null
+    }
+    recognition.onerror = () => {
+      setIsListening(false)
+      speechRef.current = null
+      setError('Voice input failed. Try Chrome/Edge or type your question.')
+    }
+    recognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript || ''
+      if (transcript) {
+        setInput((prev) => (prev ? `${prev} ${transcript}` : transcript))
+      }
+    }
+
+    speechRef.current = recognition
+    recognition.start()
+  }
+
+  async function sendMessage(text, attachmentsOverride = null) {
     const message = (text ?? input).trim()
-    if (!message || loading) return
+    const attachments = attachmentsOverride ?? pendingAttachments
+    if ((!message && attachments.length === 0) || loading) return
+
+    const displayText = message || `Shared ${attachments.map((item) => item.name).join(', ')}`
 
     setError('')
     setInput('')
-    setMessages((prev) => [...prev, { role: 'user', text: message }])
+    setPendingAttachments([])
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'user',
+        text: displayText,
+        attachments: attachments.map((item) => ({
+          id: item.id,
+          name: item.name,
+          previewUrl: item.previewUrl,
+        })),
+      },
+    ])
     setFollowUps([])
     setLoading(true)
 
@@ -1049,6 +1212,12 @@ function App() {
           message,
           client_token: getClientToken(),
           conversation_id: conversationId || undefined,
+          attachments: attachments.map((item) => ({
+            name: item.name,
+            mime_type: item.mime_type,
+            type: item.type,
+            data: item.data,
+          })),
         }),
         signal: controller.signal,
       })
@@ -1237,6 +1406,7 @@ function App() {
                     key={msg.messageId || `${msg.role}-${index}`}
                     role={msg.role}
                     text={msg.text}
+                    attachments={msg.attachments || []}
                     source={msg.source}
                     feedback={msg.feedback}
                     messageId={msg.messageId}
@@ -1299,11 +1469,69 @@ function App() {
                 </div>
               )}
 
+              {pendingAttachments.length > 0 && (
+                <div className="composer-attachments">
+                  {pendingAttachments.map((item) => (
+                    <div key={item.id} className="composer-attachment-chip">
+                      {item.previewUrl ? (
+                        <img src={item.previewUrl} alt="" className="composer-attachment-thumb" />
+                      ) : (
+                        <span className="composer-attachment-name">📄 {item.name}</span>
+                      )}
+                      <button
+                        type="button"
+                        className="composer-attachment-remove"
+                        onClick={() => removePendingAttachment(item.id)}
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <form className="composer" onSubmit={onSubmit}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="composer-file-input"
+                  accept={ACCEPTED_FILE_TYPES}
+                  multiple
+                  onChange={handleAttachmentSelect}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                />
+                <button
+                  type="button"
+                  className="composer-tool-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading || pendingAttachments.length >= MAX_ATTACHMENTS}
+                  aria-label="Attach image or document"
+                  title="Attach image or document"
+                >
+                  <AttachIcon />
+                </button>
+                {voiceSupported && (
+                  <button
+                    type="button"
+                    className={`composer-tool-btn ${isListening ? 'is-active' : ''}`}
+                    onClick={toggleVoiceInput}
+                    disabled={loading}
+                    aria-label={isListening ? 'Stop voice input' : 'Speak your question'}
+                    title={isListening ? 'Listening…' : 'Voice input'}
+                  >
+                    <MicIcon />
+                  </button>
+                )}
                 <input
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
-                  placeholder="Type your question here…"
+                  placeholder={
+                    isListening
+                      ? 'Listening… speak now'
+                      : 'Type, speak, or attach a file…'
+                  }
                   disabled={loading}
                   aria-label="Chat message"
                 />
@@ -1320,7 +1548,7 @@ function App() {
                   <button
                     type="submit"
                     className="btn-green send-btn"
-                    disabled={!input.trim()}
+                    disabled={!input.trim() && pendingAttachments.length === 0}
                     aria-label="Send message"
                   >
                     <SendIcon />
@@ -1329,7 +1557,7 @@ function App() {
               </form>
 
               <footer className="chat-footer">
-                Powered by Vetri IT Systems · Verified information only
+                Text · Voice · Photos · PDF/TXT · Powered by Vetri IT Systems
               </footer>
             </div>
 

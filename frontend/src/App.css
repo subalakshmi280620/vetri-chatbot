@@ -1240,12 +1240,116 @@
 }
 
 /* ── Composer (Figma form style) ───────────────────────────── */
+.composer-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 24px 0;
+  background: var(--panel);
+}
+
+.composer-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.composer-attachment-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.composer-attachment-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-attachment-remove {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.composer-file-input {
+  display: none;
+}
+
 .composer {
   display: flex;
   gap: 10px;
   padding: 14px 24px;
   border-top: 1px solid var(--border);
   background: var(--panel);
+}
+
+.composer-tool-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 48px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--vis-navy);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.composer-tool-btn:hover:not(:disabled) {
+  border-color: var(--vis-green);
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.composer-tool-btn.is-active {
+  border-color: var(--vis-green);
+  background: rgba(74, 222, 128, 0.18);
+  color: var(--vis-navy);
+}
+
+.composer-tool-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bubble-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.bubble-attachment {
+  max-width: 100%;
+}
+
+.attachment-preview {
+  max-width: 220px;
+  max-height: 160px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+.attachment-file {
+  display: inline-block;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(12, 30, 61, 0.06);
 }
 
 .composer input {

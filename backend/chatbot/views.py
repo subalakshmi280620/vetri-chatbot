@@ -6,6 +6,7 @@ from django.db.models import Count, Max, Q
 from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
 
+from .attachments import build_user_message_with_attachments, parse_attachments
 from .throttles import ChatRateThrottle
 
 from .deepseek import ask_deepseek
@@ -35,12 +36,13 @@ def build_prompt(user_message: str) -> str:
     return "\n\n".join(parts)
 
 
-def _try_ai_reply(user_message: str, history=None) -> str | None:
+def _try_ai_reply(user_message: str, history=None, attachments=None) -> str | None:
     if not (settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY):
         return None
 
     prompt = build_prompt(user_message)
-    if settings.DEEPSEEK_API_KEY:
+    images = attachments.images if attachments else None
+    if settings.DEEPSEEK_API_KEY and not images:
         try:
             return ask_deepseek(user_message, prompt, history)
         except Exception as exc:
@@ -48,17 +50,28 @@ def _try_ai_reply(user_message: str, history=None) -> str | None:
 
     if settings.GEMINI_API_KEY:
         try:
-            return ask_gemini(user_message, prompt, history)
+            return ask_gemini(user_message, prompt, history, images=images)
         except Exception as exc:
             logger.warning("Gemini unavailable: %s", exc)
 
     return None
 
 
-def generate_reply(user_message: str, history=None) -> tuple[str, str]:
-    ai_reply = _try_ai_reply(user_message, history)
+def generate_reply(
+    user_message: str,
+    history=None,
+    attachments=None,
+) -> tuple[str, str]:
+    ai_reply = _try_ai_reply(user_message, history, attachments)
     if ai_reply:
         return enforce_verified_facts(ai_reply), SOURCE_AI
+
+    if attachments and (attachments.images or attachments.document_text):
+        names = ", ".join(attachments.display_labels) or "your file"
+        return (
+            f"I received {names}, but I could not analyse it right now. "
+            f"Please try again shortly or email support@vetri-it.com."
+        ), SOURCE_AI
 
     if not is_non_eligibility_faq(user_message):
         eligibility = handle_eligibility(user_message, history)
@@ -109,21 +122,19 @@ def serialize_message(message: Message) -> dict:
 @api_view(["POST"])
 @throttle_classes([ChatRateThrottle])
 def chat(request):
-    message = request.data.get("message")
-
-    if not message:
-        return Response(
-            {"error": "Message is required"},
-            status=400
-        )
+    message = request.data.get("message", "")
+    raw_attachments = request.data.get("attachments") or []
 
     client_token = get_client_token_from_request(request)
     if not client_token:
         return Response({"error": "client_token is required."}, status=400)
 
-    user_message = str(message)
+    user_message = str(message).strip()
+    if not user_message and not raw_attachments:
+        return Response({"error": "Message or attachment is required"}, status=400)
+
     max_length = settings.CHAT_MAX_MESSAGE_LENGTH
-    if len(user_message) > max_length:
+    if user_message and len(user_message) > max_length:
         return Response(
             {
                 "error": (
@@ -132,6 +143,21 @@ def chat(request):
             },
             status=400,
         )
+
+    try:
+        processed_attachments = parse_attachments(
+            raw_attachments,
+            max_count=settings.CHAT_MAX_ATTACHMENTS,
+            max_bytes=settings.CHAT_MAX_ATTACHMENT_BYTES,
+            max_document_chars=settings.CHAT_MAX_DOCUMENT_CHARS,
+        )
+    except ValueError as exc:
+        return Response({"error": str(exc)}, status=400)
+
+    prompt_message = build_user_message_with_attachments(
+        user_message,
+        processed_attachments,
+    )
 
     conversation = resolve_conversation(
         request.data.get("conversation_id"),
@@ -148,13 +174,18 @@ def chat(request):
     )
     history.reverse()
 
-    reply, source = generate_reply(user_message, history)
-    suggestions = get_follow_up_suggestions(user_message, reply, source)
+    reply, source = generate_reply(prompt_message, history, processed_attachments)
+    suggestions = get_follow_up_suggestions(prompt_message, reply, source)
+
+    stored_user_text = user_message or "Shared attachment(s)"
+    if processed_attachments.display_labels:
+        labels = ", ".join(processed_attachments.display_labels)
+        stored_user_text = f"{stored_user_text}\n[Attached: {labels}]".strip()
 
     Message.objects.create(
         conversation=conversation,
         role=Message.ROLE_USER,
-        text=user_message,
+        text=stored_user_text,
     )
     bot_message = Message.objects.create(
         conversation=conversation,

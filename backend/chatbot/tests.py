@@ -1,3 +1,4 @@
+import base64
 import json
 import uuid
 from unittest.mock import patch
@@ -15,6 +16,7 @@ from .knowledge import (
 )
 from .models import Enquiry
 from .throttles import ChatRateThrottle
+from .attachments import build_user_message_with_attachments, parse_attachments
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
 from .views import build_prompt, generate_reply
 
@@ -32,6 +34,66 @@ class ChatApiTestCase(TestCase):
             data=json.dumps(payload),
             content_type="application/json",
         )
+
+
+class AttachmentTests(TestCase):
+    def test_parse_text_document_attachment(self):
+        content = base64.b64encode(b"Python Fullstack course details").decode("ascii")
+        processed = parse_attachments(
+            [{
+                "name": "course.txt",
+                "mime_type": "text/plain",
+                "type": "document",
+                "data": content,
+            }],
+            max_count=3,
+            max_bytes=1024 * 1024,
+            max_document_chars=5000,
+        )
+        self.assertIn("Python Fullstack", processed.document_text)
+        self.assertEqual(processed.display_labels, ["course.txt"])
+
+    def test_build_user_message_includes_document_text(self):
+        processed = parse_attachments(
+            [{
+                "name": "notes.txt",
+                "mime_type": "text/plain",
+                "type": "document",
+                "data": base64.b64encode(b"Vetri Bills GST billing").decode("ascii"),
+            }],
+            max_count=3,
+            max_bytes=1024 * 1024,
+            max_document_chars=5000,
+        )
+        message = build_user_message_with_attachments(
+            "What product is mentioned here?",
+            processed,
+        )
+        self.assertIn("Vetri Bills", message)
+        self.assertIn("What product is mentioned here?", message)
+
+    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
+    @patch("chatbot.views.ask_gemini", return_value="I can see Vetri Bills in the image.")
+    def test_chat_accepts_image_attachment(self, mock_gemini):
+        image_bytes = base64.b64encode(b"fake-image-bytes").decode("ascii")
+        response = self.client.post(
+            "/api/chatbot/chat/",
+            data=json.dumps({
+                "message": "What is in this image?",
+                "client_token": CLIENT_A,
+                "attachments": [{
+                    "name": "screenshot.png",
+                    "mime_type": "image/png",
+                    "type": "image",
+                    "data": image_bytes,
+                }],
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Vetri Bills", response.json()["reply"])
+        self.assertTrue(mock_gemini.called)
+        self.assertTrue(mock_gemini.call_args.kwargs.get("images"))
 
 
 class VerifiedFactsTests(TestCase):

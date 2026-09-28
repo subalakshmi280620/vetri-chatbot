@@ -23,11 +23,25 @@ def _gemini_model_chain() -> list[str]:
     return chain
 
 
+def _build_user_parts(user_message: str, images=None) -> list[dict]:
+    parts: list[dict] = []
+    for image in images or []:
+        parts.append({
+            "inline_data": {
+                "mime_type": image["mime_type"],
+                "data": image["data"],
+            },
+        })
+    parts.append({"text": user_message})
+    return parts
+
+
 def _call_gemini_model(
     model: str,
     user_message: str,
     system_prompt: str,
     history=None,
+    images=None,
 ) -> str:
     api_key = settings.GEMINI_API_KEY
     if not api_key:
@@ -42,7 +56,10 @@ def _call_gemini_model(
     for item in history or []:
         role = "model" if item["role"] == "bot" else "user"
         contents.append({"role": role, "parts": [{"text": item["text"]}]})
-    contents.append({"role": "user", "parts": [{"text": user_message}]})
+    contents.append({
+        "role": "user",
+        "parts": _build_user_parts(user_message, images),
+    })
 
     payload = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
@@ -77,13 +94,24 @@ def _call_gemini_model(
     return text
 
 
-def ask_gemini(user_message: str, system_prompt: str, history=None) -> str:
+def ask_gemini(
+    user_message: str,
+    system_prompt: str,
+    history=None,
+    images=None,
+) -> str:
     last_error: Exception | None = None
 
     for model in _gemini_model_chain():
         for attempt in range(2):
             try:
-                return _call_gemini_model(model, user_message, system_prompt, history)
+                return _call_gemini_model(
+                    model,
+                    user_message,
+                    system_prompt,
+                    history,
+                    images=images,
+                )
             except RuntimeError as exc:
                 last_error = exc
                 code = None
