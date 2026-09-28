@@ -11,13 +11,7 @@ from .throttles import ChatRateThrottle
 from .deepseek import ask_deepseek
 from .gemini import ask_gemini
 from .eligibility import handle_eligibility, is_non_eligibility_faq
-from .knowledge import (
-    SYSTEM_PROMPT,
-    UNVERIFIED,
-    get_conversational_fallback,
-    get_reply,
-    get_structured_reply,
-)
+from .knowledge import SYSTEM_PROMPT, get_conversational_fallback
 from .email_notifications import send_enquiry_notification
 from .models import Conversation, Enquiry, Message
 from .rag import format_context, retrieve
@@ -61,30 +55,16 @@ def _try_ai_reply(user_message: str, history=None) -> str | None:
 
 
 def generate_reply(user_message: str, history=None) -> tuple[str, str]:
-    if not is_non_eligibility_faq(user_message):
-        eligibility = handle_eligibility(user_message, history)
-        if eligibility:
-            return eligibility, SOURCE_ELIGIBILITY
-
     ai_reply = _try_ai_reply(user_message, history)
     if ai_reply:
         return ai_reply, SOURCE_AI
 
-    conversational = get_conversational_fallback(user_message)
-    if conversational:
-        return conversational, SOURCE_AI
+    if not is_non_eligibility_faq(user_message):
+        eligibility = handle_eligibility(user_message, history)
+        if eligibility:
+            return eligibility, SOURCE_AI
 
-    structured = get_structured_reply(user_message)
-    if structured:
-        return structured, SOURCE_VERIFIED_KB
-
-    kb_reply = get_reply(user_message)
-    if kb_reply and kb_reply != UNVERIFIED:
-        return kb_reply, SOURCE_VERIFIED_KB
-
-    fallback = kb_reply or get_reply(user_message)
-    source = SOURCE_UNVERIFIED if fallback == UNVERIFIED else SOURCE_VERIFIED_KB
-    return fallback, source
+    return get_conversational_fallback(user_message), SOURCE_AI
 
 
 def parse_client_token(value):

@@ -133,32 +133,21 @@ def _evaluate_eligibility(course_id: str, course_name: str, qualification: str) 
     rule = COURSE_ELIGIBILITY.get(course_id)
     if not rule:
         return (
-            "Eligibility Assessment\n"
-            "Outcome: CANNOT DETERMINE\n\n"
-            f"Thank you for sharing your details. I do not have enough verified information "
-            f"to confirm your eligibility for {course_name}.\n\n"
-            f"Qualification provided: {qualification}\n\n"
+            f"Thanks for sharing ({qualification}). I don't have enough verified info "
+            f"to confirm eligibility for {course_name}. "
             f"{CONTACT_LINE}"
         )
 
     if qualification_meets_degree_requirement(qualification):
         return (
-            "Eligibility Assessment\n"
-            "Outcome: ELIGIBLE\n\n"
-            f"Good news — based on your qualification ({qualification}), you appear to "
-            f"meet the requirements for {course_name}.\n\n"
-            f"Requirement: {rule}\n\n"
-            "Would you like to know how to apply or about course fees? I can help with that.\n\n"
-            f"{CONTACT_LINE}"
+            f"Good news — with your {qualification}, you meet the requirement for "
+            f"{course_name} ({rule.lower()}). "
+            "Would you like to know about fees or how to apply?"
         )
 
     return (
-        "Eligibility Assessment\n"
-        "Outcome: NOT ELIGIBLE\n\n"
-        f"Based on the available VIS requirements, a completed degree is needed for "
-        f"{course_name}, and your shared qualification may not meet that yet.\n\n"
-        f"Your qualification: {qualification}\n"
-        f"Requirement: {rule}\n\n"
+        f"For {course_name}, a completed degree is required ({rule.lower()}). "
+        f"Based on what you shared ({qualification}), you may not meet that yet. "
         f"{CONTACT_LINE}"
     )
 
@@ -167,9 +156,11 @@ def _is_eligibility_outcome(last_bot: str) -> bool:
     return any(
         phrase in last_bot
         for phrase in (
+            "you meet the requirement",
+            "may not meet that yet",
+            "don't have enough verified info",
             "outcome: eligible",
             "outcome: not eligible",
-            "outcome: cannot determine",
         )
     )
 
@@ -180,11 +171,12 @@ def _is_waiting_for_eligibility_details(last_bot: str) -> bool:
     return any(
         phrase in last_bot
         for phrase in (
-            "please select the course you are interested",
-            "to proceed, please share your education qualification",
-            "please share your education qualification",
-            "qualification and the course you are interested",
-            "help check your eligibility",
+            "which course you're interested",
+            "which course are you interested",
+            "what's your qualification",
+            "share your qualification",
+            "check your eligibility",
+            "please select the course",
         )
     )
 
@@ -218,19 +210,16 @@ def handle_eligibility(user_message: str, history=None) -> str | None:
         return general_eligibility_reply()
 
     if not course_id:
+        course_sample = ", ".join(COURSES[:4]) + ", and more"
         return (
-            "Eligibility Check\n\n"
-            "I can review eligibility using only the official VIS course information we have.\n\n"
-            "Please select the course you are interested in:\n"
-            + "\n".join(f"• {name}" for name in COURSES)
+            f"Thanks! Which course are you interested in? We offer programmes like "
+            f"{course_sample}."
         )
 
     if not qualification:
         return (
-            f"Eligibility Check — {course_name}\n\n"
-            "To proceed, please share your education qualification.\n\n"
-            f"Requirement: {ELIGIBILITY_REQUIREMENT}\n"
-            "Examples: B.Tech, B.Sc, BCA, B.Com, MBA, or MCA."
+            f"For {course_name}, you need {ELIGIBILITY_REQUIREMENT.lower()}. "
+            "What's your qualification? (e.g. B.Tech, B.Sc, BCA, B.Com, MBA, MCA)"
         )
 
     return _evaluate_eligibility(course_id, course_name, qualification)

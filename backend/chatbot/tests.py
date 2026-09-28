@@ -182,7 +182,7 @@ class EligibilityReplyTests(TestCase):
 
     def test_general_eligibility_ignores_prior_course_in_history(self):
         reply = handle_eligibility("What is the eligibility?", self.JAVA_HISTORY)
-        self.assertIn("General Eligibility", reply)
+        self.assertIn("degree", reply.lower())
         self.assertNotIn("Java Fullstack", reply)
 
     def test_general_eligibility_questions(self):
@@ -192,18 +192,18 @@ class EligibilityReplyTests(TestCase):
             "What qualification is required?",
         ):
             reply = handle_eligibility(message)
-            self.assertIn("General Eligibility", reply)
+            self.assertIn("degree", reply.lower())
             self.assertNotIn("Java Fullstack", reply)
 
     def test_am_i_eligible_returns_general_information(self):
         reply = handle_eligibility("Am I eligible?", self.JAVA_HISTORY)
-        self.assertIn("General Eligibility", reply)
+        self.assertIn("qualification", reply.lower())
         self.assertNotIn("Java Fullstack", reply)
 
     def test_course_specific_eligibility_when_course_named(self):
         reply = handle_eligibility("What is the eligibility for Python Fullstack?")
-        self.assertIn("Eligibility Requirements — Python Fullstack", reply)
-        self.assertNotIn("General Eligibility", reply)
+        self.assertIn("Python Fullstack", reply)
+        self.assertIn("degree", reply.lower())
 
     def test_eligibility_assessment_flow_still_works(self):
         first = handle_eligibility("Am I eligible?")
@@ -214,7 +214,7 @@ class EligibilityReplyTests(TestCase):
                 {"role": "bot", "text": first},
             ],
         )
-        self.assertIn("Please select the course", second)
+        self.assertIn("which course", second.lower())
 
         third = handle_eligibility(
             "Java Fullstack",
@@ -225,7 +225,7 @@ class EligibilityReplyTests(TestCase):
                 {"role": "bot", "text": second},
             ],
         )
-        self.assertIn("Outcome: ELIGIBLE", third)
+        self.assertIn("you meet the requirement", third.lower())
         self.assertIn("Java Fullstack", third)
 
     def _eligibility_conversation_history(self):
@@ -271,8 +271,8 @@ class EligibilityReplyTests(TestCase):
                 {"role": "bot", "text": first},
             ],
         )
-        self.assertIn("Outcome: ELIGIBLE", second)
-        self.assertNotIn("General Eligibility", second.split("Qualification provided:", 1)[-1])
+        self.assertIn("you meet the requirement", second.lower())
+        self.assertIn("Python", second)
 
 
 class KnowledgeReplyTests(TestCase):
@@ -294,9 +294,9 @@ class KnowledgeReplyTests(TestCase):
             {"role": "bot", "text": "Course Overview — Java Fullstack"},
         ]
         reply, source = generate_reply("What is the eligibility?", history)
-        self.assertIn("General Eligibility", reply)
+        self.assertIn("degree", reply.lower())
         self.assertNotIn("Java Fullstack", reply)
-        self.assertEqual(source, "eligibility")
+        self.assertEqual(source, "ai")
 
     @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="Vetri Bills is our GST billing product.")
@@ -448,8 +448,17 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         data = response.json()
         self.assertEqual(data["source"], "ai")
         self.assertNotIn("Which Courses Are Available", data["reply"])
+        self.assertNotIn("Course Overview —", data["reply"])
         self.assertIn("message_id", data)
         self.assertGreaterEqual(len(data["suggestions"]), 1)
+
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    def test_chat_never_returns_long_faq_template(self):
+        response = self._post_chat("What products does VIS offer?")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["source"], "ai")
+        self.assertNotIn("Our Products —", data["reply"])
 
     @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="We offer Python, Java, UI/UX, and more.")

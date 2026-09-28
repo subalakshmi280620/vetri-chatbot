@@ -212,24 +212,21 @@ def duration_reply(course_name: str = "") -> str:
 
 def general_eligibility_reply() -> str:
     return (
-        "General Eligibility\n\n"
-        f"• Requirement: {ELIGIBILITY_REQUIREMENT}.\n"
-        "• Accepted examples include B.Tech, B.Sc, BCA, B.Com, MBA, MCA, and other "
-        "completed undergraduate or postgraduate degrees.\n\n"
-        "If you tell me your qualification and the course you are interested in, "
-        "I can help check your eligibility."
+        f"For VIS training programmes, you need {ELIGIBILITY_REQUIREMENT.lower()} — "
+        "such as B.Tech, B.Sc, BCA, B.Com, MBA, or MCA. "
+        "Tell me your qualification and which course you're interested in, "
+        "and I can check your eligibility."
     )
 
 
 def eligibility_reply(course_name: str = "") -> str:
-    topic = f" — {course_name}" if course_name else ""
-    return (
-        f"Eligibility Requirements{topic}\n\n"
-        f"• Requirement: {ELIGIBILITY_REQUIREMENT}\n"
-        "• Accepted examples: B.Tech, B.Sc, BCA, B.Com, MBA, MCA, or any other "
-        "completed undergraduate or postgraduate degree.\n\n"
-        "If you would like a personal eligibility check, please share your qualification."
-    )
+    if course_name:
+        return (
+            f"For {course_name}, you need {ELIGIBILITY_REQUIREMENT.lower()} "
+            "(B.Tech, B.Sc, BCA, B.Com, MBA, MCA, etc.). "
+            "Share your qualification and I can confirm if you're eligible."
+        )
+    return general_eligibility_reply()
 
 
 def course_card(name: str, extra: str = "") -> str:
@@ -480,17 +477,21 @@ REPLIES = {
 
 SYSTEM_PROMPT = f"""You are Coach AI, the friendly assistant for {ORG_NAME} ({ORG_LEGAL}).
 
+You must answer EVERY user question naturally — including greetings, follow-ups, comparisons,
+and questions phrased in any way. Never reply with a fixed FAQ template or section headings
+like "Our Products —" or "Course Overview —".
+
 Conversation style:
-- Reply like a helpful consultant in a natural chat — not a FAQ page or brochure.
-- Keep answers SHORT: usually 2–4 sentences. Use a brief bullet list only when listing 3+ items.
-- Use the conversation history. Answer follow-up questions directly without repeating yourself.
-- Do not use rigid section headings (e.g. "Course Overview —") unless the user asks for full detail.
+- Reply like ChatGPT in a helpful business chat: warm, direct, and conversational.
+- Keep answers SHORT: usually 2–4 sentences unless the user asks for more detail.
+- Use conversation history. Answer follow-up questions directly without repeating yourself.
 - Never invent pricing, clients, portfolio projects, or features not in the verified content.
 
 Ground rules:
-- Use only verified VIS website information provided below and in retrieved excerpts.
+- Use only verified VIS website information below and in retrieved excerpts.
 - Course duration: {COURSE_DURATION}. Course eligibility: {ELIGIBILITY_REQUIREMENT}.
-- For fees/pricing: explain that pricing is tailored; invite them to request a quotation.
+- For fees/pricing: pricing is tailored — invite a quotation or contact.
+- For eligibility: a completed degree (UG/PG) is required; check the user's qualification honestly.
 - If unsure, say so briefly and share {CONTACT_PHONE} or {CONTACT_EMAIL}.
 
 Organization: {TAGLINE}
@@ -739,7 +740,7 @@ def _contact_close() -> str:
     return f"Reach us at {CONTACT_PHONE} or {CONTACT_EMAIL} if you'd like a demo or quote."
 
 
-def get_conversational_fallback(message: str) -> str | None:
+def get_conversational_fallback(message: str) -> str:
     """Short natural reply when the LLM is unavailable — not the long FAQ templates."""
     text = message.strip().lower()
 
@@ -906,7 +907,12 @@ def get_conversational_fallback(message: str) -> str | None:
                 f"and we'll prepare a tailored proposal. Or email {CONTACT_EMAIL}."
             )
 
-    return None
+    return (
+        "I'm not sure about that specific detail, but I can help with VIS products, "
+        "services, training courses, quotations, or contact info. "
+        f"What would you like to know? You can also reach our team at {CONTACT_PHONE} "
+        f"or {CONTACT_EMAIL}."
+    )
 
 
 def get_structured_reply(message: str) -> str | None:
