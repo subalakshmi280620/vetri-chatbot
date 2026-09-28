@@ -183,13 +183,38 @@ const SOURCE_LABELS = {
 function VisLogo({ size = 36, className = '' }) {
   return (
     <span
-      className={`vis-logo ${className}`.trim()}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.3) }}
+      className={`vis-logo vis-logo-image ${className}`.trim()}
+      style={{ width: size, height: size }}
       aria-hidden="true"
     >
-      VIS
+      <img src="/vis-logo.svg" alt="" width={size} height={size} />
     </span>
   )
+}
+
+const LINKIFY_RE = /(\+?\d[\d\s-]{8,}\d|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi
+
+function linkifyLine(line) {
+  const parts = line.split(LINKIFY_RE)
+  return parts.map((part, index) => {
+    if (!part) return null
+    if (part.includes('@')) {
+      return (
+        <a key={index} href={`mailto:${part}`} className="msg-link">
+          {part}
+        </a>
+      )
+    }
+    if (/^\+?\d/.test(part.trim())) {
+      const tel = part.replace(/[\s-]/g, '')
+      return (
+        <a key={index} href={`tel:${tel}`} className="msg-link">
+          {part}
+        </a>
+      )
+    }
+    return part
+  })
 }
 
 function ChatIcon() {
@@ -241,16 +266,16 @@ function formatMessage(text) {
     if (isHeading || isOutcome) {
       return (
         <p key={index} className={`msg-line ${isOutcome ? 'msg-outcome' : 'msg-heading'}`}>
-          {line}
+          {linkifyLine(line)}
         </p>
       )
     }
 
     if (isBullet) {
-      return <p key={index} className="msg-line msg-bullet">{line}</p>
+      return <p key={index} className="msg-line msg-bullet">{linkifyLine(line)}</p>
     }
 
-    return <p key={index} className="msg-line">{line}</p>
+    return <p key={index} className="msg-line">{linkifyLine(line)}</p>
   })
 }
 
@@ -538,8 +563,12 @@ function SiteFooter() {
         </div>
         <div className="footer-col">
           <strong>Contact</strong>
-          <p>+91 84381 54827</p>
-          <p>support@vetri-it.com</p>
+          <p>
+            <a href="tel:+918438154827" className="footer-link">+91 84381 54827</a>
+          </p>
+          <p>
+            <a href="mailto:support@vetri-it.com" className="footer-link">support@vetri-it.com</a>
+          </p>
         </div>
       </div>
       <div className="site-footer-copy">

@@ -3,7 +3,7 @@ import uuid
 from unittest.mock import patch
 
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from .eligibility import handle_eligibility
 from .knowledge import COURSES, PRODUCTS, SERVICES, get_structured_reply
@@ -386,6 +386,28 @@ class EnquiryApiTests(ChatApiTestCase):
             "message": "",
         })
         self.assertEqual(response.status_code, 400)
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        ENQUIRY_NOTIFY_EMAIL="notify@vetri-it.com",
+        DEFAULT_FROM_EMAIL="Coach AI <noreply@vetri-it.com>",
+    )
+    def test_enquiry_sends_notification_email(self):
+        from django.core import mail
+
+        response = self._post_enquiry({
+            "enquiry_type": "quotation",
+            "full_name": "Email Test",
+            "email": "customer@example.com",
+            "phone": "+91 84381 54827",
+            "message": "Please send pricing",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["email_sent"])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Coach AI enquiry", mail.outbox[0].subject)
+        self.assertIn("Email Test", mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].to, ["notify@vetri-it.com"])
 
 
 class ChatAdvancedFeatureTests(ChatApiTestCase):

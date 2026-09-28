@@ -47,6 +47,30 @@
   line-height: 1;
 }
 
+.vis-logo-image {
+  background: transparent;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.vis-logo-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.msg-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.msg-link:hover {
+  opacity: 0.85;
+}
+
 .site-name {
   display: block;
   color: var(--vis-navy);
@@ -154,6 +178,16 @@
   font-size: 12px;
   line-height: 1.6;
   opacity: 0.85;
+}
+
+.footer-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  color: var(--vis-green);
+  text-decoration: underline;
 }
 
 .site-footer-copy {

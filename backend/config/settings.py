@@ -221,34 +221,26 @@ STORAGES = {
 _EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
 
 if DEBUG:
-    MAILERS = {
-        "default": {
-            "BACKEND": "django.core.mail.backends.console.EmailBackend",
-        },
-    }
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 elif _EMAIL_HOST:
-    MAILERS = {
-        "default": {
-            "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
-        },
-    }
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_HOST = _EMAIL_HOST
     EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
     EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
     EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
     EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
     EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", False)
-    DEFAULT_FROM_EMAIL = os.environ.get(
-        "DEFAULT_FROM_EMAIL",
-        EMAIL_HOST_USER or "noreply@vetriit.com",
-    )
 else:
-    # Chatbot API does not send email; use a non-development backend for deploy checks.
-    MAILERS = {
-        "default": {
-            "BACKEND": "django.core.mail.backends.dummy.EmailBackend",
-        },
-    }
+    EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"
+
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL",
+    os.environ.get("EMAIL_HOST_USER", "Coach AI <noreply@vetri-it.com>"),
+)
+ENQUIRY_NOTIFY_EMAIL = os.environ.get(
+    "ENQUIRY_NOTIFY_EMAIL",
+    "support@vetri-it.com",
+).strip()
 _DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173,"
     "http://127.0.0.1:5173,"
