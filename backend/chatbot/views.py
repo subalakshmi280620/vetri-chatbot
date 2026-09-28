@@ -11,7 +11,13 @@ from .throttles import ChatRateThrottle
 from .deepseek import ask_deepseek
 from .gemini import ask_gemini
 from .eligibility import handle_eligibility, is_non_eligibility_faq
-from .knowledge import SYSTEM_PROMPT, UNVERIFIED, get_reply, get_structured_reply
+from .knowledge import (
+    SYSTEM_PROMPT,
+    UNVERIFIED,
+    get_conversational_fallback,
+    get_reply,
+    get_structured_reply,
+)
 from .email_notifications import send_enquiry_notification
 from .models import Conversation, Enquiry, Message
 from .rag import format_context, retrieve
@@ -27,24 +33,47 @@ HISTORY_LIMIT = 12
 
 
 def build_prompt(user_message: str) -> str:
-    context = format_context(retrieve(user_message))
-    if not context:
-        return SYSTEM_PROMPT
-    return f"{SYSTEM_PROMPT}\n\n{context}"
+    parts = [SYSTEM_PROMPT]
+    context = format_context(retrieve(user_message, limit=5))
+    if context:
+        parts.append(context)
+    return "\n\n".join(parts)
+
+
+def _try_ai_reply(user_message: str, history=None) -> str | None:
+    if not (settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY):
+        return None
+
+    prompt = build_prompt(user_message)
+    if settings.DEEPSEEK_API_KEY:
+        try:
+            return ask_deepseek(user_message, prompt, history)
+        except Exception as exc:
+            logger.warning("DeepSeek unavailable: %s", exc)
+
+    if settings.GEMINI_API_KEY:
+        try:
+            return ask_gemini(user_message, prompt, history)
+        except Exception as exc:
+            logger.warning("Gemini unavailable: %s", exc)
+
+    return None
 
 
 def generate_reply(user_message: str, history=None) -> tuple[str, str]:
-    # Fee, apply, contact, and similar FAQs should always use verified KB answers.
-    if is_non_eligibility_faq(user_message):
-        structured = get_structured_reply(user_message)
-        if structured:
-            return structured, SOURCE_VERIFIED_KB
+    if not is_non_eligibility_faq(user_message):
+        eligibility = handle_eligibility(user_message, history)
+        if eligibility:
+            return eligibility, SOURCE_ELIGIBILITY
 
-    eligibility = handle_eligibility(user_message, history)
-    if eligibility:
-        return eligibility, SOURCE_ELIGIBILITY
+    ai_reply = _try_ai_reply(user_message, history)
+    if ai_reply:
+        return ai_reply, SOURCE_AI
 
-    # Fast path: answer from verified KB before calling any LLM API.
+    conversational = get_conversational_fallback(user_message)
+    if conversational:
+        return conversational, SOURCE_AI
+
     structured = get_structured_reply(user_message)
     if structured:
         return structured, SOURCE_VERIFIED_KB
@@ -52,19 +81,6 @@ def generate_reply(user_message: str, history=None) -> tuple[str, str]:
     kb_reply = get_reply(user_message)
     if kb_reply and kb_reply != UNVERIFIED:
         return kb_reply, SOURCE_VERIFIED_KB
-
-    prompt = build_prompt(user_message)
-    if settings.DEEPSEEK_API_KEY:
-        try:
-            return ask_deepseek(user_message, prompt, history), SOURCE_AI
-        except Exception as exc:
-            logger.warning("DeepSeek unavailable: %s", exc)
-
-    if settings.GEMINI_API_KEY:
-        try:
-            return ask_gemini(user_message, prompt, history), SOURCE_AI
-        except Exception as exc:
-            logger.warning("Gemini unavailable: %s", exc)
 
     fallback = kb_reply or get_reply(user_message)
     source = SOURCE_UNVERIFIED if fallback == UNVERIFIED else SOURCE_VERIFIED_KB

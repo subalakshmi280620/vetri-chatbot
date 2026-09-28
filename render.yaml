@@ -41,7 +41,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-3.6-flash
+        value: gemini-3.8-flash
       - key: ENQUIRY_NOTIFY_EMAIL
         value: support@vetri-it.com
       - key: EMAIL_HOST

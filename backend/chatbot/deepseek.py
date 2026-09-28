@@ -19,7 +19,8 @@ def ask_deepseek(user_message: str, system_prompt: str, history=None) -> str:
     payload = {
         "model": settings.DEEPSEEK_MODEL,
         "messages": messages,
-        "temperature": 0.4,
+        "temperature": 0.65,
+        "max_tokens": 400,
     }
     request = urllib.request.Request(
         f"{settings.DEEPSEEK_BASE_URL}/chat/completions",

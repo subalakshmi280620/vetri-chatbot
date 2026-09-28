@@ -176,7 +176,6 @@ const SECTION_LABELS = [
 const SOURCE_LABELS = {
   verified_kb: 'Verified VIS answer',
   eligibility: 'Eligibility check',
-  ai: 'AI-assisted answer',
   unverified: 'Limited information',
 }
 
@@ -315,9 +314,9 @@ function MessageBubble({
         {isBot && (
           <div className="bubble-meta">
             <span className="bubble-label">Coach AI</span>
-            {source && (
+            {source && SOURCE_LABELS[source] && (
               <span className={`source-badge source-${source}`}>
-                {SOURCE_LABELS[source] || 'Coach AI'}
+                {SOURCE_LABELS[source]}
               </span>
             )}
           </div>

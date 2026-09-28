@@ -6,7 +6,13 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 
 from .eligibility import handle_eligibility
-from .knowledge import COURSES, PRODUCTS, SERVICES, get_structured_reply
+from .knowledge import (
+    COURSES,
+    PRODUCTS,
+    SERVICES,
+    get_conversational_fallback,
+    get_structured_reply,
+)
 from .models import Enquiry
 from .throttles import ChatRateThrottle
 from .views import generate_reply
@@ -238,21 +244,23 @@ class EligibilityReplyTests(TestCase):
             {"role": "bot", "text": second},
         ]
 
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
     def test_fees_after_eligibility_outcome_uses_kb_not_eligibility(self):
         history = self._eligibility_conversation_history()
         self.assertIsNone(handle_eligibility("what are the fees?", history))
         reply, source = generate_reply("what are the fees?", history)
-        self.assertIn("Pricing & Quotation", reply)
+        self.assertIn("fee", reply.lower())
         self.assertNotIn("Outcome: ELIGIBLE", reply)
-        self.assertEqual(source, "verified_kb")
+        self.assertEqual(source, "ai")
 
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
     def test_apply_after_eligibility_outcome_uses_kb_not_eligibility(self):
         history = self._eligibility_conversation_history()
         self.assertIsNone(handle_eligibility("How do I apply for a course?", history))
         reply, source = generate_reply("How do I apply for a course?", history)
-        self.assertIn("How to Apply", reply)
+        self.assertIn("apply", reply.lower())
         self.assertNotIn("Outcome: ELIGIBLE", reply)
-        self.assertEqual(source, "verified_kb")
+        self.assertEqual(source, "ai")
 
     def test_qualification_not_parsed_from_bot_general_eligibility_text(self):
         first = handle_eligibility("What are the eligibility requirements?")
@@ -279,6 +287,7 @@ class KnowledgeReplyTests(TestCase):
         self.assertIn("support@vetri-it.com", reply)
         self.assertNotIn("register for free", reply.lower())
 
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
     def test_generate_reply_general_eligibility_via_api_path(self):
         history = [
             {"role": "user", "text": "Tell me about Java Fullstack"},
@@ -288,6 +297,14 @@ class KnowledgeReplyTests(TestCase):
         self.assertIn("General Eligibility", reply)
         self.assertNotIn("Java Fullstack", reply)
         self.assertEqual(source, "eligibility")
+
+    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
+    @patch("chatbot.views.ask_gemini", return_value="Vetri Bills is our GST billing product.")
+    def test_generate_reply_prefers_ai_for_natural_answers(self, mock_gemini):
+        reply, source = generate_reply("Tell me about Vetri Bills")
+        self.assertEqual(source, "ai")
+        self.assertIn("Vetri Bills", reply)
+        mock_gemini.assert_called_once()
 
     def test_products_reply_lists_all_vis_products(self):
         reply = get_structured_reply("What products does VIS offer?")
@@ -338,6 +355,19 @@ class KnowledgeReplyTests(TestCase):
         reply = get_structured_reply("Tell me about Digital Marketing course")
         self.assertIn("Course Overview", reply)
         self.assertIn("Digital Marketing", reply)
+
+    def test_conversational_fallback_products_is_short(self):
+        reply = get_conversational_fallback("What products does VIS offer?")
+        self.assertIn("Vetri Bills", reply)
+        self.assertNotIn("Our Products —", reply)
+        self.assertLess(len(reply), 400)
+
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    def test_generate_reply_uses_conversational_fallback_when_ai_unavailable(self):
+        reply, source = generate_reply("What products does VIS offer?")
+        self.assertEqual(source, "ai")
+        self.assertIn("Vetri Bills", reply)
+        self.assertNotIn("Our Products —", reply)
 
 
 class EnquiryApiTests(ChatApiTestCase):
@@ -411,13 +441,22 @@ class EnquiryApiTests(ChatApiTestCase):
 
 
 class ChatAdvancedFeatureTests(ChatApiTestCase):
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
     def test_chat_returns_source_and_suggestions(self):
         response = self._post_chat("What courses are available?")
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["source"], "verified_kb")
+        self.assertEqual(data["source"], "ai")
+        self.assertNotIn("Which Courses Are Available", data["reply"])
         self.assertIn("message_id", data)
         self.assertGreaterEqual(len(data["suggestions"]), 1)
+
+    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
+    @patch("chatbot.views.ask_gemini", return_value="We offer Python, Java, UI/UX, and more.")
+    def test_chat_uses_ai_when_configured(self, _mock_gemini):
+        response = self._post_chat("What courses do you have?")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["source"], "ai")
 
     def test_client_can_rate_bot_message(self):
         chat_response = self._post_chat("What courses are available?", CLIENT_A)

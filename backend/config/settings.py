@@ -292,9 +292,15 @@ GEMINI_BASE_URL = os.environ.get(
     "GEMINI_BASE_URL",
     "https://generativelanguage.googleapis.com/v1beta",
 )
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
-if GEMINI_MODEL in {"gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"}:
-    GEMINI_MODEL = "gemini-3.6-flash"
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+GEMINI_FALLBACK_MODELS = [
+    model.strip()
+    for model in os.environ.get(
+        "GEMINI_FALLBACK_MODELS",
+        "gemini-3.8-flash,gemini-3.6-flash",
+    ).split(",")
+    if model.strip()
+]
 
 CHAT_MAX_MESSAGE_LENGTH = int(os.environ.get("CHAT_MAX_MESSAGE_LENGTH", "2000"))
 CHAT_RATE_LIMIT = os.environ.get("CHAT_RATE_LIMIT", "30/minute")

@@ -66,7 +66,7 @@ def retrieve(query: str, limit: int = 4) -> list[dict]:
 def format_context(chunks: list[dict]) -> str:
     if not chunks:
         return ""
-    parts = ["Retrieved institute documents:"]
+    parts = ["Relevant VIS website excerpts:"]
     for chunk in chunks:
         parts.append(f"[{chunk['source']}]\n{chunk['text']}")
     return "\n\n".join(parts)
