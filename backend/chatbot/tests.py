@@ -15,7 +15,8 @@ from .knowledge import (
 )
 from .models import Enquiry
 from .throttles import ChatRateThrottle
-from .views import generate_reply
+from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
+from .views import build_prompt, generate_reply
 
 CLIENT_A = str(uuid.uuid4())
 CLIENT_B = str(uuid.uuid4())
@@ -31,6 +32,31 @@ class ChatApiTestCase(TestCase):
             data=json.dumps(payload),
             content_type="application/json",
         )
+
+
+class VerifiedFactsTests(TestCase):
+    def test_verified_facts_prompt_lists_contact_and_never_invent_rules(self):
+        prompt = get_verified_facts_prompt()
+        self.assertIn("84381 54827", prompt)
+        self.assertIn("support@vetri-it.com", prompt)
+        self.assertIn("Never invent", prompt)
+        self.assertIn("180 days", prompt)
+
+    def test_enforce_verified_facts_strips_invented_pricing(self):
+        reply = enforce_verified_facts(
+            "The Python course costs ₹25,000 per month and includes placement."
+        )
+        self.assertNotIn("₹25,000", reply)
+        self.assertIn("support@vetri-it.com", reply)
+
+    def test_enforce_verified_facts_leaves_clean_reply_unchanged(self):
+        reply = "Vetri Bills handles GST billing. Want a demo?"
+        self.assertEqual(enforce_verified_facts(reply), reply)
+
+    def test_build_prompt_includes_verified_facts_block(self):
+        prompt = build_prompt("What products does VIS offer?")
+        self.assertIn("VERIFIED FACTS ONLY", prompt)
+        self.assertIn("Vetri Bills", prompt)
 
 
 class ChatMessageLengthTests(ChatApiTestCase):

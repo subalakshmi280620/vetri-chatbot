@@ -12,6 +12,7 @@ from .deepseek import ask_deepseek
 from .gemini import ask_gemini
 from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import SYSTEM_PROMPT, get_conversational_fallback
+from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
 from .email_notifications import send_enquiry_notification
 from .models import Conversation, Enquiry, Message
 from .rag import format_context, retrieve
@@ -27,7 +28,7 @@ HISTORY_LIMIT = 12
 
 
 def build_prompt(user_message: str) -> str:
-    parts = [SYSTEM_PROMPT]
+    parts = [SYSTEM_PROMPT, get_verified_facts_prompt()]
     context = format_context(retrieve(user_message, limit=5))
     if context:
         parts.append(context)
@@ -57,7 +58,7 @@ def _try_ai_reply(user_message: str, history=None) -> str | None:
 def generate_reply(user_message: str, history=None) -> tuple[str, str]:
     ai_reply = _try_ai_reply(user_message, history)
     if ai_reply:
-        return ai_reply, SOURCE_AI
+        return enforce_verified_facts(ai_reply), SOURCE_AI
 
     if not is_non_eligibility_faq(user_message):
         eligibility = handle_eligibility(user_message, history)
