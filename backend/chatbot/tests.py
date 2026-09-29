@@ -518,6 +518,7 @@ class EnquiryApiTests(ChatApiTestCase):
         self.assertEqual(response.status_code, 400)
 
     @override_settings(
+        RESEND_API_KEY="",
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
         ENQUIRY_NOTIFY_EMAIL="notify@vetri-it.com",
         DEFAULT_FROM_EMAIL="Coach AI <noreply@vetri-it.com>",
@@ -540,6 +541,36 @@ class EnquiryApiTests(ChatApiTestCase):
         self.assertIn("Coach AI enquiry", mail.outbox[0].subject)
         self.assertIn("Email Test", mail.outbox[0].body)
         self.assertEqual(mail.outbox[0].to, ["notify@vetri-it.com"])
+
+    @override_settings(
+        RESEND_API_KEY="re_test_key",
+        RESEND_FROM_EMAIL="Coach AI <onboarding@resend.dev>",
+        ENQUIRY_NOTIFY_EMAIL="notify@vetri-it.com",
+    )
+    def test_enquiry_sends_notification_via_resend(self):
+        from unittest.mock import MagicMock, patch
+
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        with patch("chatbot.email_notifications.urllib.request.urlopen", return_value=mock_response) as mock_urlopen:
+            response = self._post_enquiry({
+                "enquiry_type": "quotation",
+                "full_name": "Resend Test",
+                "email": "customer@example.com",
+                "message": "Please send pricing",
+            })
+            self.assertEqual(response.status_code, 200)
+            import time
+            time.sleep(0.2)
+            mock_urlopen.assert_called_once()
+            request = mock_urlopen.call_args[0][0]
+            self.assertEqual(request.get_full_url(), "https://api.resend.com/emails")
+            payload = json.loads(request.data.decode("utf-8"))
+            self.assertEqual(payload["to"], ["notify@vetri-it.com"])
+            self.assertIn("Resend Test", payload["text"])
 
 
 class ChatAdvancedFeatureTests(ChatApiTestCase):

@@ -242,6 +242,9 @@ ENQUIRY_NOTIFY_EMAIL = os.environ.get(
     "ENQUIRY_NOTIFY_EMAIL",
     "support@vetri-it.com",
 ).strip()
+# Resend HTTP API — works on Render free tier (SMTP ports 587/465 are blocked).
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "").strip()
 _DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173,"
     "http://127.0.0.1:5173,"
