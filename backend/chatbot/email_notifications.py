@@ -1,17 +1,12 @@
-import json
 import logging
 import threading
-import urllib.error
-import urllib.request
 
 from django.conf import settings
 from django.core.mail import send_mail
 
 logger = logging.getLogger(__name__)
 
-RESEND_API_URL = "https://api.resend.com/emails"
-# Resend (Cloudflare) rejects requests without User-Agent — error 1010.
-RESEND_USER_AGENT = "vetri-coach-ai/1.0"
+RESEND_TEST_FROM = "Coach AI <onboarding@resend.dev>"
 
 
 def dispatch_enquiry_notification(enquiry) -> None:
@@ -41,40 +36,55 @@ def _build_enquiry_email(enquiry) -> tuple[str, str]:
     return subject, body
 
 
+def _resend_from_address() -> str:
+    configured = getattr(settings, "RESEND_FROM_EMAIL", "").strip()
+    return configured or RESEND_TEST_FROM
+
+
+def _using_resend_test_domain(from_email: str) -> bool:
+    return "resend.dev" in from_email.lower()
+
+
 def _send_via_resend(recipient: str, subject: str, body: str) -> bool:
     api_key = getattr(settings, "RESEND_API_KEY", "").strip()
     if not api_key:
+        logger.warning("RESEND_API_KEY is not set — enquiry email skipped.")
         return False
 
-    from_email = (
-        getattr(settings, "RESEND_FROM_EMAIL", "").strip()
-        or settings.DEFAULT_FROM_EMAIL
-    )
-    payload = json.dumps({
-        "from": from_email,
-        "to": [recipient],
-        "subject": subject,
-        "text": body,
-    }).encode("utf-8")
-    request = urllib.request.Request(
-        RESEND_API_URL,
-        data=payload,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": RESEND_USER_AGENT,
-        },
-        method="POST",
-    )
+    from_email = _resend_from_address()
+    if _using_resend_test_domain(from_email):
+        logger.info(
+            "Resend test mode: sending enquiry notification to %s "
+            "(onboarding@resend.dev only delivers to your Resend account email).",
+            recipient,
+        )
+
     try:
-        with urllib.request.urlopen(request, timeout=15) as response:
-            return 200 <= response.status < 300
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        logger.warning("Resend enquiry email failed (%s): %s", exc.code, detail)
+        import resend
+        from resend.exceptions import ResendError
+
+        resend.api_key = api_key
+        result = resend.Emails.send({
+            "from": from_email,
+            "to": [recipient],
+            "subject": subject,
+            "text": body,
+        })
+        message_id = result.get("id") if isinstance(result, dict) else result
+        logger.info("Resend enquiry email sent to %s (id=%s)", recipient, message_id)
+        return True
+    except ResendError as exc:
+        logger.warning(
+            "Resend enquiry email failed to %s from %s: %s. "
+            "If using onboarding@resend.dev, set ENQUIRY_NOTIFY_EMAIL to the "
+            "exact email you used to sign up for Resend.",
+            recipient,
+            from_email,
+            exc,
+        )
         return False
     except Exception as exc:
-        logger.warning("Resend enquiry email failed: %s", exc)
+        logger.warning("Resend enquiry email failed to %s: %s", recipient, exc)
         return False
 
 
@@ -82,6 +92,7 @@ def send_enquiry_notification(enquiry) -> bool:
     """Email VIS when a new enquiry is submitted. Returns True if sent."""
     recipient = getattr(settings, "ENQUIRY_NOTIFY_EMAIL", "").strip()
     if not recipient:
+        logger.warning("ENQUIRY_NOTIFY_EMAIL is not set — enquiry email skipped.")
         return False
 
     subject, body = _build_enquiry_email(enquiry)

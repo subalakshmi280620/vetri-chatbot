@@ -6,3 +6,4 @@ gunicorn==23.0.0
 psycopg[binary]==3.2.13
 whitenoise==6.9.0
 pypdf==5.9.0
+resend==2.19.0

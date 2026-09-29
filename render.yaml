@@ -43,7 +43,7 @@ services:
       - key: GEMINI_MODEL
         value: gemini-3.8-flash
       - key: ENQUIRY_NOTIFY_EMAIL
-        value: support@vetri-it.com
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
