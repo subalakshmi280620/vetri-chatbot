@@ -12,7 +12,7 @@ from .throttles import ChatRateThrottle
 from .deepseek import ask_deepseek
 from .gemini import ask_gemini
 from .eligibility import handle_eligibility, is_non_eligibility_faq
-from .knowledge import SYSTEM_PROMPT, get_conversational_fallback
+from .knowledge import SYSTEM_PROMPT, get_conversational_fallback, get_grounding_facts
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
 from .email_notifications import send_enquiry_notification
 from .models import Conversation, Enquiry, Message
@@ -30,9 +30,16 @@ HISTORY_LIMIT = 12
 
 def build_prompt(user_message: str) -> str:
     parts = [SYSTEM_PROMPT, get_verified_facts_prompt()]
-    context = format_context(retrieve(user_message, limit=5))
+    context = format_context(retrieve(user_message, limit=6))
     if context:
         parts.append(context)
+    grounding = get_grounding_facts(user_message)
+    if grounding:
+        parts.append(
+            "Grounding facts for this question (answer from these; rephrase naturally; "
+            "give a full helpful answer — do not only say contact support):\n"
+            f"{grounding}"
+        )
     return "\n\n".join(parts)
 
 

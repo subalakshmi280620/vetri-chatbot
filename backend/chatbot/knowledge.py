@@ -482,19 +482,20 @@ and questions phrased in any way. Never reply with a fixed FAQ template or secti
 like "Our Products —" or "Course Overview —".
 
 Conversation style:
-- Reply like ChatGPT in a helpful business chat: warm, direct, and conversational.
+- Reply like ChatGPT: warm, direct, and conversational — ALWAYS try to answer the question yourself first.
 - Keep answers SHORT: usually 2–4 sentences unless the user asks for more detail.
 - Use conversation history. Answer follow-up questions directly without repeating yourself.
 - Never invent pricing, clients, portfolio projects, or features not in the verified content.
-- If a fact is not in verified content, say "I don't have that detail" — do not guess.
+- Do NOT reply with only "contact our team" — give a helpful answer from verified content, then optionally offer next steps.
 
 Ground rules:
-- Use only verified VIS website information below and in retrieved excerpts.
+- Use verified VIS information below, retrieved excerpts, and grounding facts.
+- Answer products, services, courses, company info, mission, AI solutions, and how-to questions directly.
 - Course duration: {COURSE_DURATION}. Course eligibility: {ELIGIBILITY_REQUIREMENT}.
-- For fees/pricing: never state ₹ amounts — say pricing is tailored and offer quotation/contact.
+- For fees/pricing: explain that pricing is tailored and what affects it — do NOT invent ₹ amounts. Mention enquiry/quote only at the end if needed.
 - For eligibility: a completed degree (UG/PG) is required; check the user's qualification honestly.
-- Contact must always be exactly: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}.
-- If unsure, say so briefly and share {CONTACT_PHONE} or {CONTACT_EMAIL}.
+- Contact details when relevant: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}.
+- Say "contact the team" ONLY when: user asks for exact price, wants a human, or topic is completely outside VIS.
 
 Organization: {TAGLINE}
 Contact: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}.
@@ -738,8 +739,40 @@ SHORT_PRODUCT_SUMMARIES = {
 }
 
 
-def _contact_close() -> str:
-    return f"Reach us at {CONTACT_PHONE} or {CONTACT_EMAIL} if you'd like a demo or quote."
+def _strip_contact_tail(text: str) -> str:
+    lowered = CONTACT_LINE.lower()
+    cleaned = text.replace(CONTACT_LINE, "").replace(lowered, "").strip()
+    return cleaned.rstrip(".").strip()
+
+
+def get_grounding_facts(message: str) -> str:
+    """Verified facts for AI grounding — not user-facing templates."""
+    text = message.strip().lower()
+    parts: list[str] = []
+
+    product_id = match_product_id(text)
+    if product_id:
+        detail = PRODUCT_DETAILS.get(product_id)
+        if detail:
+            parts.append(_strip_contact_tail(detail))
+
+    if not product_id:
+        service_detail = match_service(text)
+        if service_detail and not _is_course_context(text):
+            parts.append(_strip_contact_tail(service_detail))
+
+    course_id = match_course_id(text)
+    if course_id:
+        course_detail = match_course(text)
+        if course_detail:
+            parts.append(_strip_contact_tail(course_detail))
+
+    if not parts:
+        routed = _route_faq(message)
+        if routed:
+            parts.append(_strip_contact_tail(routed))
+
+    return "\n\n".join(parts).strip()
 
 
 def get_conversational_fallback(message: str) -> str:
@@ -754,43 +787,42 @@ def get_conversational_fallback(message: str) -> str:
 
     if _matches_apply_intent(text):
         return (
-            "To apply for a VIS training programme, confirm you have a completed "
-            f"degree, pick your course, then contact us at {CONTACT_PHONE} or "
-            f"{CONTACT_EMAIL}. Our team will guide you through enrollment."
+            "To apply for a VIS training programme: (1) confirm you have a completed "
+            "degree, (2) choose your course, (3) share your qualification with us. "
+            "Programmes run for 180 days. I can help you pick a course or check eligibility."
         )
 
     if _matches_consultation_intent(text):
         return (
-            "Happy to arrange a consultation. Share your business goal and we'll "
-            f"match you with a VIS consultant. Call {CONTACT_PHONE} or email "
-            f"{CONTACT_EMAIL}."
+            "A VIS consultant can discuss your business goals and recommend the right "
+            "product or service — web, mobile, AI, ERP, or digital marketing. "
+            "What are you trying to build or improve?"
         )
 
     if _matches_demo_intent(text):
         return (
-            "We can set up a live product demo. Tell us which product interests "
-            f"you — Vetri Bills, Vetri CRM, Coach AI, or another — and contact "
-            f"{CONTACT_EMAIL} or {CONTACT_PHONE}."
+            "We offer live demos for products like Vetri Bills, Vetri CRM, and Coach AI. "
+            "Which product would you like to see, and what is your use case?"
         )
 
     if _matches_sales_intent(text):
         return (
-            f"Our sales team can help with your requirement. Email {CONTACT_EMAIL} "
-            f"or call {CONTACT_PHONE}."
+            "I can help you understand our products and services first. "
+            "Are you looking for software, custom development, training, or something else?"
         )
 
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return (
-            "Pricing depends on your scope, so we share tailored quotations after "
-            "understanding your needs. Tell me what you're looking for, or contact "
-            f"{CONTACT_EMAIL} for a formal proposal."
+            "Pricing depends on scope — number of users, features, and timeline. "
+            "Tell me what you need (product or service) and I can outline what is included. "
+            "You can also submit a quotation request from the Enquiry button."
         )
 
     product_id = match_product_id(text)
     if product_id:
         summary = SHORT_PRODUCT_SUMMARIES.get(product_id)
         if summary:
-            return f"{summary} {_contact_close()}"
+            return f"{summary} Want more detail on any feature?"
 
     service_text = match_service(text)
     if service_text and not _is_course_context(text):
@@ -799,8 +831,8 @@ def get_conversational_fallback(message: str) -> str:
             "that service",
         )
         return (
-            f"Yes — VIS offers {service_name} along with web, mobile, AI, ERP, "
-            f"and digital marketing services. {_contact_close()}"
+            f"Yes — VIS offers {service_name}, plus web, mobile, AI, ERP, "
+            "and digital marketing. What kind of project do you have in mind?"
         )
 
     course_id = match_course_id(text)
@@ -813,8 +845,9 @@ def get_conversational_fallback(message: str) -> str:
             )
         if any(k in text for k in ("fee", "fees", "tuition", "course fee", "price", "cost")):
             return (
-                f"Course fees vary by programme. For {course_name}, contact us at "
-                f"{CONTACT_EMAIL} or {CONTACT_PHONE} and we'll share details."
+                f"{course_name} is a {COURSE_DURATION} programme with degree eligibility. "
+                "Fees depend on the batch and programme — I can explain the course content "
+                "and eligibility first. Use the Enquiry form for an exact fee quote."
             )
         return (
             f"{course_name} is one of our {COURSE_DURATION} training programmes. "
@@ -842,14 +875,15 @@ def get_conversational_fallback(message: str) -> str:
 
     if any(k in text for k in ("fee", "fees", "tuition", "course fee")):
         return (
-            "Fees depend on the product or course. Share what you need and we'll "
-            f"send tailored pricing — {CONTACT_EMAIL} or {CONTACT_PHONE}."
+            "Fees depend on whether it's a product licence, custom project, or training "
+            "programme. Tell me which one you're interested in and I'll explain what's "
+            "included — exact quotes go through the Enquiry form."
         )
 
     if any(k in text for k in ("how much", "cost", "price")) and _is_course_context(text):
         return (
-            f"Course pricing varies. Contact {CONTACT_EMAIL} with your chosen "
-            "programme and we'll share fee details."
+            f"Training programmes run for {COURSE_DURATION} and require a completed degree. "
+            "Exact fees vary by course — ask me about a specific programme and I'll share details."
         )
 
     for intent, keywords in INTENTS:
@@ -859,8 +893,9 @@ def get_conversational_fallback(message: str) -> str:
             continue
         if intent == "portfolio":
             return (
-                "We've delivered 50+ projects across billing, CRM, AI, and "
-                f"enterprise apps. For case studies, contact {CONTACT_EMAIL}."
+                "VIS has delivered 50+ projects — billing, CRM, AI, and enterprise apps — "
+                "with 10+ shipped products and 20+ business clients. "
+                "Which industry or product area interests you?"
             )
         if intent == "why_vis":
             return (
@@ -888,8 +923,8 @@ def get_conversational_fallback(message: str) -> str:
             )
         if intent == "contact":
             return (
-                f"You can reach us at {CONTACT_PHONE}, {CONTACT_EMAIL}, or "
-                f"{CONTACT_ADDRESS}."
+                f"We're at {CONTACT_ADDRESS}. Phone: {CONTACT_PHONE}. "
+                f"Email: {CONTACT_EMAIL}. What can I help you with today?"
             )
         if intent == "courses":
             course_sample = ", ".join(COURSES[:5]) + ", and more"
@@ -906,14 +941,18 @@ def get_conversational_fallback(message: str) -> str:
         if intent == "quotation":
             return (
                 "Tell me what you need a quote for — product, service, or training — "
-                f"and we'll prepare a tailored proposal. Or email {CONTACT_EMAIL}."
+                "and I'll outline what is typically included. You can also use the Enquiry button."
             )
 
+    grounding = get_grounding_facts(message)
+    if grounding:
+        snippet = grounding.split("\n")[0][:280]
+        return f"{snippet} Ask me a follow-up if you want more detail."
+
     return (
-        "I'm not sure about that specific detail, but I can help with VIS products, "
-        "services, training courses, quotations, or contact info. "
-        f"What would you like to know? You can also reach our team at {CONTACT_PHONE} "
-        f"or {CONTACT_EMAIL}."
+        "I can help with VIS products (Vetri Bills, CRM, Coach AI), services "
+        "(web, mobile, AI, ERP), training courses, and company info. "
+        "What would you like to know?"
     )
 
 

@@ -450,6 +450,18 @@ class KnowledgeReplyTests(TestCase):
         self.assertNotIn("Our Products —", reply)
         self.assertLess(len(reply), 400)
 
+    def test_conversational_fallback_answers_not_only_contact(self):
+        reply = get_conversational_fallback("Tell me about Vetri Bills")
+        self.assertIn("GST", reply)
+        self.assertNotIn("reach our team", reply.lower())
+
+    def test_grounding_facts_returns_product_knowledge(self):
+        from .knowledge import get_grounding_facts
+
+        facts = get_grounding_facts("Tell me about Vetri CRM")
+        self.assertIn("CRM", facts)
+        self.assertNotIn("contact our team", facts.lower())
+
     @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
     def test_generate_reply_uses_conversational_fallback_when_ai_unavailable(self):
         reply, source = generate_reply("What products does VIS offer?")

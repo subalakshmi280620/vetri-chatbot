@@ -54,13 +54,15 @@ def get_verified_facts_prompt() -> str:
     exact = "\n".join(f"- {item}" for item in MUST_BE_EXACT)
     return (
         "VERIFIED FACTS ONLY (critical):\n"
-        "Answer naturally, but every fact must come from the verified VIS content below.\n\n"
+        "Answer the user's question directly from verified VIS content. "
+        "Do NOT default to 'contact our team' — only suggest contact for exact "
+        "pricing quotes or when the user explicitly wants a human.\n\n"
         "Never invent:\n"
         f"{never}\n\n"
         "Must be exact when mentioned:\n"
         f"{exact}\n\n"
-        "If the user asks for something not in verified content, say you don't have "
-        f"that detail and share {CONTACT_PHONE} or {CONTACT_EMAIL}. Do not guess."
+        "If something is truly not in verified content, say what you DO know about "
+        "related VIS topics, then briefly note the gap. Do not guess."
     )
 
 

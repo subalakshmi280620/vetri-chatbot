@@ -54,13 +54,21 @@ def load_chunks() -> list[dict]:
 def retrieve(query: str, limit: int = 4) -> list[dict]:
     query_tokens = _tokenize(query)
     scored = []
-    for chunk in load_chunks():
+    chunks = load_chunks()
+    for chunk in chunks:
         overlap = query_tokens & _tokenize(chunk["text"])
         if not overlap:
             continue
         scored.append((len(overlap), chunk))
     scored.sort(key=lambda item: item[0], reverse=True)
-    return [chunk for _, chunk in scored[:limit]]
+    if scored:
+        return [chunk for _, chunk in scored[:limit]]
+
+    # Broad fallback so general questions still get website context.
+    vis_chunks = [chunk for chunk in chunks if chunk["source"] == "vis_website.md"]
+    if vis_chunks:
+        return vis_chunks[:limit]
+    return chunks[:limit]
 
 
 def format_context(chunks: list[dict]) -> str:
