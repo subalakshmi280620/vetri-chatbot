@@ -12,7 +12,12 @@ from .throttles import ChatRateThrottle
 from .deepseek import ask_deepseek
 from .gemini import ask_gemini
 from .eligibility import handle_eligibility, is_non_eligibility_faq
-from .knowledge import SYSTEM_PROMPT, get_conversational_fallback, get_grounding_facts
+from .knowledge import (
+    SYSTEM_PROMPT,
+    detect_suggested_enquiry_type,
+    get_conversational_fallback,
+    get_grounding_facts,
+)
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
 from .email_notifications import send_enquiry_notification
 from .models import Conversation, Enquiry, Message
@@ -183,6 +188,7 @@ def chat(request):
 
     reply, source = generate_reply(prompt_message, history, processed_attachments)
     suggestions = get_follow_up_suggestions(prompt_message, reply, source)
+    suggest_enquiry = detect_suggested_enquiry_type(user_message)
 
     stored_user_text = user_message or "Shared attachment(s)"
     if processed_attachments.display_labels:
@@ -207,6 +213,7 @@ def chat(request):
         "message_id": bot_message.id,
         "source": source,
         "suggestions": suggestions,
+        "suggest_enquiry": suggest_enquiry,
     })
 
 

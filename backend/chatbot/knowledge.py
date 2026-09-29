@@ -17,6 +17,12 @@ CONTACT_LINE = (
     f"Please contact our team: {CONTACT_PHONE} or {CONTACT_EMAIL}"
 )
 
+ENQUIRY_FORM_HINT = (
+    "The chat has an Enquiry button (top of the chat panel). Users can submit "
+    "quotation, consultation, or product demo requests there with name, email, "
+    "phone, and their requirement — no need to email or call first."
+)
+
 PRODUCTS = [
     "Vetri Bills",
     "Vetri Files",
@@ -402,11 +408,10 @@ REPLIES = {
         "Get Quotation — Vetri IT Systems\n\n"
         "Tell us what you're trying to achieve. Our team will prepare a tailored "
         "proposal with scope, timeline, and indicative pricing — no obligation.\n\n"
-        "Please share:\n"
-        "• Your name and company\n"
-        "• Product or service of interest\n"
-        "• A brief description of your requirement\n\n"
-        f"Submit via {CONTACT_EMAIL} or call {CONTACT_PHONE}."
+        "Please share your name, company, product or service of interest, and a "
+        "brief description of your requirement.\n\n"
+        f"Use the Enquiry button in this chat (Quotation tab) to submit your request. "
+        f"{ENQUIRY_FORM_HINT}"
     ),
     "consultation": (
         "Book a Consultation — Vetri IT Systems\n\n"
@@ -415,19 +420,15 @@ REPLIES = {
         "• Clarify your business goal and technical needs\n"
         "• Choose the right VIS product or service\n"
         "• Plan next steps before a formal quotation\n\n"
-        f"Phone: {CONTACT_PHONE}\n"
-        f"Email: {CONTACT_EMAIL}\n"
-        f"Address: {CONTACT_ADDRESS}"
+        f"Use the Enquiry button in this chat (Consultation tab) to book a consultation."
     ),
     "product_demo": (
         "Request a Product Demo — Vetri IT Systems\n\n"
         "See VIS enterprise products with live workflow previews — including "
         "Vetri Bills, Vetri Files, Vetri Project Management, Coach AI, "
         "Vetri AI Assistant, and Vetri CRM.\n\n"
-        "Tell us which product you want to explore and your use case. "
-        "Our team will arrange a guided demo.\n\n"
-        f"Phone: {CONTACT_PHONE}\n"
-        f"Email: {CONTACT_EMAIL}"
+        "Tell us which product you want to explore and your use case.\n\n"
+        f"Use the Enquiry button in this chat (Product Demo tab) to request a demo."
     ),
     "contact_sales": (
         "Contact Sales Team — Vetri IT Systems\n\n"
@@ -460,8 +461,7 @@ REPLIES = {
         "Exact pricing depends on your product or service requirement.\n\n"
         "Tell us what you're trying to achieve and our team will share a tailored "
         "proposal, timeline and indicative pricing — no obligation.\n\n"
-        f"Phone: {CONTACT_PHONE}\n"
-        f"Email: {CONTACT_EMAIL}"
+        "Use the Enquiry button in this chat (Quotation tab) to request a formal quote."
     ),
     "who_can_apply": general_eligibility_reply(),
     "apply": (
@@ -495,7 +495,10 @@ Ground rules:
 - For fees/pricing: explain that pricing is tailored and what affects it — do NOT invent ₹ amounts. Mention enquiry/quote only at the end if needed.
 - For eligibility: a completed degree (UG/PG) is required; check the user's qualification honestly.
 - Contact details when relevant: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}.
-- Say "contact the team" ONLY when: user asks for exact price, wants a human, or topic is completely outside VIS.
+- Say "contact the team" ONLY when: user explicitly wants phone/email, or topic is completely outside VIS.
+- For quotation, consultation, or product demo: explain what it is, then direct users to the
+  **Enquiry button** in the chat (Quotation / Consultation / Product Demo tabs) — not only phone/email.
+  {ENQUIRY_FORM_HINT}
 
 Organization: {TAGLINE}
 Contact: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}.
@@ -796,26 +799,28 @@ def get_conversational_fallback(message: str) -> str:
         return (
             "A VIS consultant can discuss your business goals and recommend the right "
             "product or service — web, mobile, AI, ERP, or digital marketing. "
-            "What are you trying to build or improve?"
+            "Tap the Enquiry button at the top of this chat, choose Consultation, "
+            "and submit your details — our team will reach out."
         )
 
     if _matches_demo_intent(text):
         return (
-            "We offer live demos for products like Vetri Bills, Vetri CRM, and Coach AI. "
-            "Which product would you like to see, and what is your use case?"
+            "We offer live demos for Vetri Bills, Vetri CRM, Coach AI, and more. "
+            "Tap the Enquiry button, choose Product Demo, and tell us which "
+            "product and use case — we'll arrange a guided walkthrough."
         )
 
     if _matches_sales_intent(text):
         return (
-            "I can help you understand our products and services first. "
-            "Are you looking for software, custom development, training, or something else?"
+            "I can explain our products and services first. When you're ready, use the "
+            "Enquiry button to send your requirement to the VIS sales team."
         )
 
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return (
-            "Pricing depends on scope — number of users, features, and timeline. "
-            "Tell me what you need (product or service) and I can outline what is included. "
-            "You can also submit a quotation request from the Enquiry button."
+            "Pricing depends on scope — users, features, and timeline. "
+            "Tell me what you need and I can outline what's typically included. "
+            "For a formal quote, tap Enquiry → Quotation and submit your details."
         )
 
     product_id = match_product_id(text)
@@ -941,7 +946,7 @@ def get_conversational_fallback(message: str) -> str:
         if intent == "quotation":
             return (
                 "Tell me what you need a quote for — product, service, or training — "
-                "and I'll outline what is typically included. You can also use the Enquiry button."
+                "and I'll outline what is included. Then tap Enquiry → Quotation to submit."
             )
 
     grounding = get_grounding_facts(message)
@@ -954,6 +959,20 @@ def get_conversational_fallback(message: str) -> str:
         "(web, mobile, AI, ERP), training courses, and company info. "
         "What would you like to know?"
     )
+
+
+def detect_suggested_enquiry_type(message: str) -> str | None:
+    """Suggest opening the in-chat Enquiry form for business-intent questions."""
+    text = message.strip().lower()
+    if _matches_consultation_intent(text):
+        return "consultation"
+    if _matches_demo_intent(text):
+        return "demo"
+    if _matches_quotation_intent(text) and not _is_course_context(text):
+        return "quotation"
+    if _matches_sales_intent(text):
+        return "sales"
+    return None
 
 
 def get_structured_reply(message: str) -> str | None:

@@ -567,6 +567,17 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["source"], "ai")
 
+    def test_chat_suggests_enquiry_for_quotation_intent(self):
+        response = self._post_chat("How can I get a quotation?")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["suggest_enquiry"], "quotation")
+        self.assertIn("Enquiry", response.json()["reply"])
+
+    def test_chat_suggests_enquiry_for_demo_intent(self):
+        response = self._post_chat("I want to request a product demo")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["suggest_enquiry"], "demo")
+
     def test_client_can_rate_bot_message(self):
         chat_response = self._post_chat("What courses are available?", CLIENT_A)
         message_id = chat_response.json()["message_id"]

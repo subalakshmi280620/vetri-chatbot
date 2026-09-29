@@ -128,6 +128,13 @@ const ENQUIRY_TITLES = {
   general: 'Submit Enquiry',
 }
 
+const ENQUIRY_CTA_LABELS = {
+  quotation: 'Submit quotation enquiry',
+  consultation: 'Book consultation enquiry',
+  demo: 'Request product demo',
+  sales: 'Contact sales enquiry',
+}
+
 const ENQUIRY_TYPE_TABS = [
   { type: 'quotation', label: 'Quotation' },
   { type: 'consultation', label: 'Consultation' },
@@ -813,6 +820,7 @@ function App() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [apiStatus, setApiStatus] = useState('checking')
   const [followUps, setFollowUps] = useState([])
+  const [enquiryCta, setEnquiryCta] = useState('')
   const [enquiryOpen, setEnquiryOpen] = useState(false)
   const [enquiryType, setEnquiryType] = useState('quotation')
   const [enquiryForm, setEnquiryForm] = useState(EMPTY_ENQUIRY_FORM)
@@ -1199,6 +1207,7 @@ function App() {
       },
     ])
     setFollowUps([])
+    setEnquiryCta('')
     setLoading(true)
 
     const controller = new AbortController()
@@ -1242,6 +1251,7 @@ function App() {
         },
       ])
       setFollowUps(data.suggestions || [])
+      setEnquiryCta(data.suggest_enquiry || '')
       setApiStatus('online')
 
       loadHistoryList()
@@ -1414,6 +1424,18 @@ function App() {
                     showActions={msg.role === 'bot' && index === lastBotIndex && !loading}
                   />
                 ))}
+
+                {!loading && enquiryCta && ENQUIRY_CTA_LABELS[enquiryCta] && (
+                  <div className="enquiry-cta">
+                    <button
+                      type="button"
+                      className="btn-green enquiry-cta-btn"
+                      onClick={() => openEnquiry(enquiryCta)}
+                    >
+                      {ENQUIRY_CTA_LABELS[enquiryCta]}
+                    </button>
+                  </div>
+                )}
 
                 {!loading && (
                   <FollowUpChips
