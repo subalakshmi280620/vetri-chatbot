@@ -1,9 +1,20 @@
 import logging
+import threading
 
 from django.conf import settings
 from django.core.mail import send_mail
 
 logger = logging.getLogger(__name__)
+
+
+def dispatch_enquiry_notification(enquiry) -> None:
+    """Send enquiry email in a background thread so the API responds immediately."""
+    thread = threading.Thread(
+        target=send_enquiry_notification,
+        args=(enquiry,),
+        daemon=True,
+    )
+    thread.start()
 
 
 def send_enquiry_notification(enquiry) -> bool:

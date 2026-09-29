@@ -19,7 +19,7 @@ from .knowledge import (
     get_grounding_facts,
 )
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
-from .email_notifications import send_enquiry_notification
+from .email_notifications import dispatch_enquiry_notification
 from .models import Conversation, Enquiry, Message
 from .rag import format_context, retrieve
 from .suggestions import get_follow_up_suggestions
@@ -408,7 +408,7 @@ def submit_enquiry(request):
         client_token=client_token,
         conversation=conversation,
     )
-    email_sent = send_enquiry_notification(enquiry)
+    dispatch_enquiry_notification(enquiry)
 
     confirmation = ENQUIRY_CONFIRMATIONS.get(
         enquiry_type,
@@ -419,5 +419,5 @@ def submit_enquiry(request):
         "enquiry_id": enquiry.id,
         "enquiry_type": enquiry_type,
         "confirmation": confirmation,
-        "email_sent": email_sent,
+        "email_queued": True,
     })

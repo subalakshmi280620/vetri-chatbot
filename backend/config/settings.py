@@ -230,6 +230,7 @@ elif _EMAIL_HOST:
     EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
     EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
     EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", False)
+    EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
 else:
     EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"
 

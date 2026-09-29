@@ -533,7 +533,9 @@ class EnquiryApiTests(ChatApiTestCase):
             "message": "Please send pricing",
         })
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()["email_sent"])
+        self.assertTrue(response.json()["email_queued"])
+        import time
+        time.sleep(0.2)
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("Coach AI enquiry", mail.outbox[0].subject)
         self.assertIn("Email Test", mail.outbox[0].body)

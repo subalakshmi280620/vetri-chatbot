@@ -1096,7 +1096,15 @@ function App() {
       ])
       setApiStatus('online')
     } catch (err) {
-      setEnquiryError(err.message || 'Could not submit enquiry.')
+      const message = err?.message || ''
+      if (message === 'Failed to fetch') {
+        setEnquiryError(
+          'Cannot reach the server. Start the backend locally (python manage.py runserver), ' +
+            'or wait a moment if the Render API is waking up. Check EMAIL_HOST settings if this started after adding SMTP.',
+        )
+      } else {
+        setEnquiryError(message || 'Could not submit enquiry.')
+      }
     } finally {
       setEnquirySubmitting(false)
     }
