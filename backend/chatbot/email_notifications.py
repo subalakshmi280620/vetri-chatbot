@@ -10,6 +10,8 @@ from django.core.mail import send_mail
 logger = logging.getLogger(__name__)
 
 RESEND_API_URL = "https://api.resend.com/emails"
+# Resend (Cloudflare) rejects requests without User-Agent — error 1010.
+RESEND_USER_AGENT = "vetri-coach-ai/1.0"
 
 
 def dispatch_enquiry_notification(enquiry) -> None:
@@ -60,6 +62,7 @@ def _send_via_resend(recipient: str, subject: str, body: str) -> bool:
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": RESEND_USER_AGENT,
         },
         method="POST",
     )

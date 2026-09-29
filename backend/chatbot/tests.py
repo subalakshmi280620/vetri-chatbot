@@ -568,6 +568,7 @@ class EnquiryApiTests(ChatApiTestCase):
             mock_urlopen.assert_called_once()
             request = mock_urlopen.call_args[0][0]
             self.assertEqual(request.get_full_url(), "https://api.resend.com/emails")
+            self.assertEqual(request.headers.get("User-agent"), "vetri-coach-ai/1.0")
             payload = json.loads(request.data.decode("utf-8"))
             self.assertEqual(payload["to"], ["notify@vetri-it.com"])
             self.assertIn("Resend Test", payload["text"])
