@@ -1,0 +1,309 @@
+/* Coach AI — clean Django admin styling */
+
+:root {
+  --admin-bg: #f4f6f9;
+  --admin-panel: #ffffff;
+  --admin-border: #e2e8f0;
+  --admin-text: #1e293b;
+  --admin-muted: #64748b;
+  --admin-primary: #2563eb;
+  --admin-primary-dark: #1d4ed8;
+  --admin-primary-soft: #eff6ff;
+  --admin-success: #16a34a;
+  --admin-warning: #d97706;
+  --admin-danger: #dc2626;
+  --admin-radius: 10px;
+  --admin-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+body {
+  background: var(--admin-bg) !important;
+  color: var(--admin-text);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+#header {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%) !important;
+  color: #fff !important;
+  padding: 14px 24px !important;
+  box-shadow: 0 2px 8px rgba(30, 58, 95, 0.2);
+}
+
+#header a:link,
+#header a:visited {
+  color: #fff !important;
+}
+
+#branding h1 {
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: 0.01em;
+}
+
+#user-tools {
+  font-size: 0.875rem;
+}
+
+#user-tools a {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+div.breadcrumbs {
+  background: var(--admin-panel) !important;
+  border-bottom: 1px solid var(--admin-border);
+  padding: 12px 24px !important;
+  color: var(--admin-muted);
+}
+
+div.breadcrumbs a {
+  color: var(--admin-primary) !important;
+}
+
+#content {
+  padding: 24px !important;
+  max-width: 1200px;
+}
+
+#content h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--admin-text);
+  margin-bottom: 0.35rem;
+}
+
+.module,
+#changelist .results,
+.inline-group {
+  border-radius: var(--admin-radius) !important;
+  border: 1px solid var(--admin-border) !important;
+  box-shadow: var(--admin-shadow);
+  overflow: hidden;
+}
+
+.module h2,
+.module caption,
+.inline-group h2 {
+  background: var(--admin-primary-soft) !important;
+  color: var(--admin-primary-dark) !important;
+  font-weight: 600;
+  padding: 12px 16px !important;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+#result_list thead th,
+.module table thead th {
+  background: #f8fafc !important;
+  color: var(--admin-text) !important;
+  font-weight: 600;
+  padding: 12px 14px !important;
+  border-bottom: 1px solid var(--admin-border) !important;
+}
+
+#result_list tbody td,
+.module table tbody td {
+  padding: 11px 14px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+#result_list tbody tr:hover,
+.module table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.button,
+input[type="submit"],
+.submit-row input,
+a.button {
+  background: var(--admin-primary) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+.button:hover,
+input[type="submit"]:hover,
+a.button:hover {
+  background: var(--admin-primary-dark) !important;
+}
+
+.button.default,
+input[type="submit"].default {
+  background: var(--admin-primary-dark) !important;
+}
+
+.submit-row {
+  background: var(--admin-panel) !important;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  padding: 14px 16px !important;
+}
+
+.object-tools a {
+  border-radius: 8px !important;
+  background: var(--admin-primary) !important;
+  padding: 8px 14px !important;
+}
+
+.paginator {
+  border-radius: var(--admin-radius);
+  border: 1px solid var(--admin-border);
+  background: var(--admin-panel);
+  padding: 10px 14px !important;
+}
+
+.paginator a {
+  color: var(--admin-primary) !important;
+}
+
+/* Analytics dashboard */
+.analytics-page .page-intro {
+  color: var(--admin-muted);
+  margin: 0 0 24px;
+  font-size: 0.95rem;
+}
+
+.analytics-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.analytics-stat-card {
+  background: var(--admin-panel);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  padding: 16px 18px;
+  box-shadow: var(--admin-shadow);
+  border-left: 4px solid var(--admin-primary);
+}
+
+.analytics-stat-card.stat-success {
+  border-left-color: var(--admin-success);
+}
+
+.analytics-stat-card.stat-warning {
+  border-left-color: var(--admin-warning);
+}
+
+.analytics-stat-card.stat-danger {
+  border-left-color: var(--admin-danger);
+}
+
+.analytics-stat-card strong {
+  display: block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--admin-muted);
+  margin-bottom: 6px;
+}
+
+.analytics-stat-card .stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--admin-text);
+  line-height: 1.2;
+}
+
+.analytics-stat-card small {
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+}
+
+.analytics-section {
+  background: var(--admin-panel);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  padding: 20px 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--admin-shadow);
+}
+
+.analytics-section h2 {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--admin-text);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.analytics-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.analytics-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.analytics-list li:last-child {
+  border-bottom: none;
+}
+
+.analytics-list .count {
+  font-weight: 600;
+  color: var(--admin-primary);
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.analytics-table th,
+.analytics-table td {
+  text-align: left;
+  padding: 11px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.analytics-table th {
+  background: #f8fafc;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--admin-muted);
+}
+
+.analytics-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.analytics-actions {
+  margin-top: 20px;
+}
+
+.analytics-actions a {
+  display: inline-block;
+  background: var(--admin-primary);
+  color: #fff !important;
+  text-decoration: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.analytics-actions a:hover {
+  background: var(--admin-primary-dark);
+}
+
+@media (max-width: 768px) {
+  #content {
+    padding: 16px !important;
+  }
+
+  .analytics-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}

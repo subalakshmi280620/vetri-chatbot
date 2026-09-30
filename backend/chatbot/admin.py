@@ -111,3 +111,7 @@ def _extended_admin_urls():
 
 
 admin.site.get_urls = _extended_admin_urls
+
+admin.site.site_header = "Coach AI Administration"
+admin.site.site_title = "Coach AI Admin"
+admin.site.index_title = "Dashboard"
