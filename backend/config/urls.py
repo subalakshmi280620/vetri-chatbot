@@ -14,6 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
@@ -29,7 +30,13 @@ def home(request):
 
 
 def health(request):
-    return JsonResponse({"status": "ok"})
+    engine = settings.DATABASES["default"]["ENGINE"]
+    using_postgres = "postgresql" in engine
+    return JsonResponse({
+        "status": "ok",
+        "database": "postgresql" if using_postgres else "sqlite",
+        "persistent": using_postgres,
+    })
 
 
 urlpatterns = [
