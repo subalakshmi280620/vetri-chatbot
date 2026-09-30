@@ -487,17 +487,10 @@ def why_vis_reply() -> str:
     )
 
 
+SHORT_GREETING_REPLY = "Hello! How can I help you today?"
+
 REPLIES = {
-    "greeting": (
-        f"Welcome to {ORG_NAME}.\n\n"
-        "I am Coach AI, your VIS assistant. I can help with:\n"
-        "• Products — Vetri Bills, Vetri Files, Vetri CRM, Coach AI, and more\n"
-        "• Services — web development, AI solutions, digital marketing, ERP, and more\n"
-        "• Company info — about us, mission, vision, and why VIS\n"
-        "• Training courses — duration, eligibility, and how to apply\n"
-        "• Contact — phone, email, address, quotations, and demos\n\n"
-        "How may I assist you today?"
-    ),
+    "greeting": SHORT_GREETING_REPLY,
     "about": (
         f"About {ORG_NAME}\n\n"
         f"{HERO_HEADLINE}\n"
@@ -593,6 +586,9 @@ and questions phrased in any way. Never reply with a fixed FAQ template or secti
 like "Our Products —" or "Course Overview —".
 
 Conversation style:
+- For simple greetings only (hi, hello, hey, good morning): one short line such as
+  "Hello! How can I help you today?" — the chat already shows a welcome intro, so do NOT
+  repeat products, services, or bullet lists.
 - Write in normal, everyday English — friendly and clear, like a helpful colleague (not robotic FAQ text).
 - Give a COMPLETE answer in 2–4 short lines: cover what it is, who it's for, and one useful detail — then stop.
 - Do not use section headings, bullet lists, or labels like "Our Products —" unless the user asks for a list.
@@ -685,6 +681,17 @@ def match_course(message: str) -> str | None:
 def is_greeting(message: str) -> bool:
     compact = _compact(message)
     if re.fullmatch(r"(h+i+|hey+|hello+|hai+|helo+|hlo+|yo+|hai+)", compact):
+        return True
+    text = message.strip().lower()
+    simple_greetings = (
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "good day",
+        "namaste",
+        "vanakkam",
+    )
+    if any(text == phrase or text.startswith(f"{phrase} ") for phrase in simple_greetings):
         return True
     words = "".join(ch.lower() if ch.isalnum() else " " for ch in message).split()
     if not words or len(words) > 5:
@@ -908,11 +915,7 @@ def get_conversational_fallback(message: str) -> str:
     text = message.strip().lower()
 
     if is_greeting(text):
-        return (
-            "Hi! I'm Coach AI from Vetri IT Systems. You can ask about our software "
-            "products, web and mobile development, training programmes, or how to "
-            "request a quote or demo. What would you like to know?"
-        )
+        return SHORT_GREETING_REPLY
 
     if _matches_apply_intent(text):
         return (

@@ -11,12 +11,8 @@
 {% if user.is_staff %}
 <p class="admin-header-links">
   <a href="{% url 'admin:chatbot-analytics' %}">Analytics</a>
-  &nbsp;·&nbsp;
   <a href="{% url 'admin:chatbot_enquiry_changelist' %}">Enquiries</a>
 </p>
-{% endif %}
-{% if user.is_anonymous %}
-  {% include "admin/color_theme_toggle.html" %}
 {% endif %}
   </div>
 </div>

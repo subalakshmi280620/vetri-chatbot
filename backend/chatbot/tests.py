@@ -11,6 +11,7 @@ from .knowledge import (
     COURSES,
     PRODUCTS,
     SERVICES,
+    SHORT_GREETING_REPLY,
     get_conversational_fallback,
     get_structured_reply,
 )
@@ -374,6 +375,30 @@ class KnowledgeReplyTests(TestCase):
         self.assertIn("Pricing & Quotation", reply)
         self.assertIn("Enquiry", reply)
         self.assertNotIn("register for free", reply.lower())
+
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    def test_greeting_reply_is_short(self):
+        for message in ("hi", "hii", "hello", "good morning"):
+            reply, source = generate_reply(message)
+            self.assertEqual(reply, SHORT_GREETING_REPLY)
+            self.assertEqual(source, "ai")
+            self.assertNotIn("Vetri Bills", reply)
+            self.assertNotIn("products", reply.lower())
+
+    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
+    @patch("chatbot.views.ask_gemini", return_value="Long AI greeting with products and services.")
+    def test_greeting_skips_ai(self, mock_gemini):
+        reply, source = generate_reply("hii")
+        self.assertEqual(reply, SHORT_GREETING_REPLY)
+        mock_gemini.assert_not_called()
+
+    def test_structured_greeting_is_short(self):
+        reply = get_structured_reply("hello")
+        self.assertEqual(reply, SHORT_GREETING_REPLY)
+
+    def test_conversational_greeting_is_short(self):
+        reply = get_conversational_fallback("hey")
+        self.assertEqual(reply, SHORT_GREETING_REPLY)
 
     @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
     def test_generate_reply_general_eligibility_via_api_path(self):

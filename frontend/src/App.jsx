@@ -96,27 +96,12 @@ function getClientToken() {
   return token
 }
 
-const WELCOME = {
-  role: 'bot',
-  text:
-    'Hi! I\'m Coach AI from Vetri IT Systems.\n\n' +
-    'Ask me anything about our products, services, training courses, portfolio, ' +
-    'or how to get a quote or demo — I\'ll keep answers clear and to the point.\n\n' +
-    'What would you like to know?',
-}
-
 const SUGGESTIONS = [
   'What products does VIS offer?',
   'What services does VIS provide?',
   'Tell me about Vetri Bills',
   'What is your mission and vision?',
   'How can I contact the VIS team?',
-]
-
-const QUICK_ACTIONS = [
-  { label: 'Get Quotation', type: 'quotation' },
-  { label: 'Book Consultation', type: 'consultation' },
-  { label: 'Request Demo', type: 'demo' },
 ]
 
 const ENQUIRY_TITLES = {
@@ -128,10 +113,10 @@ const ENQUIRY_TITLES = {
 }
 
 const ENQUIRY_CTA_LABELS = {
-  quotation: 'Submit quotation enquiry',
-  consultation: 'Book consultation enquiry',
-  demo: 'Request product demo',
-  sales: 'Contact sales enquiry',
+  quotation: 'Get quotation',
+  consultation: 'Book consultation',
+  demo: 'Request demo',
+  sales: 'Contact sales',
 }
 
 const ENQUIRY_TYPE_TABS = [
@@ -356,6 +341,8 @@ function MessageBubble({
   messageId,
   onFeedback,
   showActions = false,
+  enquiryCta = null,
+  onEnquiryClick,
 }) {
   const isBot = role === 'bot'
   const [copied, setCopied] = useState(false)
@@ -404,7 +391,20 @@ function MessageBubble({
             ))}
           </div>
         )}
-        <div className="bubble">{formatMessage(text)}</div>
+        <div className="bubble">
+          {formatMessage(text)}
+          {isBot && enquiryCta && ENQUIRY_CTA_LABELS[enquiryCta] && (
+            <div className="bubble-enquiry-cta">
+              <button
+                type="button"
+                className="bubble-enquiry-btn"
+                onClick={() => onEnquiryClick?.(enquiryCta)}
+              >
+                {ENQUIRY_CTA_LABELS[enquiryCta]}
+              </button>
+            </div>
+          )}
+        </div>
         {isBot && showActions && (
           <div className="bubble-actions">
             <button type="button" className="bubble-action-btn" onClick={copyText}>
@@ -452,27 +452,6 @@ function FollowUpChips({ items, disabled, onSelect }) {
             onClick={() => onSelect(item)}
           >
             {item}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function QuickActionChips({ items, disabled, onSelect }) {
-  return (
-    <div className="quick-actions">
-      <p className="quick-actions-label">Quick actions</p>
-      <div className="quick-actions-list">
-        {items.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            className="quick-action-chip"
-            disabled={disabled}
-            onClick={() => onSelect(item.type)}
-          >
-            {item.label}
           </button>
         ))}
       </div>
@@ -807,7 +786,7 @@ function HistorySidebar({
 }
 
 function App() {
-  const [messages, setMessages] = useState([WELCOME])
+  const [messages, setMessages] = useState([])
   const [conversationId, setConversationId] = useState(
     () => getStoredItem(CONVERSATION_ID_KEY) || ''
   )
@@ -950,7 +929,7 @@ function App() {
         feedback: item.feedback || '',
         messageId: item.id || null,
       }))
-      setMessages(loaded.length ? loaded : [WELCOME])
+      setMessages(loaded.length ? loaded : [])
       setFollowUps([])
       setError('')
       await loadHistoryList()
@@ -964,7 +943,7 @@ function App() {
   function newChat() {
     removeStoredItem(CONVERSATION_ID_KEY)
     setConversationId('')
-    setMessages([WELCOME])
+    setMessages([])
     setFollowUps([])
     setError('')
     setHistoryOpen(false)
@@ -1409,14 +1388,9 @@ function App() {
                       How can we help you <span className="highlight">today?</span>
                     </h2>
                     <p>
-                      Ask about products, services, quotations, training courses, or contact details.
-                      I share only verified VIS information.
+                      Ask me about VIS products, services, training, or company info.
+                      For a quote, consultation, or demo, use the <strong>Enquiry</strong> button above.
                     </p>
-                    <QuickActionChips
-                      items={QUICK_ACTIONS}
-                      disabled={loading}
-                      onSelect={openEnquiry}
-                    />
                   </div>
                 )}
 
@@ -1431,20 +1405,14 @@ function App() {
                     messageId={msg.messageId}
                     onFeedback={submitFeedback}
                     showActions={msg.role === 'bot' && index === lastBotIndex && !loading}
+                    enquiryCta={
+                      msg.role === 'bot' && index === lastBotIndex && !loading
+                        ? enquiryCta
+                        : null
+                    }
+                    onEnquiryClick={openEnquiry}
                   />
                 ))}
-
-                {!loading && enquiryCta && ENQUIRY_CTA_LABELS[enquiryCta] && (
-                  <div className="enquiry-cta">
-                    <button
-                      type="button"
-                      className="btn-green enquiry-cta-btn"
-                      onClick={() => openEnquiry(enquiryCta)}
-                    >
-                      {ENQUIRY_CTA_LABELS[enquiryCta]}
-                    </button>
-                  </div>
-                )}
 
                 {!loading && (
                   <FollowUpChips

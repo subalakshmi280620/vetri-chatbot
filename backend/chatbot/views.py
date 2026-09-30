@@ -13,10 +13,12 @@ from .deepseek import ask_deepseek
 from .gemini import ask_gemini
 from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import (
+    SHORT_GREETING_REPLY,
     SYSTEM_PROMPT,
     detect_suggested_enquiry_type,
     get_conversational_fallback,
     get_grounding_facts,
+    is_greeting,
 )
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
 from .email_notifications import dispatch_enquiry_notification
@@ -74,6 +76,9 @@ def generate_reply(
     history=None,
     attachments=None,
 ) -> tuple[str, str]:
+    if user_message and is_greeting(user_message) and not (attachments and (attachments.images or attachments.document_text)):
+        return SHORT_GREETING_REPLY, SOURCE_AI
+
     ai_reply = _try_ai_reply(user_message, history, attachments)
     if ai_reply:
         return enforce_verified_facts(ai_reply), SOURCE_AI

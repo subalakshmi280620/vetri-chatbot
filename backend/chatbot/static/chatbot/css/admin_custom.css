@@ -1,19 +1,61 @@
-/* Coach AI — clean Django admin styling */
+/* Coach AI Admin — VIS navy + green theme */
 
+html[data-theme="light"],
 :root {
-  --admin-bg: #f4f6f9;
+  --vis-navy: #0c1e3d;
+  --vis-navy-deep: #061428;
+  --vis-green: #4ade80;
+  --vis-green-hover: #22c55e;
+  --vis-green-soft: #ecfdf3;
+
+  --admin-bg: #f4f7fb;
   --admin-panel: #ffffff;
-  --admin-border: #e2e8f0;
-  --admin-text: #1e293b;
+  --admin-border: #dbe3ef;
+  --admin-text: #0f172a;
   --admin-muted: #64748b;
-  --admin-primary: #2563eb;
-  --admin-primary-dark: #1d4ed8;
-  --admin-primary-soft: #eff6ff;
+  --admin-primary: #0c1e3d;
+  --admin-primary-mid: #1a3a5c;
+  --admin-accent: #4ade80;
+  --admin-accent-dark: #22c55e;
   --admin-success: #16a34a;
   --admin-warning: #d97706;
   --admin-danger: #dc2626;
   --admin-radius: 10px;
-  --admin-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --admin-shadow: 0 1px 3px rgba(12, 30, 61, 0.08);
+
+  /* Django admin CSS variables */
+  --primary: #0c1e3d;
+  --secondary: #1a3a5c;
+  --accent: #4ade80;
+  --primary-fg: #ffffff;
+  --body-fg: #0f172a;
+  --body-bg: #f4f7fb;
+  --body-quiet-color: #64748b;
+  --body-medium-color: #334155;
+  --body-loud-color: #0f172a;
+  --header-color: #ffffff;
+  --header-branding-color: #ffffff;
+  --header-bg: #0c1e3d;
+  --header-link-color: #ffffff;
+  --breadcrumbs-fg: #64748b;
+  --breadcrumbs-link-fg: #1a3a5c;
+  --breadcrumbs-bg: #ffffff;
+  --link-fg: #1d4ed8;
+  --link-hover-color: #0c1e3d;
+  --link-selected-fg: #0c1e3d;
+  --hairline-color: #e2e8f0;
+  --border-color: #dbe3ef;
+  --darkened-bg: #f8fafc;
+  --selected-bg: #ecfdf3;
+  --selected-row: #f0fdf4;
+  --button-fg: #0c1e3d;
+  --button-bg: #4ade80;
+  --button-hover-bg: #22c55e;
+  --default-button-bg: #0c1e3d;
+  --default-button-hover-bg: #1a3a5c;
+  --object-tools-fg: #ffffff;
+  --object-tools-bg: #1a3a5c;
+  --object-tools-hover-bg: #0c1e3d;
 }
 
 body {
@@ -22,44 +64,46 @@ body {
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
+/* ── Header ─────────────────────────────────────────────── */
 #header {
-  background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%) !important;
+  background: linear-gradient(135deg, var(--vis-navy-deep) 0%, var(--vis-navy) 55%, #1a3a5c 100%) !important;
   color: #fff !important;
   padding: 14px 24px !important;
-  box-shadow: 0 2px 8px rgba(30, 58, 95, 0.2);
+  border-bottom: 3px solid var(--vis-green);
+  box-shadow: 0 2px 10px rgba(6, 20, 40, 0.25);
 }
 
 #header a:link,
-#header a:visited {
+#header a:visited,
+#user-tools a {
   color: #fff !important;
 }
 
 #branding h1,
 #site-name a {
-  font-weight: 600;
-  font-size: 1.25rem;
+  font-weight: 700;
+  font-size: 1.2rem;
   letter-spacing: 0.01em;
+  color: #fff !important;
 }
 
 #branding .admin-header-links {
   margin: 6px 0 0;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 }
 
 #branding .admin-header-links a {
-  color: #e0e7ff !important;
+  color: #bbf7d0 !important;
   font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.12);
 }
 
-.admin-home-panel {
-  margin-bottom: 24px;
-}
-
-.admin-home-secondary {
-  background: #475569 !important;
-  margin-left: 10px;
+#branding .admin-header-links a:hover {
+  background: rgba(74, 222, 128, 0.22);
+  color: #fff !important;
 }
 
 #user-tools {
@@ -67,9 +111,10 @@ body {
 }
 
 #user-tools a {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
 }
 
+/* ── Breadcrumbs ────────────────────────────────────────── */
 div.breadcrumbs {
   background: var(--admin-panel) !important;
   border-bottom: 1px solid var(--admin-border);
@@ -78,39 +123,108 @@ div.breadcrumbs {
 }
 
 div.breadcrumbs a {
-  color: var(--admin-primary) !important;
+  color: var(--admin-primary-mid) !important;
+  font-weight: 600;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+#container {
+  background: var(--admin-bg);
 }
 
 #content {
   padding: 24px !important;
-  max-width: 1200px;
+  max-width: 1280px;
 }
 
 #content h1 {
-  font-size: 1.75rem;
+  font-size: 1.65rem;
   font-weight: 700;
   color: var(--admin-text);
   margin-bottom: 0.35rem;
 }
 
+#content-main {
+  background: transparent;
+}
+
+/* ── Left sidebar navigation ────────────────────────────── */
+#nav-sidebar {
+  background: var(--admin-panel) !important;
+  border-right: 1px solid var(--admin-border) !important;
+  box-shadow: 2px 0 8px rgba(12, 30, 61, 0.04);
+}
+
+#nav-filter {
+  background: var(--admin-panel);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  color: var(--admin-text);
+}
+
+#nav-sidebar .module th,
+#nav-sidebar .module caption {
+  background: var(--vis-green-soft) !important;
+  color: var(--vis-navy) !important;
+  font-weight: 700;
+}
+
+#nav-sidebar .current-app .section {
+  color: var(--vis-navy);
+  font-weight: 700;
+}
+
+#nav-sidebar .current-model {
+  background: var(--vis-green-soft) !important;
+}
+
+#nav-sidebar a {
+  color: var(--admin-primary-mid) !important;
+}
+
+#nav-sidebar a:hover {
+  color: var(--vis-navy) !important;
+}
+
+#toggle-nav-sidebar {
+  background: var(--vis-navy);
+  color: #fff;
+  border-color: var(--vis-navy);
+}
+
+/* ── Dashboard / modules ────────────────────────────────── */
 .module,
 #changelist .results,
-.inline-group {
+.inline-group,
+fieldset.module {
   border-radius: var(--admin-radius) !important;
   border: 1px solid var(--admin-border) !important;
   box-shadow: var(--admin-shadow);
   overflow: hidden;
+  background: var(--admin-panel);
 }
 
 .module h2,
 .module caption,
-.inline-group h2 {
-  background: var(--admin-primary-soft) !important;
-  color: var(--admin-primary-dark) !important;
-  font-weight: 600;
+.inline-group h2,
+fieldset.module h2 {
+  background: linear-gradient(90deg, var(--vis-green-soft) 0%, #f8fafc 100%) !important;
+  color: var(--vis-navy) !important;
+  font-weight: 700;
   padding: 12px 16px !important;
+  border-bottom: 1px solid var(--admin-border);
 }
 
+.dashboard .module table th {
+  background: #f8fafc;
+}
+
+.dashboard .module table td a {
+  font-weight: 600;
+  color: var(--admin-primary-mid) !important;
+}
+
+/* ── Tables ─────────────────────────────────────────────── */
 table {
   border-collapse: collapse;
 }
@@ -119,7 +233,7 @@ table {
 .module table thead th {
   background: #f8fafc !important;
   color: var(--admin-text) !important;
-  font-weight: 600;
+  font-weight: 700;
   padding: 12px 14px !important;
   border-bottom: 1px solid var(--admin-border) !important;
 }
@@ -135,27 +249,75 @@ table {
   background: #f8fafc;
 }
 
+.row1,
+.row2 {
+  background: var(--admin-panel);
+}
+
+/* ── Filters (right panel) ──────────────────────────────── */
+#changelist-filter {
+  background: var(--admin-panel);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow);
+}
+
+#changelist-filter h2 {
+  background: var(--vis-green-soft) !important;
+  color: var(--vis-navy) !important;
+  font-weight: 700;
+  padding: 10px 14px !important;
+}
+
+#changelist-filter h3 {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+#changelist-filter li.selected a {
+  color: var(--vis-navy) !important;
+  font-weight: 700;
+}
+
+/* ── Buttons ────────────────────────────────────────────── */
 .button,
 input[type="submit"],
 .submit-row input,
-a.button {
-  background: var(--admin-primary) !important;
-  border: none !important;
+a.button,
+.deletelink-box a.deletelink {
   border-radius: 8px !important;
+  font-weight: 600;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.button,
+input[type="submit"],
+a.button {
+  background: var(--vis-green) !important;
+  color: var(--vis-navy) !important;
+  border: none !important;
   padding: 8px 16px !important;
-  font-weight: 500;
-  transition: background 0.15s ease;
 }
 
 .button:hover,
 input[type="submit"]:hover,
 a.button:hover {
-  background: var(--admin-primary-dark) !important;
+  background: var(--vis-green-hover) !important;
+  color: var(--vis-navy) !important;
 }
 
 .button.default,
 input[type="submit"].default {
-  background: var(--admin-primary-dark) !important;
+  background: var(--vis-navy) !important;
+  color: #fff !important;
+}
+
+.button.default:hover,
+input[type="submit"].default:hover {
+  background: var(--admin-primary-mid) !important;
+  color: #fff !important;
 }
 
 .submit-row {
@@ -165,12 +327,141 @@ input[type="submit"].default {
   padding: 14px 16px !important;
 }
 
-.object-tools a {
+.object-tools a,
+.object-tools li {
   border-radius: 8px !important;
-  background: var(--admin-primary) !important;
-  padding: 8px 14px !important;
 }
 
+.object-tools a {
+  background: var(--vis-navy) !important;
+  color: #fff !important;
+  padding: 8px 14px !important;
+  font-weight: 600;
+}
+
+.object-tools a:hover {
+  background: var(--admin-primary-mid) !important;
+}
+
+.addlink {
+  color: var(--admin-success) !important;
+  font-weight: 700;
+}
+
+/* ── Forms ──────────────────────────────────────────────── */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="url"],
+input[type="number"],
+input[type="date"],
+textarea,
+select {
+  border: 1px solid var(--admin-border) !important;
+  border-radius: 8px !important;
+  padding: 8px 10px !important;
+  background: #fff;
+  color: var(--admin-text);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--vis-green) !important;
+  outline: 2px solid rgba(74, 222, 128, 0.25);
+  outline-offset: 0;
+}
+
+.aligned label {
+  color: var(--admin-text);
+  font-weight: 600;
+}
+
+.help,
+.quiet,
+p.help {
+  color: var(--admin-muted) !important;
+}
+
+/* ── Messages ───────────────────────────────────────────── */
+ul.messagelist li {
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+ul.messagelist li.success {
+  background: #ecfdf3 !important;
+  color: #166534 !important;
+  border: 1px solid #bbf7d0;
+}
+
+ul.messagelist li.warning {
+  background: #fffbeb !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a;
+}
+
+ul.messagelist li.error {
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+  border: 1px solid #fecaca;
+}
+
+/* ── Login page ─────────────────────────────────────────── */
+body.login {
+  background: linear-gradient(160deg, var(--vis-navy-deep) 0%, var(--vis-navy) 45%, #1a3a5c 100%) !important;
+}
+
+body.login #header {
+  background: transparent !important;
+  border-bottom: none !important;
+  box-shadow: none;
+}
+
+body.login #content {
+  padding: 40px 20px !important;
+}
+
+body.login #content-main {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+body.login .submit-row {
+  padding: 0 !important;
+  border: none;
+  background: transparent !important;
+  text-align: center;
+}
+
+.login #container {
+  background: transparent;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.login #content {
+  background: var(--admin-panel);
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(6, 20, 40, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 28px 28px 24px !important;
+}
+
+.login form {
+  margin-top: 12px;
+}
+
+.login .form-row label {
+  color: var(--admin-text);
+  font-weight: 600;
+}
+
+/* ── Paginator ──────────────────────────────────────────── */
 .paginator {
   border-radius: var(--admin-radius);
   border: 1px solid var(--admin-border);
@@ -179,10 +470,35 @@ input[type="submit"].default {
 }
 
 .paginator a {
-  color: var(--admin-primary) !important;
+  color: var(--admin-primary-mid) !important;
+  font-weight: 600;
 }
 
-/* Analytics dashboard */
+/* ── Admin home panel ───────────────────────────────────── */
+.admin-home-panel {
+  margin-bottom: 24px;
+  border-left: 4px solid var(--vis-green);
+}
+
+.admin-home-panel h2 {
+  color: var(--vis-navy);
+}
+
+.admin-home-panel p {
+  color: var(--admin-muted);
+}
+
+.admin-home-secondary {
+  background: var(--admin-primary-mid) !important;
+  color: #fff !important;
+  margin-left: 10px;
+}
+
+.admin-home-secondary:hover {
+  background: var(--vis-navy) !important;
+}
+
+/* ── Analytics dashboard ────────────────────────────────── */
 .analytics-page .page-intro {
   color: var(--admin-muted);
   margin: 0 0 24px;
@@ -202,7 +518,7 @@ input[type="submit"].default {
   border-radius: var(--admin-radius);
   padding: 16px 18px;
   box-shadow: var(--admin-shadow);
-  border-left: 4px solid var(--admin-primary);
+  border-left: 4px solid var(--vis-navy);
 }
 
 .analytics-stat-card.stat-success {
@@ -219,7 +535,7 @@ input[type="submit"].default {
 
 .analytics-stat-card strong {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--admin-muted);
@@ -229,7 +545,7 @@ input[type="submit"].default {
 .analytics-stat-card .stat-value {
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--admin-text);
+  color: var(--vis-navy);
   line-height: 1.2;
 }
 
@@ -250,8 +566,8 @@ input[type="submit"].default {
 .analytics-section h2 {
   margin: 0 0 14px;
   font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--admin-text);
+  font-weight: 700;
+  color: var(--vis-navy);
   padding-bottom: 10px;
   border-bottom: 1px solid var(--admin-border);
 }
@@ -274,8 +590,11 @@ input[type="submit"].default {
 }
 
 .analytics-list .count {
-  font-weight: 600;
-  color: var(--admin-primary);
+  font-weight: 700;
+  color: var(--vis-navy);
+  background: var(--vis-green-soft);
+  padding: 2px 10px;
+  border-radius: 999px;
 }
 
 .analytics-table {
@@ -292,7 +611,7 @@ input[type="submit"].default {
 
 .analytics-table th {
   background: #f8fafc;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--admin-muted);
@@ -308,16 +627,16 @@ input[type="submit"].default {
 
 .analytics-actions a {
   display: inline-block;
-  background: var(--admin-primary);
+  background: var(--vis-navy);
   color: #fff !important;
   text-decoration: none;
   padding: 10px 18px;
   border-radius: 8px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .analytics-actions a:hover {
-  background: var(--admin-primary-dark);
+  background: var(--admin-primary-mid);
 }
 
 @media (max-width: 768px) {

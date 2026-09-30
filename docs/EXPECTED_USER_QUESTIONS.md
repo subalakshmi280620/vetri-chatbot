@@ -126,31 +126,84 @@ Requires Gemini API and supported browser (voice: Chrome/Edge recommended).
 
 ---
 
-## 4. Top 15 Test Questions (Demo Checklist)
+## 4. Mentor Demo Script (10 minutes)
 
-Use these before mentor review or go-live:
+Use this order when presenting to your mentor. Open: **https://vetri-chatbot-ui.onrender.com**
 
-| # | Question | Pass criteria |
-|---|----------|---------------|
-| 1 | Hi | Friendly natural greeting |
-| 2 | What is Vetri IT Systems? | Company intro, not a FAQ template wall |
-| 3 | What products does VIS offer? | Products named correctly |
-| 4 | Tell me about Vetri Bills | GST billing, relevant features |
-| 5 | What services do you provide? | Services listed naturally |
-| 6 | I need a website — can you help? | Website development + next step |
-| 7 | How can I contact you? | Correct phone, email, address |
-| 8 | How can I get a quotation? | Quotation process or enquiry form |
-| 9 | I want a product demo | Demo enquiry guidance |
-| 10 | What courses are available? | Course list |
-| 11 | Am I eligible? I have B.Com | Eligibility conversation |
-| 12 | What is the course duration? | 180 days |
-| 13 | Why choose VIS? | Why VIS summary |
-| 14 | What is your mission? | Mission/vision |
-| 15 | How much does Python course cost? | **No invented price** → quote/contact |
+| Step | What you do | What mentor should see |
+|------|-------------|------------------------|
+| 1 | Show welcome card + FAQ suggestions | Clean UI, no duplicate intro |
+| 2 | Type **Hi** | Short reply only: *"Hello! How can I help you today?"* |
+| 3 | Ask **What is Vetri IT Systems?** | 2–4 line natural answer, company intro |
+| 4 | Ask **Tell me about Vetri Bills** | GST billing product, no invented pricing |
+| 5 | Ask **What services do you provide?** | Web, mobile, AI, ERP, etc. in plain English |
+| 6 | Ask **How can I get a quotation?** | Explains process + **Get quotation** button inside message |
+| 7 | Click **Get quotation** → fill enquiry form → submit | Success message in chat; show admin Enquirys |
+| 8 | Ask **What courses are available?** | Lists training programmes |
+| 9 | Ask **I have B.Com degree — am I eligible?** | Eligibility check (degree required) |
+| 10 | Ask **How can I contact you?** | +91 84381 54827, support@vetri-it.com, Surandai address |
+| 11 | (Optional) Use voice or upload a screenshot | Multimodal input works |
+| 12 | Open admin → Analytics / Enquirys | Stats + submitted enquiry visible |
+
+**One-line pitch for mentor:**  
+*"Single-agent Coach AI — Gemini + verified VIS knowledge. Chat for Q&A, Enquiry form for leads, admin for monitoring."*
 
 ---
 
-## 5. Chat vs Enquiry Form
+## 5. Best Test Questions (Full Checklist)
+
+### Quick smoke test (5 questions — do this first)
+
+| # | Question | Pass criteria |
+|---|----------|---------------|
+| 1 | Hi | Short: *Hello! How can I help you today?* — no product list |
+| 2 | What products does VIS offer? | Vetri Bills, CRM, Coach AI, etc. — natural 2–4 lines |
+| 3 | How can I get a quotation? | Answer + **Get quotation** button inside bot message |
+| 4 | How can I contact you? | Correct phone, email, address |
+| 5 | Submit enquiry form (top Enquiry button) | Success in chat + row in admin Enquirys |
+
+### Core demo questions (mentor review)
+
+| # | Question | Pass criteria |
+|---|----------|---------------|
+| 6 | What is Vetri IT Systems? | Company intro, tagline — not a FAQ wall |
+| 7 | Tell me about Vetri Bills | GST billing features |
+| 8 | What is Coach AI? | AI learning platform (product + training context) |
+| 9 | What services do you provide? | Services listed naturally |
+| 10 | I need a website for my business | Website development + helpful next step |
+| 11 | I want a product demo | Demo explanation + **Request demo** button |
+| 12 | Book a consultation | Consultation explanation + **Book consultation** button |
+| 13 | What courses are available? | Full course list |
+| 14 | What is the course duration? | **180 days** |
+| 15 | Am I eligible? I have B.Com | Eligibility conversation, degree check |
+| 16 | How do I apply for a course? | Apply steps + contact |
+| 17 | Why should I choose VIS? | Stats: 150+ projects, 8+ years, etc. |
+| 18 | Show your portfolio | Retail POS, Healthcare Portal, etc. |
+| 19 | What is your mission and vision? | Verified mission/vision |
+| 20 | How much does Python course cost? | **No invented ₹ price** → enquiry/contact |
+
+### Edge cases (prove guardrails)
+
+| # | Question | Pass criteria |
+|---|----------|---------------|
+| 21 | What is the price of Vetri Bills? | No fake pricing — tailored quote / enquiry |
+| 22 | Who won the cricket match today? | Politely off-topic; offers VIS help |
+| 23 | Tell me about Microsoft Azure only | Stays on VIS services or redirects |
+| 24 | (Follow-up) Tell me more | Uses chat history, does not repeat full intro |
+
+### Enquiry form test data (use for demo submit)
+
+| Field | Sample value |
+|-------|----------------|
+| Full name | Demo User |
+| Email | your-email@example.com |
+| Phone | +91 98765 43210 |
+| Interest | Vetri Bills |
+| Message | Need GST billing software for retail shop — please share quotation. |
+
+---
+
+## 6. Chat vs Enquiry Form
 
 | Feature | Purpose |
 |---------|---------|
@@ -160,7 +213,7 @@ Use these before mentor review or go-live:
 
 ---
 
-## 6. Verified Facts (Must Stay Exact)
+## 7. Verified Facts (Must Stay Exact)
 
 | Item | Official value |
 |------|----------------|
@@ -173,13 +226,13 @@ Use these before mentor review or go-live:
 
 ---
 
-## 7. Architecture Note (Single Agent)
+## 8. Architecture Note (Single Agent)
 
 Coach AI uses a **single AI agent** (Gemini) with verified knowledge base and RAG — not multi-agent. This is appropriate for a company website chatbot: natural conversation with accurate, grounded answers.
 
 ---
 
-## 8. Live URLs (Production)
+## 9. Live URLs (Production)
 
 | Resource | URL |
 |----------|-----|
