@@ -595,6 +595,9 @@ Conversation style:
 - Do not give one-word or one-line replies when the question needs explanation.
 - Only write longer answers if the user explicitly asks for "more detail", "full list", or "explain everything".
 - Use conversation history. Answer follow-ups directly without repeating the whole previous answer.
+- "What is VIS / who is Vetri IT Systems": explain what the company is and what it offers (products + services).
+- "Why choose VIS / why Vetri": explain differentiators and benefits (trust, AI-first, track record) — do NOT
+  repeat the same wording as a "what is VIS" answer.
 - Never invent pricing, clients, portfolio projects, or features not in the verified content.
 - Do NOT reply with only "contact our team" — answer from verified content first, then offer next steps if needed.
 
@@ -755,11 +758,56 @@ def _matches_sales_intent(text: str) -> bool:
     ))
 
 
+def _matches_why_vis_intent(text: str) -> bool:
+    return any(k in text for k in (
+        "why vis", "why vetri", "why choose", "why should i choose",
+        "why pick", "what sets you apart", "advantages of vis",
+        "advantages of vetri", "reasons to choose",
+    ))
+
+
+def _matches_about_intent(text: str) -> bool:
+    if _matches_why_vis_intent(text):
+        return False
+    return any(k in text for k in (
+        "what is vis", "what is vetri", "who are you", "who is vis",
+        "who is vetri", "about us", "about vis", "about vetri",
+        "what is vetri it", "tell me about vis", "tell me about vetri",
+        "what does vis do", "what does vetri do",
+    ))
+
+
+def about_grounding_facts() -> str:
+    return (
+        f"Company identity: {ORG_NAME} — {HERO_HEADLINE}. "
+        f"{HERO_SUBHEADLINE} "
+        f"Ready-to-use products include {', '.join(PRODUCTS[:5])}, and more. "
+        f"Custom services include {', '.join(SERVICES[:4])}, and related IT work. "
+        f"Tagline: {TAGLINE}"
+    )
+
+
+def why_vis_grounding_facts() -> str:
+    stats = COMPANY_STATS
+    return (
+        "Why choose VIS (differentiators — not a company intro): "
+        "enterprise trust with security and compliance; cloud-native scalable architecture; "
+        "product mindset with seven shipped enterprise products; AI-first engineering. "
+        "Focus areas: digital transformation, applied AI (assistants, agents, automation), "
+        f"and full-stack engineering. Track record: {stats['projects']} projects, "
+        f"{stats['years']} years, {stats['clients']} clients, {stats['team']} team experts. "
+        f"Highlights: {', '.join(COMPANY_HIGHLIGHTS)}."
+    )
+
+
 INTENTS = (
     ("greeting", ("hi", "hello", "hey", "good morning", "good evening")),
     ("quotation", ("quotation", "quote", "get quotation", "request a quotation")),
     ("portfolio", ("portfolio", "portfolios", "case study", "projects delivered", "our work")),
-    ("why_vis", ("why vis", "why vetri", "why choose", "what sets you apart")),
+    ("why_vis", (
+        "why vis", "why vetri", "why choose", "why should i choose",
+        "what sets you apart", "reasons to choose",
+    )),
     ("vision_mission", ("vision", "mission", "mission and vision", "mission & vision")),
     ("ai_solutions", (
         "ai solution", "ai solutions", "agentic ai", "workflow automation",
@@ -767,7 +815,10 @@ INTENTS = (
     )),
     ("products", ("product", "products", "our product", "what products")),
     ("services", ("service", "services", "our service", "what services")),
-    ("about", ("about us", "about vis", "about vetri", "who are you", "what is vis")),
+    ("about", (
+        "about us", "about vis", "about vetri", "who are you", "what is vis",
+        "what is vetri", "what is vetri it", "who is vis", "who is vetri",
+    )),
     ("contact", ("contact", "phone", "email", "address", "call", "location", "where are you")),
     ("courses", (
         "courses", "which courses", "what courses", "courses available",
@@ -884,6 +935,11 @@ def get_grounding_facts(message: str) -> str:
     """Verified facts for AI grounding — not user-facing templates."""
     text = message.strip().lower()
     parts: list[str] = []
+
+    if _matches_why_vis_intent(text):
+        return why_vis_grounding_facts()
+    if _matches_about_intent(text):
+        return about_grounding_facts()
 
     product_id = match_product_id(text)
     if product_id:
@@ -1038,9 +1094,11 @@ def get_conversational_fallback(message: str) -> str:
         if intent == "why_vis":
             stats = COMPANY_STATS
             return (
-                f"VIS combines product engineering, applied AI, and digital "
-                f"transformation — {stats['projects']} projects, {stats['years']} years, "
-                f"and {', '.join(COMPANY_HIGHLIGHTS[:2]).lower()} built in."
+                f"Businesses choose VIS for enterprise-grade trust, cloud-native delivery, "
+                f"and AI-first product engineering — not just one-off projects. "
+                f"We've delivered {stats['projects']} projects over {stats['years']} with "
+                f"{stats['clients']} clients, plus ready-made products like Vetri Bills and "
+                f"Coach AI. What matters most for your use case — products, custom build, or AI?"
             )
         if intent == "vision_mission":
             return (
@@ -1056,9 +1114,10 @@ def get_conversational_fallback(message: str) -> str:
             )
         if intent == "about":
             return (
-                f"{HERO_HEADLINE} — {ORG_NAME} builds websites, mobile apps, "
-                "enterprise software, and ready-to-use products like Vetri Bills, "
-                "Project Management, and HR Management Tool."
+                f"{ORG_NAME} is a Tamil Nadu–based IT company that builds websites, mobile apps, "
+                "and enterprise software, and also ships ready-to-use products such as Vetri Bills "
+                "(GST billing), Project Management, HR Management Tool, and Coach AI. "
+                "What would you like to explore — a product or a custom service?"
             )
         if intent == "contact":
             return (

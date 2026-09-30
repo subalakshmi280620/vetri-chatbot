@@ -245,4 +245,6 @@ Coach AI uses a **single AI agent** (Gemini) with verified knowledge base and RA
 
 ---
 
+**Printable demo sheet:** [`docs/MENTOR_DEMO_SHEET.md`](MENTOR_DEMO_SHEET.md) — one-page mentor script with checkboxes.
+
 *Document version: September 2026 — Coach AI for Vetri IT Systems*

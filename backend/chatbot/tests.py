@@ -13,6 +13,7 @@ from .knowledge import (
     SERVICES,
     SHORT_GREETING_REPLY,
     get_conversational_fallback,
+    get_grounding_facts,
     get_structured_reply,
 )
 from .models import Enquiry
@@ -399,6 +400,28 @@ class KnowledgeReplyTests(TestCase):
     def test_conversational_greeting_is_short(self):
         reply = get_conversational_fallback("hey")
         self.assertEqual(reply, SHORT_GREETING_REPLY)
+
+    def test_about_and_why_vis_grounding_facts_differ(self):
+        about = get_grounding_facts("What is VIS?")
+        why = get_grounding_facts("Why should I choose VIS?")
+        self.assertIn("Company identity", about)
+        self.assertIn("differentiators", why.lower())
+        self.assertNotEqual(about, why)
+
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    def test_about_and_why_vis_fallback_replies_differ(self):
+        about = get_conversational_fallback("What is Vetri IT Systems?")
+        why = get_conversational_fallback("Why should I choose VIS?")
+        self.assertIn("Tamil Nadu", about)
+        self.assertIn("choose VIS", why)
+        self.assertNotEqual(about.lower(), why.lower())
+
+    def test_structured_about_and_why_vis_replies_differ(self):
+        about = get_structured_reply("What is VIS?")
+        why = get_structured_reply("Why choose VIS?")
+        self.assertIn("About", about)
+        self.assertIn("Why VIS", why)
+        self.assertNotEqual(about, why)
 
     @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
     def test_generate_reply_general_eligibility_via_api_path(self):
