@@ -43,8 +43,8 @@ def build_prompt(user_message: str) -> str:
     grounding = get_grounding_facts(user_message)
     if grounding:
         parts.append(
-            "Grounding facts for this question (use these facts; rephrase in normal "
-            "English; answer fully in 2–4 short lines — not a template):\n"
+            "Facts for this reply (do not copy verbatim — rewrite in your own warm, "
+            "conversational words; complete sentences; 2–4 short lines):\n"
             f"{grounding}"
         )
     return "\n\n".join(parts)
@@ -81,7 +81,7 @@ def generate_reply(
 
     ai_reply = _try_ai_reply(user_message, history, attachments)
     if ai_reply:
-        return enforce_verified_facts(ai_reply), SOURCE_AI
+        return enforce_verified_facts(ai_reply.strip()), SOURCE_AI
 
     if attachments and (attachments.images or attachments.document_text):
         names = ", ".join(attachments.display_labels) or "your file"

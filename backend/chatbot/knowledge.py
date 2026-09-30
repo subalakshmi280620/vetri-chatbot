@@ -579,35 +579,38 @@ REPLIES = {
     ),
 }
 
-SYSTEM_PROMPT = f"""You are Coach AI, the friendly assistant for {ORG_NAME} ({ORG_LEGAL}).
+SYSTEM_PROMPT = f"""You are Coach AI — a warm, friendly assistant for {ORG_NAME} ({ORG_LEGAL}).
+Talk like a helpful colleague on chat: natural, human, and easy to read. Not a brochure or FAQ page.
 
-You must answer EVERY user question naturally — including greetings, follow-ups, comparisons,
-and questions phrased in any way. Never reply with a fixed FAQ template or section headings
-like "Our Products —" or "Course Overview —".
+You must answer EVERY question the user asks — any wording, follow-ups, comparisons, or casual phrasing.
+Never use section headings, bullet lists, or labels like "Our Products —" unless the user asks for a list.
 
-Conversation style:
-- For simple greetings only (hi, hello, hey, good morning): one short line such as
-  "Hello! How can I help you today?" — the chat already shows a welcome intro, so do NOT
-  repeat products, services, or bullet lists.
-- Write in normal, everyday English — friendly and clear, like a helpful colleague (not robotic FAQ text).
-- Give a COMPLETE answer in 2–4 short lines: cover what it is, who it's for, and one useful detail — then stop.
-- Do not use section headings, bullet lists, or labels like "Our Products —" unless the user asks for a list.
-- Do not give one-word or one-line replies when the question needs explanation.
-- Only write longer answers if the user explicitly asks for "more detail", "full list", or "explain everything".
-- Use conversation history. Answer follow-ups directly without repeating the whole previous answer.
-- "What is VIS / who is Vetri IT Systems": explain what the company is and what it offers (products + services).
-- "Why choose VIS / why Vetri": explain differentiators and benefits (trust, AI-first, track record) — do NOT
-  repeat the same wording as a "what is VIS" answer.
-- "Mission and vision": state vision and mission only — not a full company intro.
-- "Portfolio / our work": describe featured projects and outcomes — not company stats alone.
-- "Products" vs "services": products = ready-made software; services = custom development work.
-- "Quotation" vs "consultation" vs "demo": quote = pricing proposal; consultation = advisory call;
-  demo = live product walkthrough — keep each answer specific to what was asked.
-- Never invent pricing, clients, portfolio projects, or features not in the verified content.
-- Do NOT reply with only "contact our team" — answer from verified content first, then offer next steps if needed.
+Voice and tone:
+- Sound conversational: use plain English, short sentences, and a helpful tone.
+- You may start with a brief friendly phrase when it fits ("Sure!", "Good question.", "Happy to help.") — but keep it natural, not cheesy.
+- Write COMPLETE sentences. Never stop mid-thought or mid-number.
+- Give a full answer in 2–4 short lines, then stop. End with a gentle follow-up question when helpful.
+- Use conversation history — answer follow-ups directly without repeating your last reply word-for-word.
+- For hi/hello only: one line like "Hello! How can I help you today?" — no product lists (welcome card already shown).
 
-Example tone (products question):
-"VIS offers ready-to-use software like Vetri Bills for GST billing, a project management tool with Kanban and Gantt charts, and an HR system for attendance and payroll. We also build custom websites and mobile apps if you need something tailored. Which area should I explain first?"
+Answer focus by topic (use different angles — do not repeat the same intro for every question):
+- What is VIS: who they are and what they offer (products + services).
+- Why choose VIS: trust, AI-first engineering, track record, benefits — not the same text as "what is VIS".
+- Mission/vision: vision and mission only.
+- Portfolio: example projects and outcomes.
+- Products: ready-made software catalogue. Services: custom development work.
+- Quotation / consultation / demo: explain that specific next step; mention the Enquiry button.
+
+Stats — write exactly when relevant: {COMPANY_STATS['projects']} projects, {COMPANY_STATS['years']} years,
+{COMPANY_STATS['clients']} clients, {COMPANY_STATS['team']} team experts. Never truncate (e.g. never write "15" alone for projects).
+
+Never invent pricing, clients, or features. Do not reply with only "contact our team" — answer first, then offer next steps.
+
+Example (products):
+"Sure — VIS has ready-made tools like Vetri Bills for GST billing, plus project management and HR software. We also build custom websites and apps if you need something tailored. Which one should I tell you more about?"
+
+Example (why choose us):
+"Great question — teams pick VIS for enterprise-grade delivery, AI-first product engineering, and a solid track record: {COMPANY_STATS['projects']} projects over {COMPANY_STATS['years']}, with products like Vetri Bills and Coach AI already built. What are you looking to solve?"
 
 Ground rules:
 - Use verified VIS information below, retrieved excerpts, and grounding facts.
@@ -787,23 +790,20 @@ def _matches_about_intent(text: str) -> bool:
 
 def about_grounding_facts() -> str:
     return (
-        f"Company identity: {ORG_NAME} — {HERO_HEADLINE}. "
-        f"{HERO_SUBHEADLINE} "
-        f"Ready-to-use products include {', '.join(PRODUCTS[:5])}, and more. "
-        f"Custom services include {', '.join(SERVICES[:4])}, and related IT work. "
-        f"Tagline: {TAGLINE}"
+        f"{ORG_NAME} — {HERO_HEADLINE}. {HERO_SUBHEADLINE} "
+        f"Products: {', '.join(PRODUCTS[:5])}, and more. "
+        f"Services: {', '.join(SERVICES[:4])}, and related IT work. {TAGLINE}"
     )
 
 
 def why_vis_grounding_facts() -> str:
     stats = COMPANY_STATS
     return (
-        "Why choose VIS (differentiators — not a company intro): "
-        "enterprise trust with security and compliance; cloud-native scalable architecture; "
-        "product mindset with seven shipped enterprise products; AI-first engineering. "
-        "Focus areas: digital transformation, applied AI (assistants, agents, automation), "
-        f"and full-stack engineering. Track record: {stats['projects']} projects, "
-        f"{stats['years']} years, {stats['clients']} clients, {stats['team']} team experts. "
+        "Enterprise trust, security, and compliance; cloud-native architecture; "
+        "seven shipped enterprise products; AI-first engineering. "
+        "Focus: digital transformation, applied AI, full-stack engineering. "
+        f"Track record: {stats['projects']} projects, {stats['years']} years, "
+        f"{stats['clients']} clients, {stats['team']} team experts. "
         f"Highlights: {', '.join(COMPANY_HIGHLIGHTS)}."
     )
 
@@ -840,10 +840,10 @@ def _matches_contact_intent(text: str) -> bool:
 
 def vision_mission_grounding_facts() -> str:
     return (
-        "Vision: An AI-Powered Business For Everyone — become the trusted AI and digital "
-        "transformation partner for growing enterprises. "
-        "Mission: Make Enterprise Technology Effortless — dependable intelligent software "
-        "that removes manual work and gives leaders real-time clarity."
+        "Vision — An AI-Powered Business For Everyone: trusted AI and digital transformation "
+        "partner for growing enterprises. "
+        "Mission — Make Enterprise Technology Effortless: dependable software that removes "
+        "manual work and gives leaders real-time clarity."
     )
 
 
@@ -851,31 +851,22 @@ def portfolio_grounding_facts() -> str:
     sample = "; ".join(
         f"{p['name']} ({p['type']}, {p['metric']})" for p in PORTFOLIO_PROJECTS[:4]
     )
-    return (
-        f"Portfolio / delivered work examples: {sample}. "
-        "These are case-study style client projects — not the product catalogue."
-    )
+    return f"Featured client work: {sample}."
 
 
 def contact_grounding_facts() -> str:
     return (
-        f"Contact details only: Phone {CONTACT_PHONE}, Email {CONTACT_EMAIL}, "
-        f"Address {CONTACT_ADDRESS}. Do not repeat a full company introduction."
+        f"Phone {CONTACT_PHONE}, Email {CONTACT_EMAIL}, "
+        f"Address {CONTACT_ADDRESS}."
     )
 
 
 def products_grounding_facts() -> str:
-    return (
-        f"VIS software products (ready-to-use): {', '.join(PRODUCTS)}. "
-        "Answer about the product catalogue — not why choose VIS or custom services."
-    )
+    return f"Ready-to-use products: {', '.join(PRODUCTS)}."
 
 
 def services_grounding_facts() -> str:
-    return (
-        f"VIS custom services: {', '.join(SERVICES)}. "
-        "Answer about bespoke delivery work — not the off-the-shelf product list."
-    )
+    return f"Custom services: {', '.join(SERVICES)}."
 
 
 def courses_grounding_facts() -> str:
@@ -887,22 +878,22 @@ def courses_grounding_facts() -> str:
 
 def quotation_grounding_facts() -> str:
     return (
-        "Quotation request: user describes requirement; VIS prepares tailored proposal "
-        "with scope, timeline, and indicative pricing. Direct to Enquiry → Quotation tab."
+        "User describes their requirement; VIS sends a tailored proposal with scope, "
+        "timeline, and indicative pricing. They can use the Enquiry button → Quotation tab."
     )
 
 
 def consultation_grounding_facts() -> str:
     return (
-        "Consultation: speak with a VIS solution consultant to clarify business goals "
-        "and choose the right product or service. Direct to Enquiry → Consultation tab."
+        "Speak with a VIS consultant to clarify goals and pick the right product or service. "
+        "Enquiry button → Consultation tab."
     )
 
 
 def demo_grounding_facts() -> str:
     return (
-        "Product demo: live workflow preview of Billing Software, Project Management, "
-        "HR Tool, CRM, Coach AI, etc. Direct to Enquiry → Product Demo tab."
+        "Live workflow preview of Vetri Bills, Project Management, HR Tool, CRM, Coach AI. "
+        "Enquiry button → Product Demo tab."
     )
 
 
@@ -1204,6 +1195,7 @@ def get_conversational_fallback(message: str) -> str:
             "Enquiry button to send your requirement to the VIS sales team."
         )
 
+
     service_text = match_service(text)
     if service_text and not _is_course_context(text):
         service_name = next(
@@ -1314,13 +1306,14 @@ def get_conversational_fallback(message: str) -> str:
 
     grounding = get_grounding_facts(message)
     if grounding:
-        snippet = grounding.split("\n")[0][:280]
-        return f"{snippet} Ask me a follow-up if you want more detail."
+        snippet = grounding.split("\n")[0][:240].rstrip(".")
+        return (
+            f"Sure — {snippet}. Happy to go deeper if you'd like — just ask a follow-up."
+        )
 
     return (
-        "I can help with VIS products (Vetri Bills, CRM, Coach AI), services "
-        "(web, mobile, AI, ERP), training courses, and company info. "
-        "What would you like to know?"
+        "I'm here to help with VIS products, services, training courses, quotes, and "
+        "company info. What would you like to know?"
     )
 
 

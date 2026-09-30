@@ -106,6 +106,15 @@ class VerifiedFactsTests(TestCase):
         self.assertIn("Never invent", prompt)
         self.assertIn("180 days", prompt)
 
+    def test_polish_ai_reply_fixes_truncated_stats(self):
+        from .verified_facts import polish_ai_reply
+
+        polished = polish_ai_reply(
+            "You can trust VIS — over 8 years delivering 15"
+        )
+        self.assertIn("150+ projects", polished)
+        self.assertTrue(polished.endswith("."))
+
     def test_enforce_verified_facts_strips_invented_pricing(self):
         reply = enforce_verified_facts(
             "The Python course costs ₹25,000 per month and includes placement."
@@ -404,8 +413,8 @@ class KnowledgeReplyTests(TestCase):
     def test_about_and_why_vis_grounding_facts_differ(self):
         about = get_grounding_facts("What is VIS?")
         why = get_grounding_facts("Why should I choose VIS?")
-        self.assertIn("Company identity", about)
-        self.assertIn("differentiators", why.lower())
+        self.assertIn("Vetri IT Systems", about)
+        self.assertIn("track record", why.lower())
         self.assertNotEqual(about, why)
 
     @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
