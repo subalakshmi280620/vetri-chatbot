@@ -1,0 +1,17 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div class="analytics-section admin-home-panel">
+  <h2>Coach AI Analytics</h2>
+  <p>View conversations, messages, enquiries, and user feedback in one place.</p>
+  <div class="analytics-actions" style="margin-top: 0;">
+    <a href="{% url 'admin:chatbot-analytics' %}">Open Analytics Dashboard</a>
+    <a href="{% url 'admin:chatbot_enquiry_changelist' %}" class="admin-home-secondary">View all enquiries</a>
+  </div>
+</div>
+
+<div id="content-main">
+  {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+</div>
+{% endblock %}

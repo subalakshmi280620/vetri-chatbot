@@ -106,6 +106,11 @@ def _extended_admin_urls():
             admin.site.admin_view(analytics_view),
             name="chatbot-analytics",
         ),
+        path(
+            "analytics/",
+            admin.site.admin_view(analytics_view),
+            name="chatbot-analytics-short",
+        ),
     ]
     return custom_urls + _original_get_urls()
 
