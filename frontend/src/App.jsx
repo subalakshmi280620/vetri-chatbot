@@ -221,6 +221,8 @@ const SOURCE_LABELS = {
   unverified: 'Limited information',
 }
 
+const LOGO_SRC = '/vetriit-logo.webp'
+
 function VisLogo({ size = 36, className = '' }) {
   return (
     <span
@@ -228,7 +230,7 @@ function VisLogo({ size = 36, className = '' }) {
       style={{ width: size, height: size }}
       aria-hidden="true"
     >
-      <img src="/vis-logo.svg" alt="" width={size} height={size} />
+      <img src={LOGO_SRC} alt="Vetri IT Systems" width={size} height={size} />
     </span>
   )
 }

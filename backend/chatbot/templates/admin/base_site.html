@@ -4,7 +4,10 @@
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | Coach AI Admin{% endblock %}
 
 {% block branding %}
-<div id="site-name"><a href="{% url 'admin:index' %}">Coach AI Admin</a></div>
+<div style="display:flex;align-items:center;gap:12px;">
+  <img src="{% static 'chatbot/img/vetriit-logo.webp' %}" alt="Vetri IT Systems" width="40" height="40" style="border-radius:50%;display:block;">
+  <div>
+    <div id="site-name"><a href="{% url 'admin:index' %}">Coach AI Admin</a></div>
 {% if user.is_staff %}
 <p style="margin: 4px 0 0; font-size: 0.8rem; opacity: 0.9;">
   <a href="{% url 'admin:chatbot-analytics' %}" style="color: #e0e7ff !important;">Analytics</a>
@@ -15,6 +18,8 @@
 {% if user.is_anonymous %}
   {% include "admin/color_theme_toggle.html" %}
 {% endif %}
+  </div>
+</div>
 {% endblock %}
 
 {% block extrastyle %}
