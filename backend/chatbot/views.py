@@ -41,8 +41,8 @@ def build_prompt(user_message: str) -> str:
     grounding = get_grounding_facts(user_message)
     if grounding:
         parts.append(
-            "Grounding facts for this question (answer from these; rephrase naturally; "
-            "give a full helpful answer — do not only say contact support):\n"
+            "Grounding facts for this question (use these facts; rephrase in normal "
+            "English; answer fully in 2–4 short lines — not a template):\n"
             f"{grounding}"
         )
     return "\n\n".join(parts)

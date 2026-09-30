@@ -65,8 +65,8 @@ def _call_gemini_model(
         "systemInstruction": {"parts": [{"text": system_prompt}]},
         "contents": contents,
         "generationConfig": {
-            "temperature": 0.65,
-            "maxOutputTokens": 400,
+            "temperature": 0.7,
+            "maxOutputTokens": 512,
         },
     }
     request = urllib.request.Request(

@@ -99,11 +99,10 @@ function getClientToken() {
 const WELCOME = {
   role: 'bot',
   text:
-    'Welcome to Vetri IT Systems.\n\n' +
-    'Building Tomorrow\'s Software Solutions Today.\n\n' +
-    'I am Coach AI — your assistant for VIS products, services, portfolio, ' +
-    'training courses, quotations, and contact details.\n\n' +
-    'How may I assist you today?',
+    'Hi! I\'m Coach AI from Vetri IT Systems.\n\n' +
+    'Ask me anything about our products, services, training courses, portfolio, ' +
+    'or how to get a quote or demo — I\'ll keep answers clear and to the point.\n\n' +
+    'What would you like to know?',
 }
 
 const SUGGESTIONS = [
