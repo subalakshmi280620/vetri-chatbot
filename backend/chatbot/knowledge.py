@@ -598,6 +598,11 @@ Conversation style:
 - "What is VIS / who is Vetri IT Systems": explain what the company is and what it offers (products + services).
 - "Why choose VIS / why Vetri": explain differentiators and benefits (trust, AI-first, track record) — do NOT
   repeat the same wording as a "what is VIS" answer.
+- "Mission and vision": state vision and mission only — not a full company intro.
+- "Portfolio / our work": describe featured projects and outcomes — not company stats alone.
+- "Products" vs "services": products = ready-made software; services = custom development work.
+- "Quotation" vs "consultation" vs "demo": quote = pricing proposal; consultation = advisory call;
+  demo = live product walkthrough — keep each answer specific to what was asked.
 - Never invent pricing, clients, portfolio projects, or features not in the verified content.
 - Do NOT reply with only "contact our team" — answer from verified content first, then offer next steps if needed.
 
@@ -769,12 +774,15 @@ def _matches_why_vis_intent(text: str) -> bool:
 def _matches_about_intent(text: str) -> bool:
     if _matches_why_vis_intent(text):
         return False
+    if match_product_id(text) or match_course_id(text):
+        return False
     return any(k in text for k in (
-        "what is vis", "what is vetri", "who are you", "who is vis",
+        "what is vis", "what is vetri it", "who are you", "who is vis",
         "who is vetri", "about us", "about vis", "about vetri",
-        "what is vetri it", "tell me about vis", "tell me about vetri",
-        "what does vis do", "what does vetri do",
-    ))
+        "tell me about vis", "what does vis do", "what does vetri do",
+    )) or (
+        "what is vetri" in text and "vetri it" in text
+    )
 
 
 def about_grounding_facts() -> str:
@@ -797,6 +805,104 @@ def why_vis_grounding_facts() -> str:
         f"and full-stack engineering. Track record: {stats['projects']} projects, "
         f"{stats['years']} years, {stats['clients']} clients, {stats['team']} team experts. "
         f"Highlights: {', '.join(COMPANY_HIGHLIGHTS)}."
+    )
+
+
+def _matches_vision_mission_intent(text: str) -> bool:
+    return any(k in text for k in (
+        "mission and vision", "mission & vision", "vision and mission",
+        "what is your mission", "what is your vision",
+        "your mission", "your vision", "mission vision",
+    ))
+
+
+def _matches_portfolio_intent(text: str) -> bool:
+    return any(k in text for k in (
+        "portfolio", "case study", "case studies", "projects delivered",
+        "our work", "show your work", "featured project", "show your portfolio",
+    ))
+
+
+def _matches_contact_intent(text: str) -> bool:
+    if (
+        _matches_quotation_intent(text)
+        or _matches_consultation_intent(text)
+        or _matches_demo_intent(text)
+        or _matches_sales_intent(text)
+    ):
+        return False
+    return any(k in text for k in (
+        "how can i contact", "contact you", "contact details", "contact the",
+        "phone number", "your email", "your phone", "where are you",
+        "your address", "reach you", "call you", "location",
+    )) or text.strip() in {"contact", "phone", "email", "address"}
+
+
+def vision_mission_grounding_facts() -> str:
+    return (
+        "Vision: An AI-Powered Business For Everyone — become the trusted AI and digital "
+        "transformation partner for growing enterprises. "
+        "Mission: Make Enterprise Technology Effortless — dependable intelligent software "
+        "that removes manual work and gives leaders real-time clarity."
+    )
+
+
+def portfolio_grounding_facts() -> str:
+    sample = "; ".join(
+        f"{p['name']} ({p['type']}, {p['metric']})" for p in PORTFOLIO_PROJECTS[:4]
+    )
+    return (
+        f"Portfolio / delivered work examples: {sample}. "
+        "These are case-study style client projects — not the product catalogue."
+    )
+
+
+def contact_grounding_facts() -> str:
+    return (
+        f"Contact details only: Phone {CONTACT_PHONE}, Email {CONTACT_EMAIL}, "
+        f"Address {CONTACT_ADDRESS}. Do not repeat a full company introduction."
+    )
+
+
+def products_grounding_facts() -> str:
+    return (
+        f"VIS software products (ready-to-use): {', '.join(PRODUCTS)}. "
+        "Answer about the product catalogue — not why choose VIS or custom services."
+    )
+
+
+def services_grounding_facts() -> str:
+    return (
+        f"VIS custom services: {', '.join(SERVICES)}. "
+        "Answer about bespoke delivery work — not the off-the-shelf product list."
+    )
+
+
+def courses_grounding_facts() -> str:
+    return (
+        f"VIS training programmes ({COURSE_DURATION}): {', '.join(COURSES)}. "
+        f"Eligibility: {ELIGIBILITY_REQUIREMENT}."
+    )
+
+
+def quotation_grounding_facts() -> str:
+    return (
+        "Quotation request: user describes requirement; VIS prepares tailored proposal "
+        "with scope, timeline, and indicative pricing. Direct to Enquiry → Quotation tab."
+    )
+
+
+def consultation_grounding_facts() -> str:
+    return (
+        "Consultation: speak with a VIS solution consultant to clarify business goals "
+        "and choose the right product or service. Direct to Enquiry → Consultation tab."
+    )
+
+
+def demo_grounding_facts() -> str:
+    return (
+        "Product demo: live workflow preview of Billing Software, Project Management, "
+        "HR Tool, CRM, Coach AI, etc. Direct to Enquiry → Product Demo tab."
     )
 
 
@@ -936,27 +1042,51 @@ def get_grounding_facts(message: str) -> str:
     text = message.strip().lower()
     parts: list[str] = []
 
-    if _matches_why_vis_intent(text):
-        return why_vis_grounding_facts()
-    if _matches_about_intent(text):
-        return about_grounding_facts()
+    if _matches_quotation_intent(text) and not _is_course_context(text):
+        return quotation_grounding_facts()
 
     product_id = match_product_id(text)
     if product_id:
         detail = PRODUCT_DETAILS.get(product_id)
         if detail:
-            parts.append(_strip_contact_tail(detail))
-
-    if not product_id:
-        service_detail = match_service(text)
-        if service_detail and not _is_course_context(text):
-            parts.append(_strip_contact_tail(service_detail))
+            return _strip_contact_tail(detail)
 
     course_id = match_course_id(text)
     if course_id:
         course_detail = match_course(text)
         if course_detail:
-            parts.append(_strip_contact_tail(course_detail))
+            return _strip_contact_tail(course_detail)
+
+    service_detail = match_service(text)
+    if service_detail and not _is_course_context(text):
+        return _strip_contact_tail(service_detail)
+
+    if _matches_why_vis_intent(text):
+        return why_vis_grounding_facts()
+    if _matches_about_intent(text):
+        return about_grounding_facts()
+    if _matches_vision_mission_intent(text):
+        return vision_mission_grounding_facts()
+    if _matches_portfolio_intent(text):
+        return portfolio_grounding_facts()
+    if _matches_contact_intent(text):
+        return contact_grounding_facts()
+    if _matches_consultation_intent(text):
+        return consultation_grounding_facts()
+    if _matches_demo_intent(text):
+        return demo_grounding_facts()
+    if _matches_products_intent(text) and not _is_course_context(text):
+        return products_grounding_facts()
+    if _matches_services_intent(text) and not _is_course_context(text):
+        return services_grounding_facts()
+    if (
+        any(k in text for k in (
+            "courses available", "which courses", "what courses",
+            "training courses", "training programmes", "training programs",
+        ))
+        or ("courses" in text and _is_course_context(text))
+    ) and not match_product_id(text):
+        return courses_grounding_facts()
 
     if not parts:
         routed = _route_faq(message)
@@ -972,6 +1102,79 @@ def get_conversational_fallback(message: str) -> str:
 
     if is_greeting(text):
         return SHORT_GREETING_REPLY
+
+    if _matches_quotation_intent(text) and not _is_course_context(text):
+        return (
+            "Pricing depends on scope — users, features, and timeline. "
+            "Tell me what you need and I can outline what's typically included. "
+            "For a formal quote, tap Enquiry → Quotation and submit your details."
+        )
+
+    product_id = match_product_id(text)
+    if product_id:
+        summary = SHORT_PRODUCT_SUMMARIES.get(product_id)
+        if summary:
+            return f"{summary} Want more detail on any feature?"
+
+    course_id = match_course_id(text)
+    if course_id:
+        course_name = match_course_name(course_id)
+        if any(k in text for k in ("duration", "how long")):
+            return (
+                f"The {course_name} programme runs for {COURSE_DURATION}. "
+                f"Eligibility is {ELIGIBILITY_REQUIREMENT.lower()}."
+            )
+        if any(k in text for k in ("fee", "fees", "tuition", "course fee", "price", "cost")):
+            return (
+                f"{course_name} is a {COURSE_DURATION} programme with degree eligibility. "
+                "Fees depend on the batch and programme — I can explain the course content "
+                "and eligibility first. Use the Enquiry form for an exact fee quote."
+            )
+        return (
+            f"{course_name} is one of our {COURSE_DURATION} training programmes. "
+            f"Eligibility: {ELIGIBILITY_REQUIREMENT.lower()}. "
+            f"Want to know how to apply or check eligibility?"
+        )
+
+    if _matches_why_vis_intent(text):
+        stats = COMPANY_STATS
+        return (
+            f"Businesses choose VIS for enterprise-grade trust, cloud-native delivery, "
+            f"and AI-first product engineering — not just one-off projects. "
+            f"We've delivered {stats['projects']} projects over {stats['years']} with "
+            f"{stats['clients']} clients, plus ready-made products like Vetri Bills and "
+            f"Coach AI. What matters most for your use case — products, custom build, or AI?"
+        )
+
+    if _matches_about_intent(text):
+        return (
+            f"{ORG_NAME} is a Tamil Nadu–based IT company that builds websites, mobile apps, "
+            "and enterprise software, and also ships ready-to-use products such as Vetri Bills "
+            "(GST billing), Project Management, HR Management Tool, and Coach AI. "
+            "What would you like to explore — a product or a custom service?"
+        )
+
+    if _matches_vision_mission_intent(text):
+        return (
+            "Our vision is an AI-powered business for everyone — helping growing enterprises "
+            "automate processes and make data-backed decisions. Our mission is to make "
+            "enterprise technology effortless with dependable, intelligent software."
+        )
+
+    if _matches_portfolio_intent(text):
+        sample = ", ".join(p["name"] for p in PORTFOLIO_PROJECTS[:2])
+        stats = COMPANY_STATS
+        return (
+            f"Featured work includes {sample}, and more — {stats['projects']} "
+            f"projects delivered across Tamil Nadu and beyond. "
+            "Which type of project interests you — retail, healthcare, mobile, or e-commerce?"
+        )
+
+    if _matches_contact_intent(text):
+        return (
+            f"We're at {CONTACT_ADDRESS}. Phone: {CONTACT_PHONE}. "
+            f"Email: {CONTACT_EMAIL}. What can I help you with today?"
+        )
 
     if _matches_apply_intent(text):
         return (
@@ -1001,19 +1204,6 @@ def get_conversational_fallback(message: str) -> str:
             "Enquiry button to send your requirement to the VIS sales team."
         )
 
-    if _matches_quotation_intent(text) and not _is_course_context(text):
-        return (
-            "Pricing depends on scope — users, features, and timeline. "
-            "Tell me what you need and I can outline what's typically included. "
-            "For a formal quote, tap Enquiry → Quotation and submit your details."
-        )
-
-    product_id = match_product_id(text)
-    if product_id:
-        summary = SHORT_PRODUCT_SUMMARIES.get(product_id)
-        if summary:
-            return f"{summary} Want more detail on any feature?"
-
     service_text = match_service(text)
     if service_text and not _is_course_context(text):
         service_name = next(
@@ -1023,26 +1213,6 @@ def get_conversational_fallback(message: str) -> str:
         return (
             f"Yes — VIS offers {service_name}, plus web, mobile, AI, ERP, "
             "and digital marketing. What kind of project do you have in mind?"
-        )
-
-    course_id = match_course_id(text)
-    if course_id:
-        course_name = match_course_name(course_id)
-        if any(k in text for k in ("duration", "how long")):
-            return (
-                f"The {course_name} programme runs for {COURSE_DURATION}. "
-                f"Eligibility is {ELIGIBILITY_REQUIREMENT.lower()}."
-            )
-        if any(k in text for k in ("fee", "fees", "tuition", "course fee", "price", "cost")):
-            return (
-                f"{course_name} is a {COURSE_DURATION} programme with degree eligibility. "
-                "Fees depend on the batch and programme — I can explain the course content "
-                "and eligibility first. Use the Enquiry form for an exact fee quote."
-            )
-        return (
-            f"{course_name} is one of our {COURSE_DURATION} training programmes. "
-            f"Eligibility: {ELIGIBILITY_REQUIREMENT.lower()}. "
-            f"Want to know how to apply or check eligibility?"
         )
 
     if any(k in text for k in ("duration", "how long")) and _is_course_context(text):

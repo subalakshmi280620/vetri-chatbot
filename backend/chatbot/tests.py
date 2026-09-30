@@ -671,3 +671,111 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         )
         self.assertEqual(feedback_response.status_code, 200)
         self.assertEqual(feedback_response.json()["feedback"], "up")
+
+
+def _reply_similarity(left: str, right: str) -> float:
+    left_words = set(left.lower().split())
+    right_words = set(right.lower().split())
+    if not left_words or not right_words:
+        return 1.0 if left.strip() == right.strip() else 0.0
+    return len(left_words & right_words) / len(left_words | right_words)
+
+
+class DemoQuestionCoverageTests(TestCase):
+    """Ensure demo questions route to distinct, non-repeating answers."""
+
+    DEMO_QUESTIONS = [
+        ("Hi", ("how can i help",)),
+        ("What is Vetri IT Systems?", ("tamil nadu", "vetri")),
+        ("Why should I choose VIS?", ("choose vis", "trust")),
+        ("What is your mission and vision?", ("vision", "mission")),
+        ("Show your portfolio", ("retail", "project")),
+        ("What products does VIS offer?", ("vetri bills",)),
+        ("What services do you provide?", ("website", "mobile")),
+        ("Tell me about Vetri Bills", ("gst", "billing")),
+        ("What is Coach AI?", ("learning", "coach")),
+        ("How can I get a quotation?", ("quotation", "enquiry")),
+        ("I want a product demo", ("demo",)),
+        ("Book a consultation", ("consultation",)),
+        ("What courses are available?", ("python", "java")),
+        ("What is the course duration?", ("180",)),
+        (
+            "I have B.Com and want Python Fullstack — am I eligible?",
+            ("meet the requirement", "degree"),
+        ),
+        ("How can I contact you?", ("84381", "support@vetri-it.com")),
+        ("How much does Vetri Bills cost?", ("quotation", "scope")),
+    ]
+
+    DISTINCT_PAIRS = [
+        ("What is Vetri IT Systems?", "Why should I choose VIS?"),
+        ("What is Vetri IT Systems?", "What is your mission and vision?"),
+        ("Why should I choose VIS?", "Show your portfolio"),
+        ("What products does VIS offer?", "What services do you provide?"),
+        ("How can I get a quotation?", "I want a product demo"),
+        ("How can I get a quotation?", "Book a consultation"),
+        ("I want a product demo", "Book a consultation"),
+        ("What is Vetri IT Systems?", "How can I contact you?"),
+        ("Tell me about Vetri Bills", "What products does VIS offer?"),
+    ]
+
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    def test_demo_questions_return_expected_topics(self):
+        for question, markers in self.DEMO_QUESTIONS:
+            reply, source = generate_reply(question)
+            lowered = reply.lower()
+            self.assertTrue(
+                any(marker in lowered for marker in markers),
+                msg=f"{question!r} -> {reply!r}",
+            )
+            self.assertEqual(source, "ai")
+
+    def test_demo_fallback_replies_are_not_identical_pairs(self):
+        replies = {
+            question: get_conversational_fallback(question)
+            for question, _ in self.DEMO_QUESTIONS
+        }
+        for left_q, right_q in self.DISTINCT_PAIRS:
+            left = replies[left_q]
+            right = replies[right_q]
+            self.assertNotEqual(left, right, msg=f"{left_q} == {right_q}")
+            self.assertLess(
+                _reply_similarity(left, right),
+                0.72,
+                msg=f"Too similar:\n{left_q}: {left}\n{right_q}: {right}",
+            )
+
+    def test_grounding_facts_for_distinct_topics_differ(self):
+        pairs = [
+            ("What is Vetri IT Systems?", "Why should I choose VIS?"),
+            ("What is your mission and vision?", "What is Vetri IT Systems?"),
+            ("Show your portfolio", "Why should I choose VIS?"),
+            ("What products does VIS offer?", "What services do you provide?"),
+            ("How can I get a quotation?", "I want a product demo"),
+            ("How can I contact you?", "What is Vetri IT Systems?"),
+        ]
+        for left_q, right_q in pairs:
+            left = get_grounding_facts(left_q)
+            right = get_grounding_facts(right_q)
+            self.assertNotEqual(left, right, msg=f"{left_q} == {right_q}")
+            self.assertLess(
+                _reply_similarity(left, right),
+                0.72,
+                msg=f"Grounding too similar:\n{left_q}: {left}\n{right_q}: {right}",
+            )
+
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    def test_greeting_stays_short_in_full_reply_flow(self):
+        reply, _source = generate_reply("hii")
+        self.assertEqual(reply, SHORT_GREETING_REPLY)
+        self.assertNotIn("Vetri Bills", reply)
+
+    def test_pricing_questions_do_not_invent_rupees(self):
+        for question in (
+            "How much does Vetri Bills cost?",
+            "What is the price of Python course?",
+            "How much does it cost?",
+        ):
+            reply = get_conversational_fallback(question)
+            self.assertNotRegex(reply, r"₹\s*\d")
+            self.assertNotRegex(reply.lower(), r"rs\.?\s*\d")
