@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import Count
 from django.shortcuts import render
-from django.urls import path
+from django.urls import path, reverse
 
 from .models import Conversation, Enquiry, Message
 
@@ -116,6 +116,28 @@ def _extended_admin_urls():
 
 
 admin.site.get_urls = _extended_admin_urls
+
+_original_get_app_list = admin.site.get_app_list
+
+
+def _extended_get_app_list(request, app_label=None):
+    app_list = _original_get_app_list(request, app_label=app_label)
+    analytics_entry = {
+        "name": "Analytics",
+        "object_name": "Analytics",
+        "perms": {"add": False, "change": False, "delete": False, "view": True},
+        "admin_url": reverse("admin:chatbot-analytics"),
+        "add_url": None,
+        "view_only": True,
+    }
+    for app in app_list:
+        if app["app_label"] == "chatbot":
+            app["models"].insert(0, analytics_entry)
+            break
+    return app_list
+
+
+admin.site.get_app_list = _extended_get_app_list
 
 admin.site.site_header = "Coach AI Administration"
 admin.site.site_title = "Coach AI Admin"
