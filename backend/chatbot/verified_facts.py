@@ -3,6 +3,7 @@
 import re
 
 from .knowledge import (
+    COMPANY_STATS,
     CONTACT_ADDRESS,
     CONTACT_EMAIL,
     CONTACT_PHONE,
@@ -10,6 +11,7 @@ from .knowledge import (
     COURSES,
     ELIGIBILITY_REQUIREMENT,
     ORG_NAME,
+    PORTFOLIO_PROJECTS,
     PRODUCTS,
     SERVICES,
 )
@@ -17,7 +19,7 @@ from .knowledge import (
 # Topics the bot must never invent — redirect to contact/quotation instead.
 NEVER_INVENT = (
     "Exact product or course prices (₹, Rs, INR, $ amounts)",
-    "Client names, logos, or portfolio case studies not in verified content",
+    "Portfolio projects, clients, or metrics not in verified VIS website content",
     "Product features or services not listed on the VIS website",
     "Guaranteed job placement, salary, or admission outcomes",
     "Competitor comparisons unless explicitly in verified content",
@@ -34,6 +36,12 @@ MUST_BE_EXACT = (
     f"Products: {', '.join(PRODUCTS)}",
     f"Services: {', '.join(SERVICES)}",
     f"Training courses: {', '.join(COURSES)}",
+    (
+        "Company stats: "
+        f"{COMPANY_STATS['projects']} projects, {COMPANY_STATS['years']} years, "
+        f"{COMPANY_STATS['clients']} clients, {COMPANY_STATS['team']} team experts"
+    ),
+    f"Featured portfolio: {', '.join(p['name'] for p in PORTFOLIO_PROJECTS)}",
 )
 
 _INVENTED_PRICE_RE = re.compile(

@@ -100,9 +100,9 @@ const WELCOME = {
   role: 'bot',
   text:
     'Welcome to Vetri IT Systems.\n\n' +
-    'I am Coach AI — your assistant for VIS products, services, company info, ' +
+    'Building Tomorrow\'s Software Solutions Today.\n\n' +
+    'I am Coach AI — your assistant for VIS products, services, portfolio, ' +
     'training courses, quotations, and contact details.\n\n' +
-    'Transforming Businesses with AI-Powered Digital Solutions.\n\n' +
     'How may I assist you today?',
 }
 

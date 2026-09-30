@@ -1,16 +1,25 @@
 # Vetri IT Systems — new website content (Figma design)
 
 Organization: Vetri IT Systems Pvt Ltd (VIS)
+Also branded as: Vetri IT Solutions
 Tagline: Enterprise Software, Applied AI And Digital Transformation For Businesses That Intend To Lead Their Category.
-Hero: Transforming Businesses with AI-Powered Digital Solutions
-Badge: AI-first Enterprise Technology
+
+## Hero
+Badge: PREMIUM IT SOLUTIONS — TAMIL NADU, INDIA
+Headline: Building Tomorrow's Software Solutions Today
+Subheadline: From stunning websites to powerful mobile apps and enterprise software — Vetri IT Systems delivers cutting-edge technology that drives your business forward.
+Hero tags: Web Dev, Mobile Apps, AI & Cloud
 
 ## Company stats
-- 50+ Projects Delivered
-- 10+ Enterprise Products
-- 20+ Business Clients
-- 10+ AI Solutions
-- 2+ Years of Experience
+- 150+ Projects Delivered
+- 8+ Years Experience
+- 50+ Happy Clients
+- 15+ Team Experts
+
+## Company highlights
+- Scalable Architecture
+- Bank-grade Security
+- 24/7 Support
 
 ## About Us
 Technology Built Around Your Business.
@@ -43,48 +52,74 @@ Make Enterprise Technology Effortless.
 
 To deliver dependable, intelligent software that removes manual work, gives leaders real-time clarity, and lets businesses of every size compete with the very best.
 
-## Our Products
+## Services (featured on website)
 
-### Vetri Bills — GST Billing & Invoicing
-Fast, compliant billing for retail and distribution — from customer entry to GST invoice download in seconds.
-Features: GST Ready, POS, E-Invoice, Reports.
+### 1. Website Development
+Blazing-fast, SEO-optimized websites with stunning UI/UX. Responsive across all devices, built with modern frameworks.
+Tech: React, Next.js, Tailwind, Node.js
 
-### Vetri Files — Document Management
-Secure enterprise document vault with OCR indexing, granular permissions and a complete audit trail.
-Features: OCR Search, Versioning, Audit Trail, Cloud.
+### 2. Mobile App Development
+Native and cross-platform iOS & Android apps with smooth animations, offline support, and push notifications.
+Tech: React Native, Flutter, iOS, Android
 
-### Vetri Project Management — Project & Delivery
-Plan sprints, track effort and forecast delivery with resource heatmaps and real-time project health.
-Features: Sprints, Timesheets, Gantt, Analytics.
+### 3. Software Development
+Custom enterprise software, APIs, cloud integrations, and automation tools tailored to your business processes.
+Tech: Python, Java, .NET, AWS
 
-### Coach AI — AI Learning Platform
-Adaptive AI coaching that assesses skill gaps and builds personalised learning journeys for every employee.
+### 4. Digital Marketing
+Data-driven SEO, social media campaigns, Google Ads, and content strategies that grow your online presence.
+Tech: SEO, Google Ads, Social Media, Analytics
 
-### Vetri AI Assistant — Generative AI
-A private AI assistant trained on your company knowledge that answers, drafts and triggers real actions.
+## Additional services
+UI/UX Design, AI Solutions, Generative AI, Simplify Operations, CRM Development, Google Ads, ERP Development, SEO, Meta Ads, Cloud Services.
 
-### Vetri CRM — Sales & Customer
-Capture every lead, automate follow-ups and close faster with AI-scored pipelines and instant quotations.
+## Our Solutions (ready-to-use products)
 
-### Vetri Training Management System
-Enterprise training management for institutes and teams (listed in website footer).
+Production-ready software products that streamline your business operations from day one.
 
-## Services — End-to-end capability, from idea to scale
-One accountable partner across design, engineering, AI, cloud and growth.
+### Billing Software (Vetri Bills)
+Complete GST-ready billing system with inventory management, barcode scanning, multi-store support, and real-time sales reports.
+Features: GST Compliance, Barcode Support, Inventory Tracking, Sales Analytics
 
-1. Website Development — High-performance static and dynamic websites engineered for conversion.
-2. Mobile App Development — Native-grade Android & iOS apps with offline-first architecture.
-3. UI/UX Design — Research-led interfaces, design systems and usability testing.
-4. AI Solutions — Custom models, assistants and agents mapped to real business KPIs.
-5. Generative AI — Content, code and document intelligence built on secure LLM pipelines.
-6. Simplify Operations — Replace scattered tools and manual processes with one connected platform for billing, HR, projects and customer management.
-7. CRM Development — Pipeline, quotation and follow-up automation tailored to your sales motion.
-8. Google Ads — Search and performance-max campaigns tuned for cost per qualified lead.
-9. ERP Development — Inventory, production and finance modules that fit how you operate.
-10. Digital Marketing — Full-funnel campaigns with attribution you can actually trust.
-11. SEO — Technical SEO, content strategy and authority building that compounds.
-12. Meta Ads — Creative testing and re-targeting engines across Facebook & Instagram.
-13. Cloud Services — Cloud architecture, deployment and support (footer listing).
+### Project Management Tool (Vetri Project Management)
+Kanban boards, Gantt charts, time tracking, team collaboration, and automated workflows — all in one intuitive platform.
+Features: Kanban Boards, Team Chat, Time Tracking, Gantt Charts
+
+### HR Management Tool
+Employee records, attendance tracking, payroll processing, leave management, and performance reviews — streamlined and automated.
+Features: Attendance, Leave Mgmt, Payroll, Performance
+
+## Full product suite
+- Vetri Bills — GST Billing & Invoicing
+- Vetri Files — Document Management
+- Vetri Project Management — Project & Delivery
+- Coach AI — AI Learning Platform
+- Vetri AI Assistant — Generative AI
+- Vetri CRM — Sales & Customer
+- Vetri Training Management System
+- HR Management Tool
+
+## Featured portfolio projects
+
+### Retail POS System (Web + Mobile)
+Complete point-of-sale system for a chain of 12 retail stores across Tamil Nadu with real-time inventory sync.
+Result: +40% Sales Efficiency
+Tech: React, Node.js, PostgreSQL
+
+### Healthcare Portal (Web App)
+Patient appointment booking, telemedicine, and electronic health records platform for a multi-specialty clinic.
+Result: 10K+ Active Users
+Tech: Next.js, WebSocket, AWS
+
+### Food Delivery App (Mobile App)
+Cross-platform food ordering app with live tracking, multi-payment, and restaurant management dashboard.
+Result: 50K+ Downloads
+Tech: React Native, Firebase, Maps
+
+### E-commerce Platform (Full Stack)
+Fashion e-commerce with AI-powered product recommendations, secure payments, and admin analytics dashboard.
+Result: +60% Conversion Rate
+Tech: Vue.js, Stripe, Elasticsearch
 
 ## AI Solutions
 Intelligence layered across every business process.
@@ -104,7 +139,7 @@ AI process: DATA → CONTEXT → MODEL → ACTION → IMPACT
 ## Contact & enquiries
 Phone: +91 84381 54827
 Email: support@vetri-it.com
-Address: Vetri Academy, Aerial Complex, Behind Bus Stand, Surandai
+Address: Vetri Academy, Aerial Complex, Behind Bus Stand, Surandai, Tamil Nadu, India
 
 Enquiry types:
 - Request a quotation
@@ -112,7 +147,7 @@ Enquiry types:
 - Request a Product Demo
 - Contact Sales Team
 
-Get Quotation message: Tell us what you're trying to achieve. You'll get a tailored proposal, timeline and indicative pricing — no obligation.
+CTA: Ready to Transform Your Business? Get in touch for a free consultation.
 
 ## Training courses (Coach AI)
 Coach AI also supports VIS training programmes including Python Fullstack, Java Fullstack, Data Science, UI/UX, Software Testing, Data Analytics, Mobile App Development, AWS & DevOps, Prompt Engineering, and Digital Marketing.

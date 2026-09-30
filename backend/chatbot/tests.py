@@ -372,7 +372,7 @@ class KnowledgeReplyTests(TestCase):
     def test_fee_reply_points_to_quotation_contact(self):
         reply = get_structured_reply("What are the fees?")
         self.assertIn("Pricing & Quotation", reply)
-        self.assertIn("support@vetri-it.com", reply)
+        self.assertIn("Enquiry", reply)
         self.assertNotIn("register for free", reply.lower())
 
     @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
@@ -404,10 +404,12 @@ class KnowledgeReplyTests(TestCase):
         for service in SERVICES:
             self.assertIn(service, reply)
 
-    def test_portfolio_reply_points_to_contact(self):
+    def test_portfolio_reply_lists_featured_projects(self):
         reply = get_structured_reply("Show me your portfolio")
-        self.assertIn("Portfolio", reply)
-        self.assertIn("support@vetri-it.com", reply)
+        self.assertIn("Featured Projects", reply)
+        self.assertIn("Retail POS System", reply)
+        self.assertIn("Healthcare Portal", reply)
+        self.assertIn("150+", reply)
 
     def test_vetri_bills_product_detail(self):
         reply = get_structured_reply("Tell me about Vetri Bills")
@@ -594,6 +596,7 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["source"], "ai")
 
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
     def test_chat_suggests_enquiry_for_quotation_intent(self):
         response = self._post_chat("How can I get a quotation?")
         self.assertEqual(response.status_code, 200)

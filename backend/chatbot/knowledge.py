@@ -23,6 +23,69 @@ ENQUIRY_FORM_HINT = (
     "phone, and their requirement — no need to email or call first."
 )
 
+HERO_BADGE = "PREMIUM IT SOLUTIONS — TAMIL NADU, INDIA"
+HERO_HEADLINE = "Building Tomorrow's Software Solutions Today"
+HERO_SUBHEADLINE = (
+    "From stunning websites to powerful mobile apps and enterprise software — "
+    "Vetri IT Systems delivers cutting-edge technology that drives your business forward."
+)
+
+COMPANY_STATS = {
+    "projects": "150+",
+    "years": "8+",
+    "clients": "50+",
+    "team": "15+",
+}
+
+COMPANY_HIGHLIGHTS = [
+    "Scalable Architecture",
+    "Bank-grade Security",
+    "24/7 Support",
+]
+
+PORTFOLIO_PROJECTS = [
+    {
+        "name": "Retail POS System",
+        "type": "Web + Mobile",
+        "metric": "+40% Sales Efficiency",
+        "description": (
+            "Complete point-of-sale system for a chain of 12 retail stores across "
+            "Tamil Nadu with real-time inventory sync."
+        ),
+        "tech": ("React", "Node.js", "PostgreSQL"),
+    },
+    {
+        "name": "Healthcare Portal",
+        "type": "Web App",
+        "metric": "10K+ Active Users",
+        "description": (
+            "Patient appointment booking, telemedicine, and electronic health "
+            "records platform for a multi-specialty clinic."
+        ),
+        "tech": ("Next.js", "WebSocket", "AWS"),
+    },
+    {
+        "name": "Food Delivery App",
+        "type": "Mobile App",
+        "metric": "50K+ Downloads",
+        "description": (
+            "Cross-platform food ordering app with live tracking, multi-payment, "
+            "and restaurant management dashboard."
+        ),
+        "tech": ("React Native", "Firebase", "Maps"),
+    },
+    {
+        "name": "E-commerce Platform",
+        "type": "Full Stack",
+        "metric": "+60% Conversion Rate",
+        "description": (
+            "Fashion e-commerce with AI-powered product recommendations, secure "
+            "payments, and admin analytics dashboard."
+        ),
+        "tech": ("Vue.js", "Stripe", "Elasticsearch"),
+    },
+]
+
 PRODUCTS = [
     "Vetri Bills",
     "Vetri Files",
@@ -31,11 +94,14 @@ PRODUCTS = [
     "Vetri AI Assistant",
     "Vetri CRM",
     "Vetri Training Management System",
+    "HR Management Tool",
 ]
 
 SERVICES = [
     "Website Development",
     "Mobile App Development",
+    "Software Development",
+    "Digital Marketing",
     "UI/UX Design",
     "AI Solutions",
     "Generative AI",
@@ -43,7 +109,6 @@ SERVICES = [
     "CRM Development",
     "Google Ads",
     "ERP Development",
-    "Digital Marketing",
     "SEO",
     "Meta Ads",
     "Cloud Services",
@@ -75,10 +140,11 @@ DEGREE_INDICATORS = (
 
 PRODUCT_DETAILS = {
     "vetri_bills": (
-        "Vetri Bills — GST Billing & Invoicing\n\n"
-        "Fast, compliant billing for retail and distribution — from customer entry "
-        "to GST invoice download in seconds.\n\n"
-        "Features: GST Ready, POS, E-Invoice, Reports.\n\n"
+        "Billing Software (Vetri Bills) — GST Billing & Invoicing\n\n"
+        "Complete GST-ready billing system with inventory management, barcode "
+        "scanning, multi-store support, and real-time sales reports.\n\n"
+        "Features: GST Compliance, Barcode Support, Inventory Tracking, "
+        "Sales Analytics, POS, E-Invoice.\n\n"
         f"For a demo or quotation, {CONTACT_LINE.lower()}."
     ),
     "vetri_files": (
@@ -89,10 +155,11 @@ PRODUCT_DETAILS = {
         f"For a demo or quotation, {CONTACT_LINE.lower()}."
     ),
     "vetri_pm": (
-        "Vetri Project Management — Project & Delivery\n\n"
-        "Plan sprints, track effort and forecast delivery with resource heatmaps "
-        "and real-time project health.\n\n"
-        "Features: Sprints, Timesheets, Gantt, Analytics.\n\n"
+        "Project Management Tool (Vetri Project Management)\n\n"
+        "Kanban boards, Gantt charts, time tracking, team collaboration, and "
+        "automated workflows — all in one intuitive platform.\n\n"
+        "Features: Kanban Boards, Team Chat, Time Tracking, Gantt Charts, "
+        "Sprints, Analytics.\n\n"
         f"For a demo or quotation, {CONTACT_LINE.lower()}."
     ),
     "coach_ai": (
@@ -120,10 +187,20 @@ PRODUCT_DETAILS = {
         "Enterprise training management for institutes and teams.\n\n"
         f"For product details or a demo, {CONTACT_LINE.lower()}."
     ),
+    "vetri_hrms": (
+        "HR Management Tool — People-first HRMS\n\n"
+        "Employee records, attendance tracking, payroll processing, leave "
+        "management, and performance reviews — streamlined and automated.\n\n"
+        "Features: Attendance, Leave Mgmt, Payroll, Performance.\n\n"
+        f"For a demo or quotation, {CONTACT_LINE.lower()}."
+    ),
 }
 
 PRODUCT_ALIASES = (
-    ("vetri_bills", ("vetri bills", "vetribills", "gst billing", "invoicing", "billing software")),
+    ("vetri_bills", (
+        "vetri bills", "vetribills", "vetri billing", "gst billing", "invoicing",
+        "billing software",
+    )),
     ("vetri_files", ("vetri files", "vetrifiles", "document management", "document vault")),
     ("vetri_pm", (
         "vetri project management", "project management", "project & delivery",
@@ -136,16 +213,30 @@ PRODUCT_ALIASES = (
         "vetri training management", "training management system",
         "vetri lms", "learning management",
     )),
+    ("vetri_hrms", (
+        "hr management", "hr management tool", "hrms", "people-first hrms",
+        "payroll software", "attendance tracking", "leave management",
+    )),
 )
 
 SERVICE_DETAILS = {
     "website development": (
         "Website Development\n\n"
-        "High-performance static and dynamic websites engineered for conversion."
+        "Blazing-fast, SEO-optimized websites with stunning UI/UX. Responsive "
+        "across all devices, built with modern frameworks.\n\n"
+        "Tech: React, Next.js, Tailwind, Node.js."
     ),
     "mobile app development": (
         "Mobile App Development\n\n"
-        "Native-grade Android & iOS apps with offline-first architecture."
+        "Native and cross-platform iOS & Android apps with smooth animations, "
+        "offline support, and push notifications.\n\n"
+        "Tech: React Native, Flutter, iOS, Android."
+    ),
+    "software development": (
+        "Software Development\n\n"
+        "Custom enterprise software, APIs, cloud integrations, and automation "
+        "tools tailored to your business processes.\n\n"
+        "Tech: Python, Java, .NET, AWS."
     ),
     "ui/ux design": (
         "UI/UX Design\n\n"
@@ -179,7 +270,9 @@ SERVICE_DETAILS = {
     ),
     "digital marketing": (
         "Digital Marketing\n\n"
-        "Full-funnel campaigns with attribution you can actually trust."
+        "Data-driven SEO, social media campaigns, Google Ads, and content "
+        "strategies that grow your online presence.\n\n"
+        "Tech: SEO, Google Ads, Social Media, Analytics."
     ),
     "seo": (
         "SEO\n\n"
@@ -289,18 +382,39 @@ COURSE_NAMES = {
 
 def products_reply() -> str:
     return (
-        f"Our Products — {ORG_NAME}\n\n"
-        + "\n".join(f"• {name}" for name in PRODUCTS)
-        + "\n\n"
-        "Enterprise products with live workflow previews:\n"
-        "• Vetri Bills — GST billing & invoicing (GST Ready, POS, E-Invoice, Reports)\n"
-        "• Vetri Files — document management (OCR Search, Versioning, Audit Trail, Cloud)\n"
-        "• Vetri Project Management — sprints, timesheets, Gantt, analytics\n"
+        f"Our Solutions — {ORG_NAME}\n\n"
+        "Production-ready software products that streamline your business operations "
+        "from day one:\n"
+        "• Billing Software (Vetri Bills) — GST, barcode, inventory, sales analytics\n"
+        "• Project Management Tool — Kanban, Gantt, time tracking, team chat\n"
+        "• HR Management Tool — attendance, leave, payroll, performance\n"
+        "• Vetri Files — document management (OCR, versioning, audit trail)\n"
         "• Coach AI — AI learning platform for personalised employee coaching\n"
         "• Vetri AI Assistant — private generative AI for your company knowledge\n"
         "• Vetri CRM — AI-scored sales pipelines and instant quotations\n"
         "• Vetri Training Management System — enterprise training management\n\n"
-        f"Request a product demo: {CONTACT_LINE.lower()}."
+        "Full product suite:\n"
+        + "\n".join(f"• {name}" for name in PRODUCTS)
+        + f"\n\nRequest a product demo: {CONTACT_LINE.lower()}."
+    )
+
+
+def portfolio_reply() -> str:
+    lines = []
+    for project in PORTFOLIO_PROJECTS:
+        tech = ", ".join(project["tech"])
+        lines.append(
+            f"• {project['name']} ({project['type']}) — {project['description']} "
+            f"[{project['metric']}; {tech}]"
+        )
+    stats = COMPANY_STATS
+    return (
+        f"Featured Projects — {ORG_NAME}\n\n"
+        + "\n".join(lines)
+        + "\n\n"
+        f"Track record: {stats['projects']} projects delivered · {stats['years']} years "
+        f"experience · {stats['clients']} happy clients · {stats['team']} team experts.\n\n"
+        f"Want something similar? Use the Enquiry button to discuss your project."
     )
 
 
@@ -365,9 +479,11 @@ def why_vis_reply() -> str:
         "• Cloud Native — scalable, secure modern cloud architectures\n"
         "• Product Mindset — seven shipped enterprise products\n"
         "• AI-first Engineering — intelligence and automation at the core\n\n"
-        "Track record: 50+ projects delivered · 10+ enterprise products · "
-        "20+ business clients · 10+ AI solutions · 2+ years of experience\n\n"
-        "ISO-grade delivery · 24x7 support · Made in India"
+        f"Track record: {COMPANY_STATS['projects']} projects delivered · "
+        f"{COMPANY_STATS['years']} years experience · "
+        f"{COMPANY_STATS['clients']} happy clients · "
+        f"{COMPANY_STATS['team']} team experts\n\n"
+        f"{' · '.join(COMPANY_HIGHLIGHTS)} · Made in India"
     )
 
 
@@ -384,13 +500,13 @@ REPLIES = {
     ),
     "about": (
         f"About {ORG_NAME}\n\n"
+        f"{HERO_HEADLINE}\n"
+        f"{HERO_SUBHEADLINE}\n\n"
         f"{TAGLINE}\n\n"
         "At Vetri IT Systems, we believe technology should solve real business "
         "problems — not create more complexity.\n\n"
-        "We work with businesses to understand their goals, identify the right "
-        "technology approach and build solutions that are practical, scalable and "
-        "ready for the future — from custom software and digital applications to "
-        "AI-powered solutions.\n\n"
+        f"Stats: {COMPANY_STATS['projects']} projects · {COMPANY_STATS['years']} years · "
+        f"{COMPANY_STATS['clients']} clients · {COMPANY_STATS['team']} team experts.\n\n"
         f"{CONTACT_LINE}."
     ),
     "products": products_reply(),
@@ -398,12 +514,7 @@ REPLIES = {
     "ai_solutions": ai_solutions_reply(),
     "vision_mission": vision_mission_reply(),
     "why_vis": why_vis_reply(),
-    "portfolio": (
-        f"Portfolio — {ORG_NAME}\n\n"
-        "VIS has delivered 50+ projects across enterprise software, applied AI, "
-        "and digital transformation for 20+ business clients.\n\n"
-        f"For portfolio details or case studies, {CONTACT_LINE.lower()}."
-    ),
+    "portfolio": portfolio_reply(),
     "quotation": (
         "Get Quotation — Vetri IT Systems\n\n"
         "Tell us what you're trying to achieve. Our team will prepare a tailored "
@@ -425,8 +536,8 @@ REPLIES = {
     "product_demo": (
         "Request a Product Demo — Vetri IT Systems\n\n"
         "See VIS enterprise products with live workflow previews — including "
-        "Vetri Bills, Vetri Files, Vetri Project Management, Coach AI, "
-        "Vetri AI Assistant, and Vetri CRM.\n\n"
+        "Billing Software (Vetri Bills), Project Management Tool, HR Management "
+        "Tool, Coach AI, Vetri CRM, and Vetri AI Assistant.\n\n"
         "Tell us which product you want to explore and your use case.\n\n"
         f"Use the Enquiry button in this chat (Product Demo tab) to request a demo."
     ),
@@ -500,12 +611,16 @@ Ground rules:
   **Enquiry button** in the chat (Quotation / Consultation / Product Demo tabs) — not only phone/email.
   {ENQUIRY_FORM_HINT}
 
+Hero: {HERO_HEADLINE} — {HERO_SUBHEADLINE}
+Stats: {COMPANY_STATS['projects']} projects, {COMPANY_STATS['years']} years, {COMPANY_STATS['clients']} clients, {COMPANY_STATS['team']} team experts.
+Highlights: {", ".join(COMPANY_HIGHLIGHTS)}.
 Organization: {TAGLINE}
 Contact: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}.
 Products: {", ".join(PRODUCTS)}.
 Services: {", ".join(SERVICES)}.
 Training courses: {", ".join(COURSES)}.
 AI approach: DATA → CONTEXT → MODEL → ACTION → IMPACT.
+Portfolio: Retail POS System, Healthcare Portal, Food Delivery App, E-commerce Platform.
 """
 
 
@@ -712,16 +827,16 @@ def _route_faq(message: str) -> str | None:
 
 SHORT_PRODUCT_SUMMARIES = {
     "vetri_bills": (
-        "Vetri Bills is our GST billing and invoicing software — POS, e-invoice, "
-        "and reports built in."
+        "Billing Software (Vetri Bills) is our GST-ready billing system with "
+        "inventory, barcode scanning, and sales analytics."
     ),
     "vetri_files": (
         "Vetri Files is our secure document management system with OCR search, "
         "versioning, and audit trails."
     ),
     "vetri_pm": (
-        "Vetri Project Management helps teams plan sprints, track timesheets, "
-        "and monitor delivery with Gantt charts and analytics."
+        "Our Project Management Tool offers Kanban boards, Gantt charts, time "
+        "tracking, team chat, and automated workflows."
     ),
     "coach_ai": (
         "Coach AI is our adaptive learning platform that coaches employees with "
@@ -738,6 +853,10 @@ SHORT_PRODUCT_SUMMARIES = {
     "vetri_tms": (
         "Vetri Training Management System handles enterprise training for "
         "institutes and teams."
+    ),
+    "vetri_hrms": (
+        "HR Management Tool covers attendance, leave management, payroll, "
+        "and performance reviews in one platform."
     ),
 }
 
@@ -866,16 +985,17 @@ def get_conversational_fallback(message: str) -> str:
 
     if _matches_products_intent(text) and not _is_course_context(text):
         return (
-            "VIS offers Vetri Bills (GST billing), Vetri Files (documents), "
-            "Vetri Project Management, Coach AI, Vetri AI Assistant, Vetri CRM, "
-            "and Vetri Training Management System. Which one should I explain?"
+            "VIS offers Billing Software (Vetri Bills), Project Management Tool, "
+            "HR Management Tool, Vetri Files, Coach AI, Vetri CRM, and more. "
+            "Which solution should I explain?"
         )
 
     if _matches_services_intent(text) and not _is_course_context(text):
         return (
-            "We provide website and mobile development, UI/UX, AI solutions, ERP, "
-            "SEO, digital marketing, cloud services, and more — end to end from "
-            "design to deployment. What kind of project do you have in mind?"
+            "We provide website development (React, Next.js), mobile apps "
+            "(React Native, Flutter), custom software (Python, Java, .NET), "
+            "digital marketing, AI solutions, ERP, and cloud services. "
+            "What kind of project do you have in mind?"
         )
 
     if any(k in text for k in ("fee", "fees", "tuition", "course fee")):
@@ -897,16 +1017,19 @@ def get_conversational_fallback(message: str) -> str:
         if not any(keyword in text for keyword in keywords):
             continue
         if intent == "portfolio":
+            sample = ", ".join(p["name"] for p in PORTFOLIO_PROJECTS[:2])
+            stats = COMPANY_STATS
             return (
-                "VIS has delivered 50+ projects — billing, CRM, AI, and enterprise apps — "
-                "with 10+ shipped products and 20+ business clients. "
-                "Which industry or product area interests you?"
+                f"Featured work includes {sample}, and more — {stats['projects']} "
+                f"projects delivered across Tamil Nadu and beyond. "
+                "Which type of project interests you — retail, healthcare, mobile, or e-commerce?"
             )
         if intent == "why_vis":
+            stats = COMPANY_STATS
             return (
-                "VIS combines product engineering, applied AI, and digital "
-                "transformation — 10+ enterprise products, 20+ clients, and "
-                "end-to-end delivery from idea to scale."
+                f"VIS combines product engineering, applied AI, and digital "
+                f"transformation — {stats['projects']} projects, {stats['years']} years, "
+                f"and {', '.join(COMPANY_HIGHLIGHTS[:2]).lower()} built in."
             )
         if intent == "vision_mission":
             return (
@@ -922,9 +1045,9 @@ def get_conversational_fallback(message: str) -> str:
             )
         if intent == "about":
             return (
-                f"{ORG_NAME} builds enterprise software and AI solutions for "
-                "businesses that want to lead their category — from custom apps "
-                "to shipped products like Vetri Bills and Coach AI."
+                f"{HERO_HEADLINE} — {ORG_NAME} builds websites, mobile apps, "
+                "enterprise software, and ready-to-use products like Vetri Bills, "
+                "Project Management, and HR Management Tool."
             )
         if intent == "contact":
             return (

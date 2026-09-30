@@ -105,8 +105,8 @@ Visitor arrives on website
 | Example questions | Expected behaviour |
 |-------------------|-------------------|
 | Why should I choose VIS? | Why VIS points from verified content |
-| Show your portfolio | Direct to contact for case studies if not in KB |
-| How many projects have you done? | Verified stats (50+ projects, 10+ products, etc.) |
+| Show your portfolio | Featured projects: Retail POS, Healthcare Portal, Food Delivery App, E-commerce Platform |
+| How many projects have you done? | Verified stats (150+ projects, 8+ years, 50+ clients, 15+ team experts) |
 
 ### 3.8 Multimodal input (voice, photos, documents)
 
