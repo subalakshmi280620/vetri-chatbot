@@ -422,6 +422,13 @@ def submit_enquiry(request):
         return Response({"error": "email is required."}, status=400)
     if not message:
         return Response({"error": "message is required."}, status=400)
+    if enquiry_type == Enquiry.TYPE_DEMO and not interest:
+        return Response({"error": "Please select a product to demo."}, status=400)
+    if enquiry_type == Enquiry.TYPE_QUOTATION and not interest:
+        return Response(
+            {"error": "Please select a product or service for your quotation."},
+            status=400,
+        )
     if len(full_name) > 120 or len(company) > 120 or len(phone) > 30 or len(interest) > 120:
         return Response({"error": "One or more fields are too long."}, status=400)
     if len(message) > 2000:

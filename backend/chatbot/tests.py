@@ -563,6 +563,7 @@ class EnquiryApiTests(ChatApiTestCase):
             "enquiry_type": "quotation",
             "full_name": "Quote User",
             "email": "quote@example.com",
+            "interest": "Vetri Bills",
             "message": "Need a quote",
         }).json()["confirmation"]
         consult = self._post_enquiry({
@@ -583,6 +584,26 @@ class EnquiryApiTests(ChatApiTestCase):
         })
         self.assertEqual(response.status_code, 400)
 
+    def test_demo_enquiry_requires_product_selection(self):
+        response = self._post_enquiry({
+            "enquiry_type": "demo",
+            "full_name": "Demo User",
+            "email": "demo@example.com",
+            "message": "Show me workflows",
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("product", response.json()["error"].lower())
+
+    def test_quotation_enquiry_requires_interest(self):
+        response = self._post_enquiry({
+            "enquiry_type": "quotation",
+            "full_name": "Quote User",
+            "email": "quote@example.com",
+            "message": "Need pricing",
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("quotation", response.json()["error"].lower())
+
     @override_settings(
         RESEND_API_KEY="",
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
@@ -597,6 +618,7 @@ class EnquiryApiTests(ChatApiTestCase):
             "full_name": "Email Test",
             "email": "customer@example.com",
             "phone": "+91 84381 54827",
+            "interest": "Vetri Bills",
             "message": "Please send pricing",
         })
         self.assertEqual(response.status_code, 200)
@@ -621,6 +643,7 @@ class EnquiryApiTests(ChatApiTestCase):
                 "enquiry_type": "quotation",
                 "full_name": "Resend Test",
                 "email": "customer@example.com",
+                "interest": "Vetri Bills",
                 "message": "Please send pricing",
             })
             self.assertEqual(response.status_code, 200)

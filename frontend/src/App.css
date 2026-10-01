@@ -812,6 +812,12 @@
   border-color: #bfdbfe;
 }
 
+.source-badge.source-verified_kb {
+  background: #f0fdf4;
+  color: var(--vis-green-hover);
+  border-color: #bbf7d0;
+}
+
 .source-badge.source-eligibility {
   background: #fefce8;
   color: #a16207;

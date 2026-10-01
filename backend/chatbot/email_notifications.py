@@ -19,8 +19,20 @@ def dispatch_enquiry_notification(enquiry) -> None:
     thread.start()
 
 
+def _interest_label(enquiry) -> str:
+    labels = {
+        "quotation": "Product / service for quotation",
+        "consultation": "Consultation topic",
+        "demo": "Product to demo",
+        "sales": "Sales interest",
+        "general": "Interest",
+    }
+    return labels.get(enquiry.enquiry_type, "Interest")
+
+
 def _build_enquiry_email(enquiry) -> tuple[str, str]:
     subject = f"Coach AI enquiry — {enquiry.get_enquiry_type_display()}"
+    interest_label = _interest_label(enquiry)
     body = (
         f"A new Coach AI enquiry was submitted.\n\n"
         f"Type: {enquiry.get_enquiry_type_display()}\n"
@@ -28,8 +40,8 @@ def _build_enquiry_email(enquiry) -> tuple[str, str]:
         f"Company: {enquiry.company or '—'}\n"
         f"Email: {enquiry.email}\n"
         f"Phone: {enquiry.phone or '—'}\n"
-        f"Interest: {enquiry.interest or '—'}\n\n"
-        f"Message:\n{enquiry.message}\n\n"
+        f"{interest_label}: {enquiry.interest or '—'}\n\n"
+        f"Details:\n{enquiry.message}\n\n"
         f"Enquiry ID: {enquiry.id}\n"
         f"Submitted: {enquiry.created_at:%Y-%m-%d %H:%M UTC}\n"
     )

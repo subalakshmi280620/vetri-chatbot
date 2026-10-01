@@ -136,7 +136,7 @@ const ENQUIRY_SUBTEXT = {
   general: 'Tell us what you need. Our VIS team will contact you by email or phone.',
 }
 
-const INTEREST_OPTIONS = [
+const DEMO_PRODUCT_OPTIONS = [
   'Vetri Bills',
   'Vetri Files',
   'Vetri Project Management',
@@ -144,6 +144,11 @@ const INTEREST_OPTIONS = [
   'Vetri AI Assistant',
   'Vetri CRM',
   'Vetri Training Management System',
+  'HR Management Tool',
+]
+
+const QUOTATION_INTEREST_OPTIONS = [
+  ...DEMO_PRODUCT_OPTIONS,
   'Website Development',
   'Mobile App Development',
   'UI/UX Design',
@@ -157,6 +162,66 @@ const INTEREST_OPTIONS = [
   'Other',
 ]
 
+const CONSULTATION_INTEREST_OPTIONS = [
+  'Product selection advice',
+  'Custom software / web / mobile',
+  'AI & automation strategy',
+  'Training & courses',
+  'Digital marketing / SEO',
+  'Not sure — need guidance',
+  'Other',
+]
+
+const ENQUIRY_FORM_CONFIG = {
+  quotation: {
+    companyLabel: 'Company / organisation',
+    companyPlaceholder: 'Your company name',
+    interestLabel: 'Product or service for quotation *',
+    interestRequired: true,
+    interestOptions: QUOTATION_INTEREST_OPTIONS,
+    messageLabel: 'Project scope & requirements *',
+    messagePlaceholder:
+      'Describe what you need quoted — features, users, timeline, integrations, budget range if known…',
+    submitLabel: 'Request Quotation',
+  },
+  consultation: {
+    companyLabel: 'Company / organisation',
+    companyPlaceholder: 'Your company or team name',
+    interestLabel: 'Topic for consultation',
+    interestRequired: false,
+    interestOptions: CONSULTATION_INTEREST_OPTIONS,
+    messageLabel: 'Your business goals & questions *',
+    messagePlaceholder:
+      'What challenge are you solving? Preferred day/time for a call? Any products you are considering?',
+    submitLabel: 'Book Consultation',
+  },
+  demo: {
+    companyLabel: 'Company name',
+    companyPlaceholder: 'Where you work',
+    interestLabel: 'Product to demo *',
+    interestRequired: true,
+    interestOptions: DEMO_PRODUCT_OPTIONS,
+    messageLabel: 'Your use case *',
+    messagePlaceholder:
+      'Which workflows should we show? Your industry, team size, and preferred demo time help us prepare.',
+    submitLabel: 'Request Demo',
+  },
+}
+
+const INTEREST_ALIASES = [
+  ['vetri bills', 'Vetri Bills'],
+  ['billing', 'Vetri Bills'],
+  ['vetri crm', 'Vetri CRM'],
+  ['crm', 'Vetri CRM'],
+  ['coach ai', 'Coach AI'],
+  ['project management', 'Vetri Project Management'],
+  ['hr management', 'HR Management Tool'],
+  ['website', 'Website Development'],
+  ['mobile app', 'Mobile App Development'],
+  ['python', 'Training Course'],
+  ['course', 'Training Course'],
+]
+
 const EMPTY_ENQUIRY_FORM = {
   full_name: '',
   company: '',
@@ -164,6 +229,34 @@ const EMPTY_ENQUIRY_FORM = {
   phone: '',
   interest: '',
   message: '',
+}
+
+function detectInterestFromChat(text, options) {
+  const lowered = (text || '').toLowerCase()
+  for (const [needle, value] of INTEREST_ALIASES) {
+    if (lowered.includes(needle) && options.includes(value)) {
+      return value
+    }
+  }
+  for (const option of options) {
+    if (lowered.includes(option.toLowerCase())) {
+      return option
+    }
+  }
+  return ''
+}
+
+function buildEnquiryPrefill(type, lastUserText) {
+  const trimmed = (lastUserText || '').trim()
+  if (!trimmed) return ''
+  if (type === 'quotation') return `Quotation request: ${trimmed}`
+  if (type === 'consultation') return `Consultation about: ${trimmed}`
+  if (type === 'demo') return `Demo request: ${trimmed}`
+  return trimmed
+}
+
+function isEnquiryFormEmpty(form) {
+  return !form.full_name && !form.company && !form.email && !form.phone && !form.interest && !form.message
 }
 
 const SECTION_LABELS = [
@@ -200,6 +293,7 @@ const SECTION_LABELS = [
 ]
 
 const SOURCE_LABELS = {
+  ai: 'AI answer',
   verified_kb: 'Verified VIS answer',
   eligibility: 'Eligibility check',
   unverified: 'Limited information',
@@ -430,7 +524,7 @@ function MessageBubble({
                 </button>
               </>
             )}
-          </div>
+        </div>
         )}
       </div>
     </div>
@@ -475,6 +569,7 @@ function EnquiryModal({
   const activeType = ENQUIRY_TYPE_TABS.some((tab) => tab.type === enquiryType)
     ? enquiryType
     : 'quotation'
+  const fieldConfig = ENQUIRY_FORM_CONFIG[activeType] || ENQUIRY_FORM_CONFIG.quotation
 
   return (
     <div className="enquiry-overlay" onClick={onClose}>
@@ -522,11 +617,11 @@ function EnquiryModal({
             />
           </label>
           <label>
-            Company
+            {fieldConfig.companyLabel}
             <input
               value={form.company}
               onChange={(event) => onChange('company', event.target.value)}
-              placeholder="Company name"
+              placeholder={fieldConfig.companyPlaceholder}
             />
           </label>
           <label>
@@ -548,23 +643,26 @@ function EnquiryModal({
             />
           </label>
           <label>
-            Product / service of interest
+            {fieldConfig.interestLabel}
             <select
               value={form.interest}
               onChange={(event) => onChange('interest', event.target.value)}
+              required={fieldConfig.interestRequired}
             >
-              <option value="">Select product / service</option>
-              {INTEREST_OPTIONS.map((item) => (
+              <option value="">
+                {fieldConfig.interestRequired ? 'Select one' : 'Optional — select a topic'}
+              </option>
+              {fieldConfig.interestOptions.map((item) => (
                 <option key={item} value={item}>{item}</option>
               ))}
             </select>
           </label>
           <label>
-            How can we help? *
+            {fieldConfig.messageLabel}
             <textarea
               value={form.message}
               onChange={(event) => onChange('message', event.target.value)}
-              placeholder="Describe your requirement"
+              placeholder={fieldConfig.messagePlaceholder}
               rows={4}
               required
             />
@@ -573,7 +671,7 @@ function EnquiryModal({
           {error && <p className="enquiry-error">{error}</p>}
 
           <button type="submit" className="btn-green enquiry-submit-btn" disabled={submitting}>
-            {submitting ? 'Submitting…' : 'Submit Enquiry'}
+            {submitting ? 'Submitting…' : fieldConfig.submitLabel}
           </button>
         </form>
       </div>
@@ -587,7 +685,7 @@ function SiteNav() {
       <div className="site-nav-inner">
         <div className="site-brand">
           <VisLogo size={36} className="site-logo-mark" />
-          <div>
+        <div>
             <span className="site-name">Vetri IT Systems</span>
             <span className="site-sub">Private Limited</span>
           </div>
@@ -679,8 +777,8 @@ function HistorySidebar({
 
   return (
     <>
-      <button
-        type="button"
+        <button
+          type="button"
         className="history-overlay"
         aria-label="Close chat history"
         onClick={onClose}
@@ -704,7 +802,7 @@ function HistorySidebar({
               onClick={onClose}
             >
               ×
-            </button>
+        </button>
           </div>
         </div>
 
@@ -771,7 +869,7 @@ function HistorySidebar({
                 >
                   ×
                 </button>
-              </li>
+            </li>
             ))}
           </ul>
         )}
@@ -1019,9 +1117,37 @@ function App() {
     abortRef.current?.abort()
   }
 
-  function openEnquiry(type = 'general') {
+  function handleEnquiryTypeChange(type) {
+    const config = ENQUIRY_FORM_CONFIG[type]
     setEnquiryType(type)
+    if (!config) return
+    setEnquiryForm((prev) => {
+      const interestValid = config.interestOptions.includes(prev.interest)
+      return interestValid ? prev : { ...prev, interest: '' }
+    })
+  }
+
+  function openEnquiry(type = 'general') {
+    const activeType = ENQUIRY_TYPE_TABS.some((tab) => tab.type === type) ? type : 'quotation'
+    const config = ENQUIRY_FORM_CONFIG[activeType]
+    setEnquiryType(activeType)
     setEnquiryError('')
+
+    const lastUser = [...messages].reverse().find((item) => item.role === 'user')
+    const chatContext = lastUser?.text || ''
+
+    setEnquiryForm((prev) => {
+      if (!isEnquiryFormEmpty(prev)) {
+        const interestValid = config.interestOptions.includes(prev.interest)
+        return interestValid ? prev : { ...prev, interest: '' }
+      }
+      const detectedInterest = detectInterestFromChat(chatContext, config.interestOptions)
+      return {
+        ...EMPTY_ENQUIRY_FORM,
+        interest: detectedInterest,
+        message: buildEnquiryPrefill(activeType, chatContext),
+      }
+    })
     setEnquiryOpen(true)
   }
 
@@ -1301,7 +1427,7 @@ function App() {
               <p className="page-hero-text">
                 AI-first enterprise technology — products, services, training, and support from Vetri IT Systems.
               </p>
-            </div>
+        </div>
         </div>
         </section>
       )}
@@ -1558,7 +1684,7 @@ function App() {
               <footer className="chat-footer">
                 Text · Voice · Photos · PDF/TXT · Powered by Vetri IT Systems
               </footer>
-            </div>
+        </div>
 
             {historyOpen && (
               <HistorySidebar
@@ -1585,7 +1711,7 @@ function App() {
         enquiryType={enquiryType}
         form={enquiryForm}
         onChange={updateEnquiryField}
-        onTypeChange={setEnquiryType}
+        onTypeChange={handleEnquiryTypeChange}
         onClose={closeEnquiry}
         onSubmit={submitEnquiryForm}
         submitting={enquirySubmitting}
