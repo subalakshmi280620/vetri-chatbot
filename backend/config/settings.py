@@ -308,6 +308,10 @@ GEMINI_FALLBACK_MODELS = [
     ).split(",")
     if model.strip()
 ]
+try:
+    GEMINI_MAX_RETRIES = max(1, min(int(os.environ.get("GEMINI_MAX_RETRIES", "2")), 5))
+except (TypeError, ValueError):
+    GEMINI_MAX_RETRIES = 2
 
 CHAT_MAX_MESSAGE_LENGTH = int(os.environ.get("CHAT_MAX_MESSAGE_LENGTH", "2000"))
 CHAT_MAX_ATTACHMENTS = int(os.environ.get("CHAT_MAX_ATTACHMENTS", "3"))

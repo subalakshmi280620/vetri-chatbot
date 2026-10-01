@@ -816,15 +816,14 @@ class GeminiRetryTests(TestCase):
     def test_503_retries_then_succeeds_on_same_model(self, mock_call, mock_sleep):
         mock_call.side_effect = [
             GeminiAPIError("Gemini HTTP 503: high demand", code=503, model="gemini-3.8-flash"),
-            GeminiAPIError("Gemini HTTP 503: high demand", code=503, model="gemini-3.8-flash"),
             "Natural AI reply about Vetri Bills.",
         ]
 
         reply = ask_gemini("Tell me about Vetri Bills", "system prompt")
 
         self.assertEqual(reply, "Natural AI reply about Vetri Bills.")
-        self.assertEqual(mock_call.call_count, 3)
-        self.assertEqual(mock_sleep.call_count, 2)
+        self.assertEqual(mock_call.call_count, 2)
+        self.assertEqual(mock_sleep.call_count, 1)
 
     @override_settings(**_GEMINI_SETTINGS)
     @patch("chatbot.gemini.time.sleep")
@@ -838,17 +837,16 @@ class GeminiRetryTests(TestCase):
         mock_call.side_effect = [
             unavailable,
             unavailable,
-            unavailable,
             "Fallback model reply.",
         ]
 
         reply = ask_gemini("Why choose VIS?", "system prompt")
 
         self.assertEqual(reply, "Fallback model reply.")
-        self.assertEqual(mock_call.call_count, 4)
+        self.assertEqual(mock_call.call_count, 3)
         models_tried = [call.args[0] for call in mock_call.call_args_list]
-        self.assertEqual(models_tried[:3], ["gemini-3.8-flash"] * 3)
-        self.assertEqual(models_tried[3], "gemini-3.6-flash")
+        self.assertEqual(models_tried[:2], ["gemini-3.8-flash"] * 2)
+        self.assertEqual(models_tried[2], "gemini-3.6-flash")
 
     @override_settings(**_GEMINI_SETTINGS)
     @patch("chatbot.gemini.time.sleep")
@@ -874,13 +872,29 @@ class GeminiRetryTests(TestCase):
             code=503,
             model="gemini-3.8-flash",
         )
-        mock_call.side_effect = [unavailable] * 6
+        mock_call.side_effect = [unavailable] * 4
 
         with self.assertRaises(GeminiAPIError) as ctx:
             ask_gemini("Hello", "system prompt")
 
         self.assertEqual(ctx.exception.code, 503)
-        self.assertEqual(mock_call.call_count, 6)
+        self.assertEqual(mock_call.call_count, 4)
+
+    @override_settings(**{**_GEMINI_SETTINGS, "GEMINI_MAX_RETRIES": 3})
+    @patch("chatbot.gemini.time.sleep")
+    @patch("chatbot.gemini._call_gemini_model")
+    def test_max_retries_configurable_via_settings(self, mock_call, mock_sleep):
+        mock_call.side_effect = [
+            GeminiAPIError("Gemini HTTP 503: high demand", code=503, model="gemini-3.8-flash"),
+            GeminiAPIError("Gemini HTTP 503: high demand", code=503, model="gemini-3.8-flash"),
+            "Reply after third attempt.",
+        ]
+
+        reply = ask_gemini("Hello", "system prompt")
+
+        self.assertEqual(reply, "Reply after third attempt.")
+        self.assertEqual(mock_call.call_count, 3)
+        self.assertEqual(mock_sleep.call_count, 2)
 
     @override_settings(**_GEMINI_SETTINGS)
     @patch("chatbot.views.ask_gemini")

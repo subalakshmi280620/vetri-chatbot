@@ -9,7 +9,6 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 3
 BACKOFF_BASE_SECONDS = 0.5
 
 # Retry temporary overload / server errors on the same model.
@@ -26,6 +25,10 @@ class GeminiAPIError(RuntimeError):
         super().__init__(message)
         self.code = code
         self.model = model
+
+
+def _max_retries() -> int:
+    return settings.GEMINI_MAX_RETRIES
 
 
 def _gemini_model_chain() -> list[str]:
@@ -143,7 +146,8 @@ def ask_gemini(
             )
             continue
 
-        for attempt in range(1, MAX_RETRIES + 1):
+        max_retries = _max_retries()
+        for attempt in range(1, max_retries + 1):
             try:
                 reply = _call_gemini_model(
                     model,
@@ -157,7 +161,7 @@ def ask_gemini(
                         "Gemini model %s succeeded on attempt %d/%d",
                         model,
                         attempt,
-                        MAX_RETRIES,
+                        max_retries,
                     )
                 return reply
             except (TimeoutError, OSError) as exc:
@@ -165,13 +169,13 @@ def ask_gemini(
                     f"Gemini request timed out: {type(exc).__name__}",
                     model=model,
                 )
-                if attempt < MAX_RETRIES:
+                if attempt < max_retries:
                     delay = BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
                     logger.warning(
                         "Gemini model %s timeout on attempt %d/%d; retrying in %.1fs",
                         model,
                         attempt,
-                        MAX_RETRIES,
+                        max_retries,
                         delay,
                     )
                     time.sleep(delay)
@@ -205,7 +209,7 @@ def ask_gemini(
                     )
                     break
 
-                if code in RETRYABLE_CODES and attempt < MAX_RETRIES:
+                if code in RETRYABLE_CODES and attempt < max_retries:
                     delay = BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
                     logger.warning(
                         "Gemini model %s HTTP %s on attempt %d/%d; "
@@ -213,7 +217,7 @@ def ask_gemini(
                         model,
                         code,
                         attempt,
-                        MAX_RETRIES,
+                        max_retries,
                         delay,
                     )
                     time.sleep(delay)
