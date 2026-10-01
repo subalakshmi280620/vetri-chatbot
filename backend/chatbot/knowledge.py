@@ -489,6 +489,22 @@ def why_vis_reply() -> str:
 
 SHORT_GREETING_REPLY = "Hello! How can I help you today?"
 
+AI_BUSY_KB_PREFIX = (
+    "Our AI assistant is temporarily unavailable (high demand or API limits). "
+    "Here is verified VIS information instead:\n\n"
+)
+
+AI_FULLY_UNAVAILABLE_MESSAGE = (
+    "I'm having trouble reaching our AI service right now — likely due to "
+    "high demand or API limits. Please try again in a minute.\n\n"
+    f"You can also reach our team at {CONTACT_PHONE} or {CONTACT_EMAIL}."
+)
+
+GENERIC_FALLBACK_MARKER = (
+    "I'm here to help with VIS products, services, training courses, quotes, and "
+    "company info."
+)
+
 REPLIES = {
     "greeting": SHORT_GREETING_REPLY,
     "about": (
@@ -586,6 +602,7 @@ You must answer EVERY question the user asks — any wording, follow-ups, compar
 Never use section headings, bullet lists, or labels like "Our Products —" unless the user asks for a list.
 
 Voice and tone:
+- Understand informal English, typos, and broken grammar — infer what the user means.
 - Sound conversational: use plain English, short sentences, and a helpful tone.
 - You may start with a brief friendly phrase when it fits ("Sure!", "Good question.", "Happy to help.") — but keep it natural, not cheesy.
 - Write COMPLETE sentences. Never stop mid-thought or mid-number.
@@ -641,6 +658,52 @@ def _compact(text: str) -> str:
     return "".join(ch.lower() for ch in text if ch.isalnum())
 
 
+_TYPO_FIXES = (
+    ("bussiness", "business"),
+    ("busines ", "business "),
+    ("elogible", "eligible"),
+    ("eligble", "eligible"),
+    ("eligibile", "eligible"),
+    ("qualifcation", "qualification"),
+    ("vetriit", "vetri it"),
+    ("webiste", "website"),
+    ("websit ", "website "),
+)
+
+
+def normalize_user_text(text: str) -> str:
+    """Fix common typos so intent matching works like a forgiving human reader."""
+    lowered = text.lower()
+    for wrong, right in _TYPO_FIXES:
+        lowered = lowered.replace(wrong, right)
+    return lowered
+
+
+_VAGUE_FOLLOW_UPS = (
+    "more detail", "more details", "tell me more", "more info", "more information",
+    "explain more", "want more", "go on", "continue", "elaborate", "expand on",
+    "what else", "anything else",
+)
+
+
+def expand_message_for_matching(message: str, history=None) -> str:
+    """Include recent user context for vague follow-ups like 'tell me more'."""
+    text = message.strip()
+    lowered = normalize_user_text(text)
+    if not any(phrase in lowered for phrase in _VAGUE_FOLLOW_UPS):
+        return text
+    parts = [text]
+    for item in reversed(history or []):
+        if item.get("role") != "user":
+            continue
+        prior = item.get("text", "").strip()
+        if prior:
+            parts.insert(0, prior)
+        if len(parts) >= 3:
+            break
+    return " ".join(parts)
+
+
 def match_product_id(message: str) -> str | None:
     lowered = message.lower()
     compact = _compact(message)
@@ -659,7 +722,28 @@ def match_product(message: str) -> str | None:
 
 
 def match_service(message: str) -> str | None:
-    lowered = message.lower()
+    lowered = normalize_user_text(message)
+    loose_service_map = (
+        ("business website", "website development"),
+        ("company website", "website development"),
+        ("need a website", "website development"),
+        ("want a website", "website development"),
+        ("build a website", "website development"),
+        ("website", "website development"),
+        ("web site", "website development"),
+        ("mobile app", "mobile app development"),
+        ("android app", "mobile app development"),
+        ("ios app", "mobile app development"),
+        ("custom software", "software development"),
+        ("erp system", "erp development"),
+        ("digital marketing", "digital marketing"),
+        ("ui ux", "ui/ux design"),
+        ("ui/ux", "ui/ux design"),
+    )
+    for phrase, service_key in loose_service_map:
+        if phrase in lowered and service_key in SERVICE_DETAILS:
+            detail = SERVICE_DETAILS[service_key]
+            return f"{detail}\n\n{CONTACT_LINE}."
     for service_name, detail in SERVICE_DETAILS.items():
         if service_name in lowered:
             return f"{detail}\n\n{CONTACT_LINE}."
@@ -1311,10 +1395,7 @@ def get_conversational_fallback(message: str) -> str:
             f"Sure — {snippet}. Happy to go deeper if you'd like — just ask a follow-up."
         )
 
-    return (
-        "I'm here to help with VIS products, services, training courses, quotes, and "
-        "company info. What would you like to know?"
-    )
+    return f"{GENERIC_FALLBACK_MARKER} What would you like to know?"
 
 
 def detect_suggested_enquiry_type(message: str) -> str | None:

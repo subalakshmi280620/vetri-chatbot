@@ -9,7 +9,23 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-_RETRYABLE_CODES = {429, 503, 500, 502, 504}
+MAX_RETRIES = 3
+BACKOFF_BASE_SECONDS = 0.5
+
+# Retry temporary overload / server errors on the same model.
+RETRYABLE_CODES = {500, 502, 503, 504}
+# Quota and client errors — do not retry the same model.
+QUOTA_EXHAUSTED_CODES = {429}
+NON_RETRYABLE_CODES = {400, 401, 403, 404}
+
+
+class GeminiAPIError(RuntimeError):
+    """Gemini API failure with safe metadata for logging (no API keys)."""
+
+    def __init__(self, message: str, *, code: int | None = None, model: str = ""):
+        super().__init__(message)
+        self.code = code
+        self.model = model
 
 
 def _gemini_model_chain() -> list[str]:
@@ -21,6 +37,17 @@ def _gemini_model_chain() -> list[str]:
             seen.add(model)
             chain.append(model)
     return chain
+
+
+def _safe_api_error_message(code: int, detail: str) -> str:
+    """Build a log-safe error string without API keys or long payloads."""
+    try:
+        payload = json.loads(detail)
+        message = payload.get("error", {}).get("message", "")
+    except json.JSONDecodeError:
+        message = detail[:200]
+    message = (message or "Unknown Gemini API error").replace("\n", " ").strip()
+    return f"Gemini HTTP {code}: {message[:240]}"
 
 
 def _build_user_parts(user_message: str, images=None) -> list[dict]:
@@ -45,7 +72,7 @@ def _call_gemini_model(
 ) -> str:
     api_key = settings.GEMINI_API_KEY
     if not api_key:
-        raise RuntimeError("GEMINI_API_KEY is not set")
+        raise GeminiAPIError("GEMINI_API_KEY is not set")
 
     encoded_model = urllib.parse.quote(model, safe="")
     url = (
@@ -82,16 +109,20 @@ def _call_gemini_model(
             data = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="ignore")
-        raise RuntimeError(f"Gemini HTTP {exc.code}: {detail[:300]}") from exc
+        raise GeminiAPIError(
+            _safe_api_error_message(exc.code, detail),
+            code=exc.code,
+            model=model,
+        ) from exc
 
     candidates = data.get("candidates") or []
     if not candidates:
-        raise RuntimeError("Gemini returned no candidates")
+        raise GeminiAPIError("Gemini returned no candidates", model=model)
 
     parts = candidates[0].get("content", {}).get("parts") or []
     text = "".join(part.get("text", "") for part in parts).strip()
     if not text:
-        raise RuntimeError("Gemini returned an empty reply")
+        raise GeminiAPIError("Gemini returned an empty reply", model=model)
     return text
 
 
@@ -101,32 +132,79 @@ def ask_gemini(
     history=None,
     images=None,
 ) -> str:
-    last_error: Exception | None = None
+    last_error: GeminiAPIError | None = None
+    quota_exhausted_models: set[str] = set()
 
     for model in _gemini_model_chain():
-        for attempt in range(2):
+        if model in quota_exhausted_models:
+            logger.info(
+                "Skipping Gemini model %s — quota already exhausted this request",
+                model,
+            )
+            continue
+
+        for attempt in range(1, MAX_RETRIES + 1):
             try:
-                return _call_gemini_model(
+                reply = _call_gemini_model(
                     model,
                     user_message,
                     system_prompt,
                     history,
                     images=images,
                 )
-            except RuntimeError as exc:
+                if attempt > 1:
+                    logger.info(
+                        "Gemini model %s succeeded on attempt %d/%d",
+                        model,
+                        attempt,
+                        MAX_RETRIES,
+                    )
+                return reply
+            except GeminiAPIError as exc:
                 last_error = exc
-                code = None
-                if "Gemini HTTP " in str(exc):
-                    try:
-                        code = int(str(exc).split("Gemini HTTP ", 1)[1][:3])
-                    except ValueError:
-                        code = None
-                if code in _RETRYABLE_CODES and attempt == 0:
-                    time.sleep(0.75)
+                code = exc.code
+
+                if code in QUOTA_EXHAUSTED_CODES:
+                    quota_exhausted_models.add(model)
+                    logger.warning(
+                        "Gemini model %s quota exhausted (HTTP %s); "
+                        "skipping further attempts for this model",
+                        model,
+                        code,
+                    )
+                    break
+
+                if code in NON_RETRYABLE_CODES:
+                    logger.warning(
+                        "Gemini model %s non-retryable error (HTTP %s) on attempt %d",
+                        model,
+                        code,
+                        attempt,
+                    )
+                    break
+
+                if code in RETRYABLE_CODES and attempt < MAX_RETRIES:
+                    delay = BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
+                    logger.warning(
+                        "Gemini model %s HTTP %s on attempt %d/%d; "
+                        "retrying in %.1fs",
+                        model,
+                        code,
+                        attempt,
+                        MAX_RETRIES,
+                        delay,
+                    )
+                    time.sleep(delay)
                     continue
-                logger.warning("Gemini model %s unavailable: %s", model, exc)
+
+                logger.warning(
+                    "Gemini model %s failed after %d attempt(s) (HTTP %s)",
+                    model,
+                    attempt,
+                    code or "unknown",
+                )
                 break
 
     if last_error:
         raise last_error
-    raise RuntimeError("Gemini is not configured")
+    raise GeminiAPIError("Gemini is not configured")

@@ -20,7 +20,14 @@ from .models import Enquiry
 from .throttles import ChatRateThrottle
 from .attachments import build_user_message_with_attachments, parse_attachments
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
-from .views import build_prompt, generate_reply
+from .gemini import GeminiAPIError, ask_gemini
+from .views import (
+    SOURCE_ELIGIBILITY,
+    SOURCE_UNVERIFIED,
+    SOURCE_VERIFIED_KB,
+    build_prompt,
+    generate_reply,
+)
 
 CLIENT_A = str(uuid.uuid4())
 CLIENT_B = str(uuid.uuid4())
@@ -350,7 +357,7 @@ class EligibilityReplyTests(TestCase):
         reply, source = generate_reply("what are the fees?", history)
         self.assertIn("fee", reply.lower())
         self.assertNotIn("Outcome: ELIGIBLE", reply)
-        self.assertEqual(source, "ai")
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
 
     @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
     def test_apply_after_eligibility_outcome_uses_kb_not_eligibility(self):
@@ -359,7 +366,7 @@ class EligibilityReplyTests(TestCase):
         reply, source = generate_reply("How do I apply for a course?", history)
         self.assertIn("apply", reply.lower())
         self.assertNotIn("Outcome: ELIGIBLE", reply)
-        self.assertEqual(source, "ai")
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
 
     def test_qualification_not_parsed_from_bot_general_eligibility_text(self):
         first = handle_eligibility("What are the eligibility requirements?")
@@ -441,7 +448,7 @@ class KnowledgeReplyTests(TestCase):
         reply, source = generate_reply("What is the eligibility?", history)
         self.assertIn("degree", reply.lower())
         self.assertNotIn("Java Fullstack", reply)
-        self.assertEqual(source, "ai")
+        self.assertEqual(source, SOURCE_ELIGIBILITY)
 
     @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="Vetri Bills is our GST billing product.")
@@ -524,7 +531,7 @@ class KnowledgeReplyTests(TestCase):
     @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
     def test_generate_reply_uses_conversational_fallback_when_ai_unavailable(self):
         reply, source = generate_reply("What products does VIS offer?")
-        self.assertEqual(source, "ai")
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertIn("Vetri Bills", reply)
         self.assertNotIn("Our Products —", reply)
 
@@ -632,7 +639,7 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         response = self._post_chat("What courses are available?")
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["source"], "ai")
+        self.assertEqual(data["source"], SOURCE_VERIFIED_KB)
         self.assertNotIn("Which Courses Are Available", data["reply"])
         self.assertNotIn("Course Overview —", data["reply"])
         self.assertIn("message_id", data)
@@ -643,7 +650,7 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         response = self._post_chat("What products does VIS offer?")
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["source"], "ai")
+        self.assertEqual(data["source"], SOURCE_VERIFIED_KB)
         self.assertNotIn("Our Products —", data["reply"])
 
     @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
@@ -737,7 +744,12 @@ class DemoQuestionCoverageTests(TestCase):
                 any(marker in lowered for marker in markers),
                 msg=f"{question!r} -> {reply!r}",
             )
-            self.assertEqual(source, "ai")
+            if question.strip().lower() == "hi":
+                self.assertEqual(source, "ai")
+            elif "eligible" in question.lower():
+                self.assertEqual(source, SOURCE_ELIGIBILITY)
+            else:
+                self.assertEqual(source, SOURCE_VERIFIED_KB)
 
     def test_demo_fallback_replies_are_not_identical_pairs(self):
         replies = {
@@ -788,3 +800,115 @@ class DemoQuestionCoverageTests(TestCase):
             reply = get_conversational_fallback(question)
             self.assertNotRegex(reply, r"₹\s*\d")
             self.assertNotRegex(reply.lower(), r"rs\.?\s*\d")
+
+
+class GeminiRetryTests(TestCase):
+    _GEMINI_SETTINGS = {
+        "GEMINI_API_KEY": "test-key",
+        "GEMINI_MODEL": "gemini-3.8-flash",
+        "GEMINI_FALLBACK_MODELS": ["gemini-3.6-flash"],
+        "DEEPSEEK_API_KEY": "",
+    }
+
+    @override_settings(**_GEMINI_SETTINGS)
+    @patch("chatbot.gemini.time.sleep")
+    @patch("chatbot.gemini._call_gemini_model")
+    def test_503_retries_then_succeeds_on_same_model(self, mock_call, mock_sleep):
+        mock_call.side_effect = [
+            GeminiAPIError("Gemini HTTP 503: high demand", code=503, model="gemini-3.8-flash"),
+            GeminiAPIError("Gemini HTTP 503: high demand", code=503, model="gemini-3.8-flash"),
+            "Natural AI reply about Vetri Bills.",
+        ]
+
+        reply = ask_gemini("Tell me about Vetri Bills", "system prompt")
+
+        self.assertEqual(reply, "Natural AI reply about Vetri Bills.")
+        self.assertEqual(mock_call.call_count, 3)
+        self.assertEqual(mock_sleep.call_count, 2)
+
+    @override_settings(**_GEMINI_SETTINGS)
+    @patch("chatbot.gemini.time.sleep")
+    @patch("chatbot.gemini._call_gemini_model")
+    def test_503_exhausted_retries_use_fallback_model(self, mock_call, mock_sleep):
+        unavailable = GeminiAPIError(
+            "Gemini HTTP 503: high demand",
+            code=503,
+            model="gemini-3.8-flash",
+        )
+        mock_call.side_effect = [
+            unavailable,
+            unavailable,
+            unavailable,
+            "Fallback model reply.",
+        ]
+
+        reply = ask_gemini("Why choose VIS?", "system prompt")
+
+        self.assertEqual(reply, "Fallback model reply.")
+        self.assertEqual(mock_call.call_count, 4)
+        models_tried = [call.args[0] for call in mock_call.call_args_list]
+        self.assertEqual(models_tried[:3], ["gemini-3.8-flash"] * 3)
+        self.assertEqual(models_tried[3], "gemini-3.6-flash")
+
+    @override_settings(**_GEMINI_SETTINGS)
+    @patch("chatbot.gemini.time.sleep")
+    @patch("chatbot.gemini._call_gemini_model")
+    def test_429_does_not_retry_quota_exhausted_model(self, mock_call, mock_sleep):
+        mock_call.side_effect = [
+            GeminiAPIError("Gemini HTTP 429: quota exceeded", code=429, model="gemini-3.8-flash"),
+            "Fallback model reply.",
+        ]
+
+        reply = ask_gemini("What is VIS?", "system prompt")
+
+        self.assertEqual(reply, "Fallback model reply.")
+        self.assertEqual(mock_call.call_count, 2)
+        mock_sleep.assert_not_called()
+
+    @override_settings(**_GEMINI_SETTINGS)
+    @patch("chatbot.gemini.time.sleep")
+    @patch("chatbot.gemini._call_gemini_model")
+    def test_all_models_fail_after_retries_raises(self, mock_call, mock_sleep):
+        unavailable = GeminiAPIError(
+            "Gemini HTTP 503: high demand",
+            code=503,
+            model="gemini-3.8-flash",
+        )
+        mock_call.side_effect = [unavailable] * 6
+
+        with self.assertRaises(GeminiAPIError) as ctx:
+            ask_gemini("Hello", "system prompt")
+
+        self.assertEqual(ctx.exception.code, 503)
+        self.assertEqual(mock_call.call_count, 6)
+
+    @override_settings(**_GEMINI_SETTINGS)
+    @patch("chatbot.views.ask_gemini")
+    def test_generate_reply_labels_verified_kb_when_ai_busy(self, mock_gemini):
+        mock_gemini.side_effect = GeminiAPIError(
+            "Gemini HTTP 503: high demand",
+            code=503,
+            model="gemini-3.8-flash",
+        )
+
+        reply, source = generate_reply("What products does VIS offer?")
+
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("temporarily unavailable", reply)
+        self.assertIn("Vetri Bills", reply)
+        self.assertNotIn("Our Products —", reply)
+
+    @override_settings(**_GEMINI_SETTINGS)
+    @patch("chatbot.views.ask_gemini")
+    def test_generate_reply_friendly_message_when_ai_and_kb_miss(self, mock_gemini):
+        mock_gemini.side_effect = GeminiAPIError(
+            "Gemini HTTP 503: high demand",
+            code=503,
+            model="gemini-3.8-flash",
+        )
+
+        reply, source = generate_reply("xyzzy plugh totally unrelated question")
+
+        self.assertEqual(source, SOURCE_UNVERIFIED)
+        self.assertIn("trouble reaching our AI", reply)
+        self.assertIn("84381", reply)

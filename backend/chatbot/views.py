@@ -10,9 +10,12 @@ from .attachments import build_user_message_with_attachments, parse_attachments
 from .throttles import ChatRateThrottle
 
 from .deepseek import ask_deepseek
-from .gemini import ask_gemini
+from .gemini import GeminiAPIError, ask_gemini
 from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import (
+    AI_BUSY_KB_PREFIX,
+    AI_FULLY_UNAVAILABLE_MESSAGE,
+    GENERIC_FALLBACK_MARKER,
     SHORT_GREETING_REPLY,
     SYSTEM_PROMPT,
     detect_suggested_enquiry_type,
@@ -50,25 +53,54 @@ def build_prompt(user_message: str) -> str:
     return "\n\n".join(parts)
 
 
+def _try_deepseek_reply(user_message: str, prompt: str, history=None) -> str | None:
+    if not settings.DEEPSEEK_API_KEY:
+        return None
+    try:
+        return ask_deepseek(user_message, prompt, history)
+    except Exception as exc:
+        logger.warning("DeepSeek fallback unavailable: %s", type(exc).__name__)
+        return None
+
+
 def _try_ai_reply(user_message: str, history=None, attachments=None) -> str | None:
+    """Gemini first (images + primary). DeepSeek automatic backup when Gemini fails."""
     if not (settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY):
         return None
 
     prompt = build_prompt(user_message)
     images = attachments.images if attachments else None
-    if settings.DEEPSEEK_API_KEY and not images:
-        try:
-            return ask_deepseek(user_message, prompt, history)
-        except Exception as exc:
-            logger.warning("DeepSeek unavailable: %s", exc)
 
     if settings.GEMINI_API_KEY:
         try:
             return ask_gemini(user_message, prompt, history, images=images)
+        except GeminiAPIError as exc:
+            logger.warning(
+                "Gemini unavailable: model=%s HTTP=%s — trying DeepSeek fallback",
+                exc.model or "unknown",
+                exc.code or "unknown",
+            )
         except Exception as exc:
-            logger.warning("Gemini unavailable: %s", exc)
+            logger.warning(
+                "Gemini unavailable: %s — trying DeepSeek fallback",
+                type(exc).__name__,
+            )
+
+    # Backup AI for text chat when Gemini is down (503 high demand, 429 quota, etc.)
+    if not images:
+        return _try_deepseek_reply(user_message, prompt, history)
 
     return None
+
+
+def _kb_fallback_reply(user_message: str, ai_was_attempted: bool) -> tuple[str, str]:
+    """Verified KB fallback — clearly labelled when AI was tried but failed."""
+    fallback = get_conversational_fallback(user_message)
+    if not ai_was_attempted:
+        return fallback, SOURCE_VERIFIED_KB
+    if GENERIC_FALLBACK_MARKER in fallback:
+        return AI_FULLY_UNAVAILABLE_MESSAGE, SOURCE_UNVERIFIED
+    return f"{AI_BUSY_KB_PREFIX}{fallback}", SOURCE_VERIFIED_KB
 
 
 def generate_reply(
@@ -79,6 +111,7 @@ def generate_reply(
     if user_message and is_greeting(user_message) and not (attachments and (attachments.images or attachments.document_text)):
         return SHORT_GREETING_REPLY, SOURCE_AI
 
+    ai_configured = bool(settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY)
     ai_reply = _try_ai_reply(user_message, history, attachments)
     if ai_reply:
         return enforce_verified_facts(ai_reply.strip()), SOURCE_AI
@@ -88,14 +121,14 @@ def generate_reply(
         return (
             f"I received {names}, but I could not analyse it right now. "
             f"Please try again shortly or email support@vetri-it.com."
-        ), SOURCE_AI
+        ), SOURCE_UNVERIFIED
 
     if not is_non_eligibility_faq(user_message):
         eligibility = handle_eligibility(user_message, history)
         if eligibility:
-            return eligibility, SOURCE_AI
+            return eligibility, SOURCE_ELIGIBILITY
 
-    return get_conversational_fallback(user_message), SOURCE_AI
+    return _kb_fallback_reply(user_message, ai_was_attempted=ai_configured)
 
 
 def parse_client_token(value):
