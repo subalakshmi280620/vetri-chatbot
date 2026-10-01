@@ -59,7 +59,9 @@ def _try_deepseek_reply(user_message: str, prompt: str, history=None) -> str | N
     try:
         return ask_deepseek(user_message, prompt, history)
     except Exception as exc:
-        logger.warning("DeepSeek fallback unavailable: %s", type(exc).__name__)
+        # Log safe detail (HTTP code/message) — never log API keys.
+        detail = str(exc).replace(settings.DEEPSEEK_API_KEY, "***")[:240]
+        logger.warning("DeepSeek fallback unavailable: %s", detail or type(exc).__name__)
         return None
 
 

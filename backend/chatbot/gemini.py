@@ -160,6 +160,28 @@ def ask_gemini(
                         MAX_RETRIES,
                     )
                 return reply
+            except (TimeoutError, OSError) as exc:
+                last_error = GeminiAPIError(
+                    f"Gemini request timed out: {type(exc).__name__}",
+                    model=model,
+                )
+                if attempt < MAX_RETRIES:
+                    delay = BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
+                    logger.warning(
+                        "Gemini model %s timeout on attempt %d/%d; retrying in %.1fs",
+                        model,
+                        attempt,
+                        MAX_RETRIES,
+                        delay,
+                    )
+                    time.sleep(delay)
+                    continue
+                logger.warning(
+                    "Gemini model %s failed after %d attempt(s) (timeout)",
+                    model,
+                    attempt,
+                )
+                break
             except GeminiAPIError as exc:
                 last_error = exc
                 code = exc.code
