@@ -82,3 +82,36 @@ class Enquiry(models.Model):
 
     def __str__(self):
         return f"{self.get_enquiry_type_display()} — {self.full_name}"
+
+
+class KnowledgeChunk(models.Model):
+    """Indexed knowledge excerpt with Gemini embedding for vector RAG."""
+
+    source = models.CharField(max_length=120)
+    section = models.CharField(max_length=200, blank=True, default="")
+    text = models.TextField()
+    chunk_index = models.PositiveIntegerField(default=0)
+    content_hash = models.CharField(max_length=64, db_index=True)
+    embedding = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["source", "chunk_index"]
+        indexes = [
+            models.Index(fields=["source", "chunk_index"]),
+        ]
+
+    def __str__(self):
+        return f"{self.source}#{self.chunk_index}"
+
+
+class KnowledgeIndexState(models.Model):
+    """Tracks content hash so index_knowledge re-embeds only when sources change."""
+
+    content_hash = models.CharField(max_length=64, unique=True)
+    chunk_count = models.PositiveIntegerField(default=0)
+    indexed_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.chunk_count} chunks @ {self.indexed_at:%Y-%m-%d}"

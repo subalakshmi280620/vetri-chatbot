@@ -338,6 +338,26 @@ try:
 except (TypeError, ValueError):
     GEMINI_REQUEST_TIMEOUT = 25
 
+# Vector RAG — semantic search via Gemini embeddings (PostgreSQL only).
+# Local SQLite defaults to lexical RAG fallback (VECTOR_RAG_ENABLED=false).
+_VECTOR_RAG_DEFAULT = bool(_DATABASE_URL)
+VECTOR_RAG_ENABLED = _env_bool("VECTOR_RAG_ENABLED", _VECTOR_RAG_DEFAULT)
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "gemini-embedding-001")
+try:
+    EMBEDDING_DIMENSION = max(128, min(int(os.environ.get("EMBEDDING_DIMENSION", "768")), 3072))
+except (TypeError, ValueError):
+    EMBEDDING_DIMENSION = 768
+try:
+    EMBEDDING_BATCH_SIZE = max(1, min(int(os.environ.get("EMBEDDING_BATCH_SIZE", "20")), 100))
+except (TypeError, ValueError):
+    EMBEDDING_BATCH_SIZE = 20
+try:
+    VECTOR_RAG_MIN_SCORE = max(
+        0.0, min(float(os.environ.get("VECTOR_RAG_MIN_SCORE", "0.65")), 1.0)
+    )
+except (TypeError, ValueError):
+    VECTOR_RAG_MIN_SCORE = 0.65
+
 CHAT_MAX_MESSAGE_LENGTH = int(os.environ.get("CHAT_MAX_MESSAGE_LENGTH", "2000"))
 CHAT_MAX_ATTACHMENTS = int(os.environ.get("CHAT_MAX_ATTACHMENTS", "3"))
 CHAT_MAX_ATTACHMENT_BYTES = int(os.environ.get("CHAT_MAX_ATTACHMENT_BYTES", str(5 * 1024 * 1024)))

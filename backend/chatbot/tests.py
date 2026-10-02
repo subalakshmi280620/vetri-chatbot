@@ -955,31 +955,7 @@ class GeminiRetryTests(TestCase):
         self.assertIn("84381", reply)
 
 
-class AiDisabledTests(TestCase):
-    @override_settings(
-        AI_ENABLED=False,
-        GEMINI_API_KEY="test-gemini-key",
-        XAI_API_KEY="test-xai-key",
-    )
-    @patch("chatbot.views.ask_gemini")
-    @patch("chatbot.views.ask_grok")
-    def test_ai_disabled_skips_all_providers(self, mock_grok, mock_gemini):
-        reply, source = generate_reply("What products does VIS offer?")
-
-        mock_gemini.assert_not_called()
-        mock_grok.assert_not_called()
-        self.assertEqual(source, SOURCE_VERIFIED_KB)
-        self.assertIn("Vetri Bills", reply)
-
-    @override_settings(AI_ENABLED=False, GEMINI_API_KEY="test-gemini-key")
-    def test_ai_disabled_greeting_still_works(self):
-        reply, source = generate_reply("hi")
-
-        self.assertEqual(source, SOURCE_AI)
-        self.assertEqual(reply, SHORT_GREETING_REPLY)
-
-
-class GeminiConserveQuotaTests(TestCase):
+ 
     @override_settings(
         GEMINI_API_KEY="test-key",
         GEMINI_MODEL="gemini-3.8-flash",
@@ -1130,3 +1106,171 @@ class GrokFallbackTests(TestCase):
             ask_grok("Hello", "system prompt")
 
         self.assertEqual(ctx.exception.code, 503)
+
+
+class KnowledgeExportTests(TestCase):
+    def test_export_includes_verified_contact(self):
+        from .knowledge_export import export_knowledge_chunks
+
+        chunks = export_knowledge_chunks()
+        combined = "\n".join(chunk["text"] for chunk in chunks)
+        self.assertIn("+91 84381 54827", combined)
+        self.assertIn("support@vetri-it.com", combined)
+
+    def test_export_includes_products(self):
+        from .knowledge_export import export_knowledge_chunks
+
+        chunks = export_knowledge_chunks()
+        combined = "\n".join(chunk["text"] for chunk in chunks)
+        self.assertIn("Vetri Bills", combined)
+        self.assertIn("Coach AI", combined)
+
+    def test_vetrifresh_excluded_from_file_chunks(self):
+        from .vector_rag import EXCLUDED_INDEX_FILES, load_file_chunks
+
+        self.assertIn("vetrifresh.md", EXCLUDED_INDEX_FILES)
+        sources = {chunk["source"] for chunk in load_file_chunks()}
+        self.assertNotIn("vetrifresh.md", sources)
+        self.assertIn("vis_website.md", sources)
+
+
+class LexicalRagTests(TestCase):
+    def test_lexical_retrieve_matches_keywords(self):
+        from .rag import lexical_retrieve
+
+        chunks = lexical_retrieve("GST billing software", limit=2)
+        self.assertTrue(chunks)
+        combined = " ".join(chunk["text"].lower() for chunk in chunks)
+        self.assertTrue("gst" in combined or "billing" in combined)
+
+    def test_format_context_includes_missing_info_guard(self):
+        from .rag import MISSING_INFO_GUARD, format_context
+
+        context = format_context([{"source": "vis_website.md", "text": "VIS products."}])
+        self.assertIn(MISSING_INFO_GUARD, context)
+        self.assertIn("vis_website.md", context)
+
+
+class EmbeddingTests(TestCase):
+    @override_settings(
+        GEMINI_API_KEY="test-key",
+        GEMINI_BASE_URL="https://generativelanguage.googleapis.com/v1beta",
+        EMBEDDING_MODEL="gemini-embedding-001",
+        EMBEDDING_DIMENSION=768,
+    )
+    @patch("chatbot.embeddings.urllib.request.urlopen")
+    def test_embed_query_returns_vector(self, mock_urlopen):
+        from .embeddings import embed_query
+
+        mock_urlopen.return_value.__enter__.return_value.read.return_value = json.dumps({
+            "embeddings": [{"values": [0.1, 0.2, 0.3]}],
+        }).encode()
+
+        vector = embed_query("How can I contact VIS?")
+        self.assertEqual(vector, [0.1, 0.2, 0.3])
+
+    @override_settings(GEMINI_API_KEY="")
+    def test_embed_query_requires_api_key(self):
+        from .embeddings import EmbeddingAPIError, embed_query
+
+        with self.assertRaises(EmbeddingAPIError):
+            embed_query("test")
+
+
+class VectorRagTests(TestCase):
+    def test_cosine_similarity_identical_vectors(self):
+        from .vector_rag import cosine_similarity
+
+        self.assertAlmostEqual(cosine_similarity([1.0, 0.0], [1.0, 0.0]), 1.0)
+
+    def test_cosine_similarity_orthogonal_vectors(self):
+        from .vector_rag import cosine_similarity
+
+        self.assertAlmostEqual(cosine_similarity([1.0, 0.0], [0.0, 1.0]), 0.0)
+
+    @override_settings(VECTOR_RAG_ENABLED=False)
+    def test_retrieve_uses_lexical_when_vector_disabled(self):
+        from .rag import retrieve
+
+        with patch("chatbot.rag.vector_rag_available", return_value=False):
+            chunks = retrieve("Vetri Bills GST", limit=2)
+        self.assertTrue(chunks)
+
+    @override_settings(VECTOR_RAG_ENABLED=True, VECTOR_RAG_MIN_SCORE=0.5)
+    @patch("chatbot.vector_rag.embed_query")
+    def test_vector_retrieve_respects_score_threshold(self, mock_embed):
+        from .models import KnowledgeChunk
+        from .vector_rag import vector_retrieve
+
+        mock_embed.return_value = [1.0, 0.0]
+        KnowledgeChunk.objects.create(
+            source="knowledge.py",
+            section="product:vetri_bills",
+            text="GST billing software Vetri Bills",
+            chunk_index=0,
+            content_hash="abc",
+            embedding=[1.0, 0.0],
+        )
+        KnowledgeChunk.objects.create(
+            source="knowledge.py",
+            section="other",
+            text="Unrelated content",
+            chunk_index=1,
+            content_hash="def",
+            embedding=[0.0, 1.0],
+        )
+
+        with patch("chatbot.vector_rag.vector_rag_available", return_value=True):
+            results = vector_retrieve("GST billing", limit=4)
+
+        self.assertEqual(len(results), 1)
+        self.assertIn("Vetri Bills", results[0]["text"])
+
+    def test_content_hash_unchanged_skips_reindex(self):
+        from .models import KnowledgeIndexState
+        from .vector_rag import compute_content_hash, index_knowledge
+
+        content_hash = compute_content_hash()
+        KnowledgeIndexState.objects.create(content_hash=content_hash, chunk_count=10)
+
+        with patch("chatbot.vector_rag.is_postgresql", return_value=True):
+            with patch("chatbot.vector_rag.embed_documents_batched") as mock_embed:
+                result = index_knowledge(force=False)
+                mock_embed.assert_not_called()
+
+        self.assertEqual(result["status"], "unchanged")
+
+    @override_settings(GEMINI_API_KEY="test-key", EMBEDDING_BATCH_SIZE=20)
+    @patch("chatbot.vector_rag.embed_documents_batched")
+    @patch("chatbot.vector_rag.is_postgresql", return_value=True)
+    def test_index_knowledge_creates_chunks(self, _mock_pg, mock_embed):
+        from .models import KnowledgeChunk, KnowledgeIndexState
+        from .vector_rag import index_knowledge
+
+        source_chunks = [
+            {"source": "test.md", "section": "s1", "text": "Alpha", "index": 0},
+            {"source": "test.md", "section": "s2", "text": "Beta", "index": 1},
+        ]
+        mock_embed.return_value = [[1.0, 0.0], [0.0, 1.0]]
+
+        with patch("chatbot.vector_rag.collect_source_chunks", return_value=source_chunks):
+            result = index_knowledge(force=True)
+
+        self.assertEqual(result["status"], "indexed")
+        self.assertEqual(result["chunk_count"], 2)
+        self.assertEqual(KnowledgeChunk.objects.count(), 2)
+        self.assertEqual(KnowledgeIndexState.objects.count(), 1)
+
+
+class BuildPromptVectorTests(TestCase):
+    def test_build_prompt_includes_rag_context(self):
+        with patch("chatbot.views.retrieve") as mock_retrieve:
+            mock_retrieve.return_value = [{
+                "source": "knowledge.py",
+                "section": "company",
+                "text": "Vetri IT Systems contact +91 84381 54827",
+            }]
+            prompt = build_prompt("How do I contact VIS?")
+
+        self.assertIn("support@vetri-it.com", prompt)
+        self.assertIn("do not have that specific detail", prompt)

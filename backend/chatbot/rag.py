@@ -1,5 +1,9 @@
 from pathlib import Path
 
+from django.conf import settings
+
+from .vector_rag import EXCLUDED_INDEX_FILES, vector_rag_available
+
 DATA_DIR = Path(__file__).resolve().parent / "data"
 CHUNK_SIZE = 700
 CHUNK_OVERLAP = 100
@@ -7,6 +11,12 @@ STOPWORDS = {
     "a", "an", "the", "and", "or", "to", "of", "in", "on", "for", "is", "are",
     "what", "how", "would", "i", "me", "my", "that", "this", "with", "about",
 }
+
+MISSING_INFO_GUARD = (
+    "If the excerpts below do not contain enough information to answer the question, "
+    "say you do not have that specific detail and direct the user to "
+    "support@vetri-it.com or +91 84381 54827. Never invent facts, prices, or features."
+)
 
 
 def _tokenize(text: str) -> set[str]:
@@ -44,14 +54,16 @@ def load_chunks() -> list[dict]:
         _CHUNKS_CACHE = chunks
         return chunks
     for path in sorted(DATA_DIR.glob("*")):
-        if path.suffix.lower() not in {".md", ".txt"} or path.name == "README.txt":
+        if path.suffix.lower() not in {".md", ".txt"}:
+            continue
+        if path.name in EXCLUDED_INDEX_FILES:
             continue
         chunks.extend(_chunk_text(path.read_text(encoding="utf-8"), path.name))
     _CHUNKS_CACHE = chunks
     return chunks
 
 
-def retrieve(query: str, limit: int = 4) -> list[dict]:
+def lexical_retrieve(query: str, limit: int = 4) -> list[dict]:
     query_tokens = _tokenize(query)
     scored = []
     chunks = load_chunks()
@@ -64,17 +76,31 @@ def retrieve(query: str, limit: int = 4) -> list[dict]:
     if scored:
         return [chunk for _, chunk in scored[:limit]]
 
-    # Broad fallback so general questions still get website context.
     vis_chunks = [chunk for chunk in chunks if chunk["source"] == "vis_website.md"]
     if vis_chunks:
         return vis_chunks[:limit]
     return chunks[:limit]
 
 
+def retrieve(query: str, limit: int = 4) -> list[dict]:
+    """Vector search on PostgreSQL; lexical keyword fallback elsewhere."""
+    if vector_rag_available():
+        from .vector_rag import vector_retrieve
+
+        vector_chunks = vector_retrieve(query, limit=limit)
+        if vector_chunks:
+            return vector_chunks
+    return lexical_retrieve(query, limit=limit)
+
+
 def format_context(chunks: list[dict]) -> str:
     if not chunks:
         return ""
-    parts = ["Relevant VIS website excerpts:"]
+    parts = [MISSING_INFO_GUARD, "Relevant VIS knowledge excerpts:"]
     for chunk in chunks:
-        parts.append(f"[{chunk['source']}]\n{chunk['text']}")
+        section = chunk.get("section", "")
+        label = chunk["source"]
+        if section:
+            label = f"{label} — {section}"
+        parts.append(f"[{label}]\n{chunk['text']}")
     return "\n\n".join(parts)

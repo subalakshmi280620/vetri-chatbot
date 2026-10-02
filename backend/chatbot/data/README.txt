@@ -1,5 +1,17 @@
 Add .txt or .md files here for RAG (course notes, FAQs, question banks).
 The chatbot retrieves the most relevant chunks and sends them to Gemini.
+
+Vector RAG (PostgreSQL / Render):
+  - knowledge.py facts are exported automatically at index time.
+  - vis_website.md is indexed.
+  - vetrifresh.md is EXCLUDED until verified (conflicts with knowledge.py).
+  - Re-index only when content changes:
+      python manage.py index_knowledge
+  - Force re-index:
+      python manage.py index_knowledge --force
+
+Local SQLite uses lexical (keyword) RAG fallback — no index command needed.
+
 PDF support is not enabled yet; paste text from PDFs into a .md file.
 
 VERIFIED FACTS CHECKLIST (Coach AI must match exactly)
