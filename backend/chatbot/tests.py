@@ -21,7 +21,9 @@ from .throttles import ChatRateThrottle
 from .attachments import build_user_message_with_attachments, parse_attachments
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
 from .gemini import GeminiAPIError, ask_gemini
+from .grok import GrokAPIError, ask_grok
 from .views import (
+    SOURCE_AI,
     SOURCE_ELIGIBILITY,
     SOURCE_UNVERIFIED,
     SOURCE_VERIFIED_KB,
@@ -830,6 +832,8 @@ class GeminiRetryTests(TestCase):
         "GEMINI_API_KEY": "test-key",
         "GEMINI_MODEL": "gemini-3.8-flash",
         "GEMINI_FALLBACK_MODELS": ["gemini-3.6-flash"],
+        "GEMINI_CONSERVE_QUOTA": False,
+        "XAI_API_KEY": "",
         "DEEPSEEK_API_KEY": "",
     }
 
@@ -949,3 +953,156 @@ class GeminiRetryTests(TestCase):
         self.assertEqual(source, SOURCE_UNVERIFIED)
         self.assertIn("trouble reaching our AI", reply)
         self.assertIn("84381", reply)
+
+
+class GeminiConserveQuotaTests(TestCase):
+    @override_settings(
+        GEMINI_API_KEY="test-key",
+        GEMINI_MODEL="gemini-3.8-flash",
+        GEMINI_FALLBACK_MODELS=["gemini-3.6-flash"],
+        GEMINI_CONSERVE_QUOTA=True,
+        GEMINI_MAX_RETRIES=3,
+    )
+    @patch("chatbot.gemini._call_gemini_model")
+    def test_conserve_quota_uses_one_model_one_attempt(self, mock_call):
+        mock_call.side_effect = GeminiAPIError(
+            "Gemini HTTP 503: high demand",
+            code=503,
+            model="gemini-3.8-flash",
+        )
+
+        with self.assertRaises(GeminiAPIError):
+            ask_gemini("Hello", "system prompt")
+
+        self.assertEqual(mock_call.call_count, 1)
+        self.assertEqual(mock_call.call_args.args[0], "gemini-3.8-flash")
+
+
+class GrokFallbackTests(TestCase):
+    _AI_SETTINGS = {
+        "GEMINI_API_KEY": "test-gemini-key",
+        "GEMINI_MODEL": "gemini-3.8-flash",
+        "GEMINI_FALLBACK_MODELS": ["gemini-3.6-flash"],
+        "GEMINI_CONSERVE_QUOTA": True,
+        "XAI_API_KEY": "test-xai-key",
+        "GROK_MODEL": "grok-4.6",
+        "GROK_BASE_URL": "https://api.x.ai/v1",
+        "DEEPSEEK_API_KEY": "",
+    }
+
+    @override_settings(**_AI_SETTINGS)
+    @patch("chatbot.views.ask_gemini", return_value="Gemini reply about Vetri Bills.")
+    def test_gemini_success_uses_gemini(self, mock_gemini):
+        reply, source = generate_reply("What is Vetri Bills?")
+
+        self.assertEqual(source, SOURCE_AI)
+        self.assertEqual(reply, "Gemini reply about Vetri Bills.")
+        mock_gemini.assert_called_once()
+
+    @override_settings(**_AI_SETTINGS)
+    @patch("chatbot.views.ask_grok", return_value="Grok reply about Vetri Bills.")
+    @patch(
+        "chatbot.views.ask_gemini",
+        side_effect=GeminiAPIError(
+            "Gemini HTTP 503: high demand",
+            code=503,
+            model="gemini-3.8-flash",
+        ),
+    )
+    def test_gemini_fail_grok_success(self, mock_gemini, mock_grok):
+        reply, source = generate_reply("What products does VIS offer?")
+
+        self.assertEqual(source, SOURCE_AI)
+        self.assertIn("Grok reply", reply)
+        mock_gemini.assert_called()
+        mock_grok.assert_called_once()
+
+    @override_settings(**_AI_SETTINGS)
+    @patch("chatbot.views.ask_grok", return_value=None)
+    @patch(
+        "chatbot.views.ask_gemini",
+        side_effect=GeminiAPIError(
+            "Gemini HTTP 429: quota exceeded",
+            code=429,
+            model="gemini-3.8-flash",
+        ),
+    )
+    def test_both_ai_providers_fail_uses_verified_kb(self, mock_gemini, mock_grok):
+        reply, source = generate_reply("What products does VIS offer?")
+
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("Vetri Bills", reply)
+        mock_grok.assert_called_once()
+
+    @override_settings(**{**_AI_SETTINGS, "XAI_API_KEY": ""})
+    @patch("chatbot.views.ask_grok")
+    @patch(
+        "chatbot.views.ask_gemini",
+        side_effect=GeminiAPIError(
+            "Gemini HTTP 503: high demand",
+            code=503,
+            model="gemini-3.8-flash",
+        ),
+    )
+    def test_missing_grok_key_skips_grok(self, mock_gemini, mock_grok):
+        reply, source = generate_reply("What products does VIS offer?")
+
+        mock_grok.assert_not_called()
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("Vetri Bills", reply)
+
+    @override_settings(
+        XAI_API_KEY="test-xai-key",
+        GROK_MODEL="grok-4.6",
+        GROK_BASE_URL="https://api.x.ai/v1",
+        GROK_REQUEST_TIMEOUT=45,
+    )
+    @patch("chatbot.grok.urllib.request.urlopen")
+    def test_ask_grok_success(self, mock_urlopen):
+        mock_response = mock_urlopen.return_value.__enter__.return_value
+        mock_response.read.return_value = json.dumps({
+            "choices": [{"message": {"content": "  Hello from Grok.  "}}],
+        }).encode()
+
+        reply = ask_grok("What is VIS?", "system prompt")
+
+        self.assertEqual(reply, "Hello from Grok.")
+        request = mock_urlopen.call_args[0][0]
+        self.assertEqual(request.get_full_url(), "https://api.x.ai/v1/chat/completions")
+        self.assertTrue(request.headers.get("Authorization", "").startswith("Bearer "))
+        payload = json.loads(request.data.decode())
+        self.assertEqual(payload["model"], "grok-4.6")
+        self.assertEqual(payload["messages"][0]["role"], "system")
+        self.assertEqual(payload["messages"][-1]["content"], "What is VIS?")
+
+    @override_settings(XAI_API_KEY="")
+    def test_ask_grok_missing_key_raises(self):
+        with self.assertRaises(GrokAPIError) as ctx:
+            ask_grok("Hello", "system prompt")
+
+        self.assertIn("not set", str(ctx.exception))
+
+    @override_settings(
+        XAI_API_KEY="test-xai-key",
+        GROK_MODEL="grok-4.6",
+        GROK_BASE_URL="https://api.x.ai/v1",
+    )
+    @patch("chatbot.grok.urllib.request.urlopen")
+    def test_ask_grok_http_error(self, mock_urlopen):
+        import io
+        import urllib.error
+
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "https://api.x.ai/v1/chat/completions",
+            503,
+            "Service Unavailable",
+            {},
+            io.BytesIO(
+                json.dumps({"error": {"message": "high demand"}}).encode()
+            ),
+        )
+
+        with self.assertRaises(GrokAPIError) as ctx:
+            ask_grok("Hello", "system prompt")
+
+        self.assertEqual(ctx.exception.code, 503)

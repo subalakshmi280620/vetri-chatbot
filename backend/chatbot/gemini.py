@@ -28,10 +28,15 @@ class GeminiAPIError(RuntimeError):
 
 
 def _max_retries() -> int:
+    if settings.GEMINI_CONSERVE_QUOTA:
+        return 1
     return settings.GEMINI_MAX_RETRIES
 
 
 def _gemini_model_chain() -> list[str]:
+    if settings.GEMINI_CONSERVE_QUOTA:
+        primary = settings.GEMINI_MODEL
+        return [primary] if primary else []
     models = [settings.GEMINI_MODEL, *settings.GEMINI_FALLBACK_MODELS]
     seen: set[str] = set()
     chain: list[str] = []

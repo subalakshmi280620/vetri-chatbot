@@ -294,12 +294,24 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 
+XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
+GROK_BASE_URL = os.environ.get("GROK_BASE_URL", "https://api.x.ai/v1")
+GROK_MODEL = os.environ.get("GROK_MODEL", "grok-4.6")
+try:
+    GROK_REQUEST_TIMEOUT = max(
+        10, min(int(os.environ.get("GROK_REQUEST_TIMEOUT", "45")), 60)
+    )
+except (TypeError, ValueError):
+    GROK_REQUEST_TIMEOUT = 45
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_BASE_URL = os.environ.get(
     "GEMINI_BASE_URL",
     "https://generativelanguage.googleapis.com/v1beta",
 )
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+# Free tier: one model + one attempt per message (saves RPM/RPD quota).
+GEMINI_CONSERVE_QUOTA = _env_bool("GEMINI_CONSERVE_QUOTA", True)
 GEMINI_FALLBACK_MODELS = [
     model.strip()
     for model in os.environ.get(

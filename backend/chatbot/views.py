@@ -11,6 +11,7 @@ from .throttles import ChatRateThrottle
 
 from .deepseek import ask_deepseek
 from .gemini import GeminiAPIError, ask_gemini
+from .grok import GrokAPIError, ask_grok
 from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import (
     AI_FULLY_UNAVAILABLE_MESSAGE,
@@ -67,6 +68,23 @@ def build_compact_prompt(user_message: str) -> str:
     return "\n\n".join(parts)
 
 
+def _try_grok_reply(user_message: str, prompt: str, history=None) -> str | None:
+    if not settings.XAI_API_KEY:
+        return None
+    try:
+        return ask_grok(user_message, prompt, history)
+    except GrokAPIError as exc:
+        logger.warning(
+            "Grok fallback unavailable: HTTP=%s",
+            exc.code or "unknown",
+        )
+        return None
+    except Exception as exc:
+        detail = str(exc).replace(settings.XAI_API_KEY, "***")[:240]
+        logger.warning("Grok fallback unavailable: %s", detail or type(exc).__name__)
+        return None
+
+
 def _try_deepseek_reply(user_message: str, prompt: str, history=None) -> str | None:
     if not settings.DEEPSEEK_API_KEY:
         return None
@@ -80,8 +98,8 @@ def _try_deepseek_reply(user_message: str, prompt: str, history=None) -> str | N
 
 
 def _try_ai_reply(user_message: str, history=None, attachments=None) -> str | None:
-    """Gemini first (images + primary). DeepSeek automatic backup when Gemini fails."""
-    if not (settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY):
+    """Gemini first (images + primary). Grok, then DeepSeek, when Gemini fails."""
+    if not (settings.XAI_API_KEY or settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY):
         return None
 
     prompt = build_prompt(user_message)
@@ -96,29 +114,17 @@ def _try_ai_reply(user_message: str, history=None, attachments=None) -> str | No
                 exc.model or "unknown",
                 exc.code or "unknown",
             )
-            if exc.code == 429 and not images:
-                compact = build_compact_prompt(user_message)
-                try:
-                    logger.info("Retrying Gemini with compact prompt after HTTP 429")
-                    return ask_gemini(user_message, compact, history, images=None)
-                except GeminiAPIError as retry_exc:
-                    logger.warning(
-                        "Gemini compact retry failed: HTTP %s",
-                        retry_exc.code or "unknown",
-                    )
-                except Exception as retry_exc:
-                    logger.warning(
-                        "Gemini compact retry failed: %s",
-                        type(retry_exc).__name__,
-                    )
         except Exception as exc:
             logger.warning(
-                "Gemini unavailable: %s — trying DeepSeek fallback",
+                "Gemini unavailable: %s — trying Grok/DeepSeek fallbacks",
                 type(exc).__name__,
             )
 
-    # Backup AI for text chat when Gemini is down (503 high demand, 429 quota, etc.)
+    # Backup AI for text chat when Gemini is down (503, 429, timeout, etc.)
     if not images:
+        grok_reply = _try_grok_reply(user_message, prompt, history)
+        if grok_reply:
+            return grok_reply
         return _try_deepseek_reply(user_message, prompt, history)
 
     return None
@@ -143,7 +149,9 @@ def generate_reply(
     if user_message and is_greeting(user_message) and not (attachments and (attachments.images or attachments.document_text)):
         return SHORT_GREETING_REPLY, SOURCE_AI
 
-    ai_configured = bool(settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY)
+    ai_configured = bool(
+        settings.GEMINI_API_KEY or settings.XAI_API_KEY or settings.DEEPSEEK_API_KEY
+    )
     ai_reply = _try_ai_reply(user_message, history, attachments)
     if ai_reply:
         return enforce_verified_facts(ai_reply.strip()), SOURCE_AI
@@ -262,7 +270,9 @@ def chat(request):
         logger.exception("generate_reply failed: %s", type(exc).__name__)
         reply, source = _kb_fallback_reply(
             prompt_message,
-            ai_was_attempted=bool(settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY),
+            ai_was_attempted=bool(
+                settings.GEMINI_API_KEY or settings.XAI_API_KEY or settings.DEEPSEEK_API_KEY
+            ),
         )
     suggestions = get_follow_up_suggestions(prompt_message, reply, source)
     suggest_enquiry = detect_suggested_enquiry_type(user_message)
