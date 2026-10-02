@@ -955,6 +955,30 @@ class GeminiRetryTests(TestCase):
         self.assertIn("84381", reply)
 
 
+class AiDisabledTests(TestCase):
+    @override_settings(
+        AI_ENABLED=False,
+        GEMINI_API_KEY="test-gemini-key",
+        XAI_API_KEY="test-xai-key",
+    )
+    @patch("chatbot.views.ask_gemini")
+    @patch("chatbot.views.ask_grok")
+    def test_ai_disabled_skips_all_providers(self, mock_grok, mock_gemini):
+        reply, source = generate_reply("What products does VIS offer?")
+
+        mock_gemini.assert_not_called()
+        mock_grok.assert_not_called()
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("Vetri Bills", reply)
+
+    @override_settings(AI_ENABLED=False, GEMINI_API_KEY="test-gemini-key")
+    def test_ai_disabled_greeting_still_works(self):
+        reply, source = generate_reply("hi")
+
+        self.assertEqual(source, SOURCE_AI)
+        self.assertEqual(reply, SHORT_GREETING_REPLY)
+
+
 class GeminiConserveQuotaTests(TestCase):
     @override_settings(
         GEMINI_API_KEY="test-key",

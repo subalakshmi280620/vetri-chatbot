@@ -304,6 +304,9 @@ try:
 except (TypeError, ValueError):
     GROK_REQUEST_TIMEOUT = 45
 
+# Set AI_ENABLED=false to skip Gemini/Grok/DeepSeek calls (saves quota; uses verified KB).
+AI_ENABLED = _env_bool("AI_ENABLED", True)
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_BASE_URL = os.environ.get(
     "GEMINI_BASE_URL",

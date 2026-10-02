@@ -97,8 +97,17 @@ def _try_deepseek_reply(user_message: str, prompt: str, history=None) -> str | N
         return None
 
 
+def _ai_providers_configured() -> bool:
+    return bool(
+        settings.AI_ENABLED
+        and (settings.GEMINI_API_KEY or settings.XAI_API_KEY or settings.DEEPSEEK_API_KEY)
+    )
+
+
 def _try_ai_reply(user_message: str, history=None, attachments=None) -> str | None:
     """Gemini first (images + primary). Grok, then DeepSeek, when Gemini fails."""
+    if not settings.AI_ENABLED:
+        return None
     if not (settings.XAI_API_KEY or settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY):
         return None
 
@@ -149,9 +158,7 @@ def generate_reply(
     if user_message and is_greeting(user_message) and not (attachments and (attachments.images or attachments.document_text)):
         return SHORT_GREETING_REPLY, SOURCE_AI
 
-    ai_configured = bool(
-        settings.GEMINI_API_KEY or settings.XAI_API_KEY or settings.DEEPSEEK_API_KEY
-    )
+    ai_configured = _ai_providers_configured()
     ai_reply = _try_ai_reply(user_message, history, attachments)
     if ai_reply:
         return enforce_verified_facts(ai_reply.strip()), SOURCE_AI
@@ -270,9 +277,7 @@ def chat(request):
         logger.exception("generate_reply failed: %s", type(exc).__name__)
         reply, source = _kb_fallback_reply(
             prompt_message,
-            ai_was_attempted=bool(
-                settings.GEMINI_API_KEY or settings.XAI_API_KEY or settings.DEEPSEEK_API_KEY
-            ),
+            ai_was_attempted=_ai_providers_configured(),
         )
     suggestions = get_follow_up_suggestions(prompt_message, reply, source)
     suggest_enquiry = detect_suggested_enquiry_type(user_message)
