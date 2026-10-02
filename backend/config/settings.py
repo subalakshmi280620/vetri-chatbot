@@ -312,6 +312,16 @@ try:
     GEMINI_MAX_RETRIES = max(1, min(int(os.environ.get("GEMINI_MAX_RETRIES", "2")), 5))
 except (TypeError, ValueError):
     GEMINI_MAX_RETRIES = 2
+try:
+    GEMINI_RAG_LIMIT = max(2, min(int(os.environ.get("GEMINI_RAG_LIMIT", "4")), 8))
+except (TypeError, ValueError):
+    GEMINI_RAG_LIMIT = 4
+try:
+    GEMINI_REQUEST_TIMEOUT = max(
+        10, min(int(os.environ.get("GEMINI_REQUEST_TIMEOUT", "25")), 60)
+    )
+except (TypeError, ValueError):
+    GEMINI_REQUEST_TIMEOUT = 25
 
 CHAT_MAX_MESSAGE_LENGTH = int(os.environ.get("CHAT_MAX_MESSAGE_LENGTH", "2000"))
 CHAT_MAX_ATTACHMENTS = int(os.environ.get("CHAT_MAX_ATTACHMENTS", "3"))

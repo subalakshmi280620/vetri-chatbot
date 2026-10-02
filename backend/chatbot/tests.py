@@ -874,16 +874,16 @@ class GeminiRetryTests(TestCase):
     @override_settings(**_GEMINI_SETTINGS)
     @patch("chatbot.gemini.time.sleep")
     @patch("chatbot.gemini._call_gemini_model")
-    def test_429_does_not_retry_quota_exhausted_model(self, mock_call, mock_sleep):
+    def test_429_skips_all_models_without_retry(self, mock_call, mock_sleep):
         mock_call.side_effect = [
             GeminiAPIError("Gemini HTTP 429: quota exceeded", code=429, model="gemini-3.8-flash"),
-            "Fallback model reply.",
         ]
 
-        reply = ask_gemini("What is VIS?", "system prompt")
+        with self.assertRaises(GeminiAPIError) as ctx:
+            ask_gemini("What is VIS?", "system prompt")
 
-        self.assertEqual(reply, "Fallback model reply.")
-        self.assertEqual(mock_call.call_count, 2)
+        self.assertEqual(ctx.exception.code, 429)
+        self.assertEqual(mock_call.call_count, 1)
         mock_sleep.assert_not_called()
 
     @override_settings(**_GEMINI_SETTINGS)
@@ -931,7 +931,7 @@ class GeminiRetryTests(TestCase):
         reply, source = generate_reply("What products does VIS offer?")
 
         self.assertEqual(source, SOURCE_VERIFIED_KB)
-        self.assertIn("temporarily unavailable", reply)
+        self.assertNotIn("temporarily unavailable", reply)
         self.assertIn("Vetri Bills", reply)
         self.assertNotIn("Our Products —", reply)
 

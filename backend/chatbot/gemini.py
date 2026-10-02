@@ -108,7 +108,9 @@ def _call_gemini_model(
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with urllib.request.urlopen(
+            request, timeout=settings.GEMINI_REQUEST_TIMEOUT
+        ) as response:
             data = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="ignore")
@@ -137,8 +139,14 @@ def ask_gemini(
 ) -> str:
     last_error: GeminiAPIError | None = None
     quota_exhausted_models: set[str] = set()
+    api_quota_exhausted = False
 
     for model in _gemini_model_chain():
+        if api_quota_exhausted:
+            logger.info(
+                "Skipping remaining Gemini models — API key quota exhausted (HTTP 429)",
+            )
+            break
         if model in quota_exhausted_models:
             logger.info(
                 "Skipping Gemini model %s — quota already exhausted this request",
@@ -192,11 +200,12 @@ def ask_gemini(
 
                 if code in QUOTA_EXHAUSTED_CODES:
                     quota_exhausted_models.add(model)
+                    api_quota_exhausted = True
                     logger.warning(
-                        "Gemini model %s quota exhausted (HTTP %s); "
-                        "skipping further attempts for this model",
-                        model,
+                        "Gemini API quota exhausted (HTTP %s) on model %s; "
+                        "skipping all remaining Gemini models for this request",
                         code,
+                        model,
                     )
                     break
 

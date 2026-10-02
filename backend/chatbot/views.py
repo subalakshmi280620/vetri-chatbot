@@ -13,7 +13,6 @@ from .deepseek import ask_deepseek
 from .gemini import GeminiAPIError, ask_gemini
 from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import (
-    AI_BUSY_KB_PREFIX,
     AI_FULLY_UNAVAILABLE_MESSAGE,
     GENERIC_FALLBACK_MARKER,
     SHORT_GREETING_REPLY,
@@ -40,7 +39,7 @@ HISTORY_LIMIT = 12
 
 def build_prompt(user_message: str) -> str:
     parts = [SYSTEM_PROMPT, get_verified_facts_prompt()]
-    context = format_context(retrieve(user_message, limit=6))
+    context = format_context(retrieve(user_message, limit=settings.GEMINI_RAG_LIMIT))
     if context:
         parts.append(context)
     grounding = get_grounding_facts(user_message)
@@ -50,6 +49,21 @@ def build_prompt(user_message: str) -> str:
             "conversational words; complete sentences; 2–4 short lines):\n"
             f"{grounding}"
         )
+    return "\n\n".join(parts)
+
+
+def build_compact_prompt(user_message: str) -> str:
+    """Smaller prompt for a last-chance Gemini retry after rate-limit errors."""
+    parts = [
+        (
+            "You are Coach AI for Vetri IT Systems (VIS). Reply warmly in 2–4 complete "
+            "sentences. Use only verified facts below — never invent pricing."
+        ),
+        get_verified_facts_prompt(),
+    ]
+    grounding = get_grounding_facts(user_message)
+    if grounding:
+        parts.append(grounding)
     return "\n\n".join(parts)
 
 
@@ -78,10 +92,25 @@ def _try_ai_reply(user_message: str, history=None, attachments=None) -> str | No
             return ask_gemini(user_message, prompt, history, images=images)
         except GeminiAPIError as exc:
             logger.warning(
-                "Gemini unavailable: model=%s HTTP=%s — trying DeepSeek fallback",
+                "Gemini unavailable: model=%s HTTP=%s — trying fallbacks",
                 exc.model or "unknown",
                 exc.code or "unknown",
             )
+            if exc.code == 429 and not images:
+                compact = build_compact_prompt(user_message)
+                try:
+                    logger.info("Retrying Gemini with compact prompt after HTTP 429")
+                    return ask_gemini(user_message, compact, history, images=None)
+                except GeminiAPIError as retry_exc:
+                    logger.warning(
+                        "Gemini compact retry failed: HTTP %s",
+                        retry_exc.code or "unknown",
+                    )
+                except Exception as retry_exc:
+                    logger.warning(
+                        "Gemini compact retry failed: %s",
+                        type(retry_exc).__name__,
+                    )
         except Exception as exc:
             logger.warning(
                 "Gemini unavailable: %s — trying DeepSeek fallback",
@@ -96,13 +125,14 @@ def _try_ai_reply(user_message: str, history=None, attachments=None) -> str | No
 
 
 def _kb_fallback_reply(user_message: str, ai_was_attempted: bool) -> tuple[str, str]:
-    """Verified KB fallback — clearly labelled when AI was tried but failed."""
+    """Verified KB fallback when AI is unavailable."""
     fallback = get_conversational_fallback(user_message)
     if not ai_was_attempted:
         return fallback, SOURCE_VERIFIED_KB
     if GENERIC_FALLBACK_MARKER in fallback:
         return AI_FULLY_UNAVAILABLE_MESSAGE, SOURCE_UNVERIFIED
-    return f"{AI_BUSY_KB_PREFIX}{fallback}", SOURCE_VERIFIED_KB
+    # Specific verified answer — read naturally; UI source badge shows verified_kb.
+    return fallback, SOURCE_VERIFIED_KB
 
 
 def generate_reply(
@@ -226,7 +256,14 @@ def chat(request):
     )
     history.reverse()
 
-    reply, source = generate_reply(prompt_message, history, processed_attachments)
+    try:
+        reply, source = generate_reply(prompt_message, history, processed_attachments)
+    except Exception as exc:
+        logger.exception("generate_reply failed: %s", type(exc).__name__)
+        reply, source = _kb_fallback_reply(
+            prompt_message,
+            ai_was_attempted=bool(settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY),
+        )
     suggestions = get_follow_up_suggestions(prompt_message, reply, source)
     suggest_enquiry = detect_suggested_enquiry_type(user_message)
 

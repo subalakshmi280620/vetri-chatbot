@@ -42,6 +42,12 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-3.8-flash
+      - key: GEMINI_FALLBACK_MODELS
+        value: gemini-3.6-flash
+      - key: GEMINI_MAX_RETRIES
+        value: "2"
+      - key: GEMINI_RAG_LIMIT
+        value: "4"
       - key: ENQUIRY_NOTIFY_EMAIL
         sync: false
       - key: RESEND_API_KEY
