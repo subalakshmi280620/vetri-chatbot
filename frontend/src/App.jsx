@@ -59,7 +59,9 @@ async function buildAttachmentFromFile(file) {
   }
 }
 const HEALTH_URL = `${API_BASE}/health/`
-const IS_EMBED = new URLSearchParams(window.location.search).get('embed') === '1'
+const EMBED_SEARCH = new URLSearchParams(window.location.search)
+const IS_EMBED = EMBED_SEARCH.get('embed') === '1'
+const EMBED_HOST_WIDGET = EMBED_SEARCH.get('open') === '1'
 const CLIENT_TOKEN_KEY = 'visClientToken'
 const CONVERSATION_ID_KEY = 'visConversationId'
 
@@ -876,7 +878,7 @@ function HistorySidebar({
 
         <footer className="history-sidebar-foot">
           Saved on this browser only. Other people and other devices cannot see your chats.
-          Use + New chat to start a separate conversation.
+          Tap a chat below to continue it, or use + New chat for a fresh conversation.
         </footer>
       </aside>
     </>
@@ -885,16 +887,14 @@ function HistorySidebar({
 
 function App() {
   const [messages, setMessages] = useState([])
-  const [conversationId, setConversationId] = useState(
-    () => getStoredItem(CONVERSATION_ID_KEY) || ''
-  )
+  const [conversationId, setConversationId] = useState('')
   const [input, setInput] = useState('')
   const [pendingAttachments, setPendingAttachments] = useState([])
   const [isListening, setIsListening] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [historyList, setHistoryList] = useState([])
-  const [widgetOpen, setWidgetOpen] = useState(!IS_EMBED)
+  const [widgetOpen, setWidgetOpen] = useState(!IS_EMBED || EMBED_HOST_WIDGET)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [apiStatus, setApiStatus] = useState('checking')
   const [followUps, setFollowUps] = useState([])
@@ -972,20 +972,20 @@ function App() {
     setStoredItem(CONVERSATION_ID_KEY, id)
   }
 
+  function closeEmbedWidget() {
+    setWidgetOpen(false)
+    if (EMBED_HOST_WIDGET && window.parent !== window) {
+      window.parent.postMessage({ type: 'coach-ai-close' }, '*')
+    }
+  }
+
   async function bootstrapChat() {
-    const conversations = await loadHistoryList()
-    const savedId = getStoredItem(CONVERSATION_ID_KEY)
-    if (savedId && conversations.some((item) => item.id === savedId)) {
-      await openConversation(savedId)
-      return
-    }
-    if (savedId) {
-      removeStoredItem(CONVERSATION_ID_KEY)
-      setConversationId('')
-    }
-    if (conversations.length > 0) {
-      await openConversation(conversations[0].id)
-    }
+    await loadHistoryList()
+    removeStoredItem(CONVERSATION_ID_KEY)
+    setConversationId('')
+    setMessages([])
+    setFollowUps([])
+    setError('')
   }
 
   async function loadHistoryList() {
@@ -1083,13 +1083,9 @@ function App() {
         throw new Error(data.error || 'Could not delete chat.')
       }
 
-      const conversations = await loadHistoryList()
+      await loadHistoryList()
       if (wasActive) {
-        if (conversations.length > 0) {
-          await openConversation(conversations[0].id)
-        } else {
-          newChat()
-        }
+        newChat()
       }
     } catch (err) {
       setError(err.message)
@@ -1432,7 +1428,7 @@ function App() {
         </section>
       )}
 
-      {IS_EMBED && !widgetOpen && (
+      {IS_EMBED && !EMBED_HOST_WIDGET && !widgetOpen && (
         <button
           type="button"
           className="launcher"
@@ -1473,7 +1469,7 @@ function App() {
                 History
               </button>
               {IS_EMBED && (
-                <button type="button" className="ghost icon-btn" onClick={() => setWidgetOpen(false)}>
+                <button type="button" className="ghost icon-btn" onClick={closeEmbedWidget}>
                   ×
                 </button>
               )}
