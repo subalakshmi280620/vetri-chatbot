@@ -59,3 +59,12 @@ body.embed #root {
 body.embed .widget-root {
   pointer-events: auto;
 }
+
+html.embed-host,
+body.embed-host,
+body.embed-host #root,
+body.embed-host .widget-root-host {
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}

@@ -913,9 +913,11 @@ function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('embed', IS_EMBED)
     document.body.classList.toggle('embed', IS_EMBED)
+    document.documentElement.classList.toggle('embed-host', IS_EMBED && EMBED_HOST_WIDGET)
+    document.body.classList.toggle('embed-host', IS_EMBED && EMBED_HOST_WIDGET)
     return () => {
-      document.documentElement.classList.remove('embed')
-      document.body.classList.remove('embed')
+      document.documentElement.classList.remove('embed', 'embed-host')
+      document.body.classList.remove('embed', 'embed-host')
     }
   }, [])
 
@@ -1409,7 +1411,13 @@ function App() {
   )
 
   return (
-    <div className={IS_EMBED ? 'widget-root' : 'page'}>
+    <div
+      className={
+        IS_EMBED
+          ? `widget-root${EMBED_HOST_WIDGET ? ' widget-root-host' : ''}`
+          : 'page'
+      }
+    >
       {!IS_EMBED && <SiteNav />}
 
       {!IS_EMBED && (

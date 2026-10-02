@@ -70,7 +70,7 @@
       bottom: 16px;
       z-index: 2147483001;
       width: min(400px, calc(100vw - 24px));
-      height: min(600px, calc(100svh - 96px));
+      height: min(640px, calc(100svh - 80px));
       border: 0;
       border-radius: 12px;
       overflow: hidden;

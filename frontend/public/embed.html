@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VIS Website — Coach AI Embed Kit</title>
+    <title>Coach AI — Website Embed Preview</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -20,6 +20,15 @@
         background: var(--bg);
         color: #111827;
       }
+      .banner {
+        background: #ecfdf5;
+        border-bottom: 1px solid #a7f3d0;
+        color: #065f46;
+        padding: 12px 20px;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .banner a { color: #047857; font-weight: 600; }
       .site-nav {
         background: #fff;
         border-bottom: 1px solid #e5e7eb;
@@ -30,40 +39,50 @@
         justify-content: space-between;
       }
       .site-nav strong { color: var(--vis-navy); }
-      .site-cta {
-        background: var(--vis-green);
-        color: #0c1e3d;
-        font-size: 13px;
-        font-weight: 700;
-        padding: 8px 18px;
-        border-radius: 999px;
-      }
       main {
-        max-width: 760px;
+        max-width: 720px;
         margin: 0 auto;
-        padding: 48px 24px 120px;
+        padding: 40px 24px 100px;
       }
       main h1 {
         color: var(--vis-navy);
         font-size: 28px;
+        margin: 0 0 12px;
       }
       main h1 span { color: #22c55e; }
-      main p { color: #6b7280; line-height: 1.65; }
-      .embed-box {
-        margin-top: 28px;
-        padding: 18px;
+      main p {
+        color: #6b7280;
+        line-height: 1.65;
+        margin: 0 0 16px;
+      }
+      .hint {
+        padding: 14px 16px;
+        border-radius: 8px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        font-size: 14px;
+        color: #374151;
+      }
+      details {
+        margin-top: 20px;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
         background: #fff;
+        overflow: hidden;
       }
-      .embed-box h2 {
-        margin: 0 0 10px;
-        font-size: 15px;
+      summary {
+        cursor: pointer;
+        padding: 14px 16px;
+        font-weight: 600;
         color: var(--vis-navy);
+        list-style: none;
       }
-      .embed-box p {
-        margin: 0 0 12px;
-        font-size: 14px;
+      summary::-webkit-details-marker { display: none; }
+      details[open] summary {
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .code-wrap {
+        padding: 14px 16px 16px;
       }
       pre {
         margin: 0;
@@ -77,66 +96,56 @@
         white-space: pre-wrap;
         word-break: break-all;
       }
-      .note {
-        margin-top: 16px;
-        padding: 12px 14px;
-        border-radius: 8px;
-        background: #ecfdf5;
-        color: #065f46;
-        font-size: 13px;
-      }
     </style>
   </head>
   <body>
+    <div class="banner">
+      <strong>Preview page for developers.</strong>
+      End users should open the chat at
+      <a href="https://vetri-chatbot-ui.onrender.com">vetri-chatbot-ui.onrender.com</a>
+      — not this page. Click the green <strong>Coach AI</strong> button below to test the website widget.
+    </div>
+
     <nav class="site-nav">
       <strong>Vetri IT Systems</strong>
-      <span class="site-cta">Website preview</span>
+      <span style="font-size:13px;color:#6b7280;">Sample website page</span>
     </nav>
+
     <main>
-      <h1>Coach AI <span>Embed Kit</span></h1>
+      <h1>Welcome to <span>Vetri IT Systems</span></h1>
       <p>
-        This page previews the floating Coach AI button on a VIS website.
-        Click the green <strong>Coach AI</strong> button in the bottom-right corner.
+        This page simulates how Coach AI appears on vetriitsystems.com — a floating
+        green button in the bottom-right corner. Your real website content would go here.
+      </p>
+      <p class="hint">
+        👉 Click <strong>Coach AI</strong> (bottom-right) to open the chat. The send button
+        and full composer should fit inside the panel.
       </p>
 
-      <div class="embed-box">
-        <h2>Recommended — add to vetriitsystems.com (before &lt;/body&gt;)</h2>
-        <p>One script tag. No duplicate chatbot. Uses the live Render chat UI + Django API.</p>
-        <pre>&lt;script
+      <details>
+        <summary>Developer only — copy script for vetriitsystems.com</summary>
+        <div class="code-wrap">
+          <pre>&lt;script
   src="https://vetri-chatbot-ui.onrender.com/coach-ai-widget.js"
   data-chat-url="https://vetri-chatbot-ui.onrender.com"
   data-title="Coach AI"
   defer
 &gt;&lt;/script&gt;</pre>
-      </div>
+        </div>
+      </details>
 
-      <div class="embed-box">
-        <h2>Local development</h2>
-        <p>With <code>npm run dev</code> on port 5173 and Django on port 8000:</p>
-        <pre>&lt;script
+      <details>
+        <summary>Developer only — local testing (npm run dev + Django)</summary>
+        <div class="code-wrap">
+          <pre>&lt;script
   src="http://localhost:5173/coach-ai-widget.js"
   data-chat-url="http://localhost:5173"
   defer
 &gt;&lt;/script&gt;</pre>
-      </div>
-
-      <div class="embed-box">
-        <h2>Alternative — iframe-only embed (launcher inside iframe)</h2>
-        <pre>&lt;iframe
-  src="https://vetri-chatbot-ui.onrender.com/?embed=1"
-  title="Coach AI — Vetri IT Systems"
-  style="position:fixed;right:0;bottom:0;width:400px;height:600px;border:0;background:transparent;z-index:99999;"
-  loading="lazy"
-&gt;&lt;/iframe&gt;</pre>
-      </div>
-
-      <p class="note">
-        After deploying the UI to Render, paste the production script into vetriitsystems.com.
-        CORS already allows vetriitsystems.com on the Django API.
-      </p>
+        </div>
+      </details>
     </main>
 
-    <!-- Local preview: auto-detect this dev server origin -->
     <script>
       (function () {
         const tag = document.createElement('script')
