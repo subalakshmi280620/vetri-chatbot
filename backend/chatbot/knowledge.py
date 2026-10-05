@@ -128,7 +128,11 @@ COURSES = [
 ]
 
 COURSE_DURATION = "180 days"
+COURSE_INTERNSHIP = "3 months"
 ELIGIBILITY_REQUIREMENT = "Any degree completion"
+# Official website packages only. Do not invent other ₹ prices.
+ECOMMERCE_WEBSITE_PRICE = "₹9,999"
+RETAIL_SHOP_WEBSITE_PRICE = "₹3,000"
 
 DEGREE_INDICATORS = (
     "degree", "graduate", "graduation", "graduated", "bachelor", "master",
@@ -335,8 +339,10 @@ def course_card(name: str, extra: str = "") -> str:
         f"{name} is a VIS training programme supported by Coach AI — our AI Learning Platform.\n"
         f"{extra_block}\n"
         f"Duration: {COURSE_DURATION}\n"
+        f"Internship: {COURSE_INTERNSHIP} (included with every VIS course)\n"
         f"Eligibility: {ELIGIBILITY_REQUIREMENT}\n\n"
-        f"For fees or enrollment, {CONTACT_LINE.lower()}."
+        "Ask me about the course first. When you want to join, say enroll and "
+        "I will collect your details here. You do not need a website sign-in."
     )
 
 
@@ -573,8 +579,9 @@ REPLIES = {
         f"Training Courses — Coach AI / {ORG_NAME}\n\n"
         + "\n".join(f"• {name}" for name in COURSES)
         + f"\n\nDuration: {COURSE_DURATION}\n"
+        f"Internship: {COURSE_INTERNSHIP} with every course\n"
         f"Eligibility: {ELIGIBILITY_REQUIREMENT}\n\n"
-        f"For fees or enrollment, {CONTACT_LINE.lower()}."
+        "Tell me which course you want explained. Say enroll when you are ready to join."
     ),
     "pricing": (
         "Pricing & Quotation\n\n"
@@ -632,8 +639,9 @@ Example (why choose us):
 Ground rules:
 - Use verified VIS information below, retrieved excerpts, and grounding facts.
 - Answer products, services, courses, company info, mission, AI solutions, and how-to questions directly.
-- Course duration: {COURSE_DURATION}. Course eligibility: {ELIGIBILITY_REQUIREMENT}.
-- For fees/pricing: explain that pricing is tailored and what affects it — do NOT invent ₹ amounts. Mention enquiry/quote only at the end if needed.
+- Course duration: {COURSE_DURATION}. Every course includes a {COURSE_INTERNSHIP} internship. Course eligibility: {ELIGIBILITY_REQUIREMENT}.
+- Explain a course first. Only when the user wants to join, ask them to enroll in this chat. Do not ask them to sign in. There is no website login.
+- Official website prices only: ecommerce website {ECOMMERCE_WEBSITE_PRICE}; small retail shop website {RETAIL_SHOP_WEBSITE_PRICE}. Do NOT invent any other ₹ amount.
 - For eligibility: a completed degree (UG/PG) is required; check the user's qualification honestly.
 - Contact details when relevant: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}.
 - Say "contact the team" ONLY when: user explicitly wants phone/email, or topic is completely outside VIS.
@@ -677,6 +685,41 @@ def normalize_user_text(text: str) -> str:
     for wrong, right in _TYPO_FIXES:
         lowered = lowered.replace(wrong, right)
     return lowered
+
+
+_SHORT_YES = {
+    "yes", "yeah", "yep", "yup", "ok", "okay", "sure", "yes please",
+    "yeah sure", "ok sure", "please", "yes i want", "i want that",
+}
+
+
+def is_short_yes(message: str) -> bool:
+    text = normalize_user_text(message).strip().rstrip(".!?")
+    return text in _SHORT_YES
+
+
+def _last_bot_text(history) -> str:
+    for item in reversed(history or []):
+        if item.get("role") == "bot":
+            return item.get("text", "") or ""
+    return ""
+
+
+def reply_to_short_yes(history=None) -> str:
+    """One short reply when the user only says yes. Do not start a long report."""
+    last = _last_bot_text(history).lower()
+    if any(word in last for word in ("enroll", "join", "course", "internship")):
+        return (
+            "Yes. Tap Enroll now and share your name, email, and phone. "
+            "The VIS team will contact you. You do not need to sign in."
+        )
+    if any(word in last for word in ("demo",)):
+        return "Yes. Tap Request demo and tell us which product you want to see."
+    if any(word in last for word in ("quotation", "quote", "pricing", "price")):
+        return "Yes. Tap Enquiry, choose Quotation, and send what you need."
+    if last:
+        return "Yes. What should I explain next — a course, a product, or how to enroll?"
+    return "Yes. What do you need help with — a course, a product, or a website?"
 
 
 _VAGUE_FOLLOW_UPS = (
@@ -819,7 +862,28 @@ def _matches_apply_intent(text: str) -> bool:
     return any(k in text for k in (
         "how to apply", "how do i apply", "how can i apply", "application process",
         "admission process", "how to enroll", "apply for course", "apply for admission",
+        "i want to join", "want to join", "enroll now", "enrol now", "i want to enroll",
+        "ready to join", "sign me up",
     ))
+
+
+def _matches_website_price_intent(text: str) -> str | None:
+    """Return ecommerce or retail when the user asks about those website offers."""
+    ecommerce = any(k in text for k in (
+        "ecommerce", "e-commerce", "e commerce", "online store", "online shop",
+    ))
+    retail = any(k in text for k in (
+        "retail shop", "small shop", "small retail", "kirana", "retail website",
+    ))
+    asks_site = any(k in text for k in ("website", "web site", "site"))
+    asks_price = any(k in text for k in ("price", "cost", "how much", "offer", "package", "9999", "3000"))
+    if ecommerce and (asks_site or asks_price):
+        return "ecommerce"
+    if retail and (asks_site or asks_price or "3000" in text):
+        return "retail"
+    if asks_site and asks_price and "shop" in text:
+        return "retail"
+    return None
 
 
 def _matches_consultation_intent(text: str) -> bool:
@@ -1178,6 +1242,19 @@ def get_conversational_fallback(message: str) -> str:
     if is_greeting(text):
         return SHORT_GREETING_REPLY
 
+    website_offer = _matches_website_price_intent(text)
+    if website_offer == "ecommerce":
+        return (
+            f"VIS offers an ecommerce website package at {ECOMMERCE_WEBSITE_PRICE}. "
+            "When you want the team to start, say enroll and share your details in this chat. "
+            "No website sign-in is required."
+        )
+    if website_offer == "retail":
+        return (
+            f"For a small retail shop, VIS offers a website at {RETAIL_SHOP_WEBSITE_PRICE}. "
+            "Say enroll when you want our team to take your details and follow up."
+        )
+
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return (
             "Pricing depends on scope — users, features, and timeline. "
@@ -1206,9 +1283,11 @@ def get_conversational_fallback(message: str) -> str:
                 "and eligibility first. Use the Enquiry form for an exact fee quote."
             )
         return (
-            f"{course_name} is one of our {COURSE_DURATION} training programmes. "
-            f"Eligibility: {ELIGIBILITY_REQUIREMENT.lower()}. "
-            f"Want to know how to apply or check eligibility?"
+            f"{course_name} is a {COURSE_DURATION} VIS training programme. "
+            f"You need {ELIGIBILITY_REQUIREMENT.lower()}. "
+            f"Every course includes a {COURSE_INTERNSHIP} internship. "
+            "I can explain more first. When you want to join, say enroll and I will take your details here. "
+            "You do not need to sign in on the website."
         )
 
     if _matches_why_vis_intent(text):
@@ -1398,13 +1477,26 @@ def get_conversational_fallback(message: str) -> str:
     return f"{GENERIC_FALLBACK_MARKER} What would you like to know?"
 
 
-def detect_suggested_enquiry_type(message: str) -> str | None:
+def detect_suggested_enquiry_type(message: str, history=None) -> str | None:
     """Suggest opening the in-chat Enquiry form for business-intent questions."""
     text = message.strip().lower()
+    if is_short_yes(text):
+        last = _last_bot_text(history).lower()
+        if "demo" in last:
+            return "demo"
+        if any(word in last for word in ("quotation", "quote", "pricing")):
+            return "quotation"
+        if "consultation" in last:
+            return "consultation"
+        return "enroll"
     if _matches_consultation_intent(text):
         return "consultation"
     if _matches_demo_intent(text):
         return "demo"
+    # Enroll is the next step for courses and for linking with the team.
+    # There is no website sign-in.
+    if _matches_apply_intent(text) or _matches_website_price_intent(text):
+        return "enroll"
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return "quotation"
     if _matches_sales_intent(text):

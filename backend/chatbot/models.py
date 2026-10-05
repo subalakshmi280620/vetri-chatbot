@@ -44,11 +44,13 @@ class Enquiry(models.Model):
     TYPE_DEMO = "demo"
     TYPE_SALES = "sales"
     TYPE_GENERAL = "general"
+    TYPE_ENROLL = "enroll"
     TYPE_CHOICES = (
         (TYPE_QUOTATION, "Request a quotation"),
         (TYPE_CONSULTATION, "Book a consultation"),
         (TYPE_DEMO, "Request a product demo"),
         (TYPE_SALES, "Contact sales team"),
+        (TYPE_ENROLL, "Enroll / connect with team"),
         (TYPE_GENERAL, "General enquiry"),
     )
 

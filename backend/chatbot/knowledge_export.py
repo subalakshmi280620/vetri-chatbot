@@ -60,8 +60,16 @@ def export_knowledge_chunks() -> list[dict]:
     add(
         "courses_overview",
         f"VIS training programmes (duration: {kb.COURSE_DURATION}, "
+        f"internship: {kb.COURSE_INTERNSHIP} with every course, "
         f"eligibility: {kb.ELIGIBILITY_REQUIREMENT}):\n"
-        + "\n".join(f"• {name}" for name in kb.COURSES),
+        + "\n".join(f"• {name}" for name in kb.COURSES)
+        + "\nExplain the course first. Enroll in chat when the user wants to join. No website sign-in.",
+    )
+    add(
+        "website_packages",
+        f"Ecommerce website package: {kb.ECOMMERCE_WEBSITE_PRICE}. "
+        f"Small retail shop website: {kb.RETAIL_SHOP_WEBSITE_PRICE}. "
+        "These are the only fixed website prices. Other work needs a quotation.",
     )
 
     for course_id, detail in kb.COURSE_DETAILS.items():

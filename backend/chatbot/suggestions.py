@@ -74,7 +74,7 @@ TOPIC_SUGGESTIONS = {
     ),
     "course_detail": (
         "What are the eligibility requirements?",
-        "How do I apply for this course?",
+        "I want to enroll in this course",
         "What is the course duration?",
     ),
     "ai_solutions": (

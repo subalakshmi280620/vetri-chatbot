@@ -22,6 +22,8 @@ from .knowledge import (
     get_conversational_fallback,
     get_grounding_facts,
     is_greeting,
+    is_short_yes,
+    reply_to_short_yes,
 )
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
 from .email_notifications import dispatch_enquiry_notification
@@ -158,6 +160,9 @@ def generate_reply(
     if user_message and is_greeting(user_message) and not (attachments and (attachments.images or attachments.document_text)):
         return SHORT_GREETING_REPLY, SOURCE_AI
 
+    if user_message and is_short_yes(user_message) and not (attachments and (attachments.images or attachments.document_text)):
+        return reply_to_short_yes(history), SOURCE_VERIFIED_KB
+
     ai_configured = _ai_providers_configured()
     ai_reply = _try_ai_reply(user_message, history, attachments)
     if ai_reply:
@@ -280,7 +285,7 @@ def chat(request):
             ai_was_attempted=_ai_providers_configured(),
         )
     suggestions = get_follow_up_suggestions(prompt_message, reply, source)
-    suggest_enquiry = detect_suggested_enquiry_type(user_message)
+    suggest_enquiry = detect_suggested_enquiry_type(user_message, history)
 
     stored_user_text = user_message or "Shared attachment(s)"
     if processed_attachments.display_labels:
@@ -440,6 +445,12 @@ ENQUIRY_CONFIRMATIONS = {
         "Enquiry Submitted — Sales Team\n\n"
         "Thank you. Our sales team will contact you about your requirement."
     ),
+    Enquiry.TYPE_ENROLL: (
+        "Enrollment request received\n\n"
+        "Thank you. Our team will use the details you shared and contact you "
+        "about the course, website, product, or service you chose.\n\n"
+        "You do not need to sign in on the website."
+    ),
     Enquiry.TYPE_GENERAL: (
         "Enquiry Submitted\n\n"
         "Thank you. The VIS team will review your message and get back to you soon."
@@ -476,6 +487,11 @@ def submit_enquiry(request):
         return Response({"error": "message is required."}, status=400)
     if enquiry_type == Enquiry.TYPE_DEMO and not interest:
         return Response({"error": "Please select a product to demo."}, status=400)
+    if enquiry_type == Enquiry.TYPE_ENROLL and not interest:
+        return Response(
+            {"error": "Please select a course, website, product, or service to enroll."},
+            status=400,
+        )
     if enquiry_type == Enquiry.TYPE_QUOTATION and not interest:
         return Response(
             {"error": "Please select a product or service for your quotation."},

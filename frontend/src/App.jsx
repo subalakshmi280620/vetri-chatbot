@@ -112,6 +112,7 @@ const ENQUIRY_TITLES = {
   quotation: 'Get Quotation',
   consultation: 'Book a Consultation',
   demo: 'Request a Product Demo',
+  enroll: 'Enroll now',
   sales: 'Contact Sales Team',
   general: 'Submit Enquiry',
 }
@@ -120,10 +121,12 @@ const ENQUIRY_CTA_LABELS = {
   quotation: 'Get quotation',
   consultation: 'Book consultation',
   demo: 'Request demo',
+  enroll: 'Enroll now',
   sales: 'Contact sales',
 }
 
 const ENQUIRY_TYPE_TABS = [
+  { type: 'enroll', label: 'Enroll' },
   { type: 'quotation', label: 'Quotation' },
   { type: 'consultation', label: 'Consultation' },
   { type: 'demo', label: 'Product Demo' },
@@ -136,6 +139,8 @@ const ENQUIRY_SUBTEXT = {
     'Speak directly with a VIS solution consultant — no call centres, no scripts.',
   demo:
     'See VIS enterprise products with live workflow previews. Tell us which product to explore.',
+  enroll:
+    'Share your details here. Our team will contact you about the course, website, product, or service. No website sign-in.',
   sales: 'Our sales team will help with product selection and enterprise requirements.',
   general: 'Tell us what you need. Our VIS team will contact you by email or phone.',
 }
@@ -163,6 +168,23 @@ const QUOTATION_INTEREST_OPTIONS = [
   'SEO',
   'Cloud Services',
   'Training Course',
+  'Other',
+]
+
+const ENROLL_INTEREST_OPTIONS = [
+  'Python Fullstack',
+  'Java Fullstack',
+  'Prompt Engineering',
+  'UI/UX',
+  'Software Testing',
+  'Data Analytics',
+  'Mobile App Development',
+  'AWS & DevOps',
+  'Data Science',
+  'Digital Marketing',
+  'Ecommerce website (₹9,999)',
+  'Small retail shop website (₹3,000)',
+  ...DEMO_PRODUCT_OPTIONS,
   'Other',
 ]
 
@@ -210,6 +232,17 @@ const ENQUIRY_FORM_CONFIG = {
       'Which workflows should we show? Your industry, team size, and preferred demo time help us prepare.',
     submitLabel: 'Request Demo',
   },
+  enroll: {
+    companyLabel: 'College or company',
+    companyPlaceholder: 'Optional',
+    interestLabel: 'What do you want to join? *',
+    interestRequired: true,
+    interestOptions: ENROLL_INTEREST_OPTIONS,
+    messageLabel: 'Your details *',
+    messagePlaceholder:
+      'Your qualification, preferred start time, and anything the team should know.',
+    submitLabel: 'Enroll now',
+  },
 }
 
 const INTEREST_ALIASES = [
@@ -256,6 +289,7 @@ function buildEnquiryPrefill(type, lastUserText) {
   if (type === 'quotation') return `Quotation request: ${trimmed}`
   if (type === 'consultation') return `Consultation about: ${trimmed}`
   if (type === 'demo') return `Demo request: ${trimmed}`
+  if (type === 'enroll') return `Enrollment request: ${trimmed}`
   return trimmed
 }
 
@@ -340,6 +374,12 @@ function linkifyLine(line) {
     }
     return part
   })
+}
+
+function SmileAvatar() {
+  return (
+    <img src="/coach-ai-avatar.jpg" alt="" className="avatar-photo" />
+  )
 }
 
 function ChatIcon() {
@@ -458,11 +498,8 @@ function MessageBubble({
   return (
     <div className={`bubble-row ${role}`}>
       {isBot && (
-        <span className="avatar" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+        <span className="avatar avatar-smile" aria-hidden="true">
+          <SmileAvatar />
         </span>
       )}
       <div className="bubble-wrap">
@@ -1218,7 +1255,10 @@ function App() {
   }
 
   function exportChat() {
-    if (messages.length === 0) return
+    if (messages.length === 0) {
+      setError('Send a message first, then use Export to download this chat.')
+      return
+    }
     const transcript = messages
       .map((msg) => `${msg.role === 'user' ? 'You' : 'Coach AI'}:\n${msg.text}`)
       .join('\n\n')
@@ -1227,8 +1267,11 @@ function App() {
     const link = document.createElement('a')
     link.href = url
     link.download = `coach-ai-chat-${new Date().toISOString().slice(0, 10)}.txt`
+    document.body.appendChild(link)
     link.click()
-    URL.revokeObjectURL(url)
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    setError('')
   }
 
   useEffect(() => {
@@ -1569,11 +1612,8 @@ function App() {
 
                 {loading && (
                   <div className="bubble-row bot">
-                    <span className="avatar" aria-hidden="true">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
-                        <path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
+                    <span className="avatar avatar-smile" aria-hidden="true">
+                      <SmileAvatar />
                     </span>
                     <div className="bubble-wrap">
                       <span className="bubble-label">Coach AI</span>

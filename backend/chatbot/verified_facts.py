@@ -8,17 +8,24 @@ from .knowledge import (
     CONTACT_EMAIL,
     CONTACT_PHONE,
     COURSE_DURATION,
+    COURSE_INTERNSHIP,
     COURSES,
+    ECOMMERCE_WEBSITE_PRICE,
     ELIGIBILITY_REQUIREMENT,
     ORG_NAME,
     PORTFOLIO_PROJECTS,
     PRODUCTS,
+    RETAIL_SHOP_WEBSITE_PRICE,
     SERVICES,
 )
 
 # Topics the bot must never invent — redirect to contact/quotation instead.
 NEVER_INVENT = (
-    "Exact product or course prices (₹, Rs, INR, $ amounts)",
+    (
+        "Prices other than the official website packages: "
+        f"ecommerce website {ECOMMERCE_WEBSITE_PRICE}, "
+        f"small retail shop website {RETAIL_SHOP_WEBSITE_PRICE}"
+    ),
     "Portfolio projects, clients, or metrics not in verified VIS website content",
     "Product features or services not listed on the VIS website",
     "Guaranteed job placement, salary, or admission outcomes",
@@ -32,6 +39,9 @@ MUST_BE_EXACT = (
     f"Email: {CONTACT_EMAIL}",
     f"Address: {CONTACT_ADDRESS}",
     f"Course duration: {COURSE_DURATION}",
+    f"Internship with every course: {COURSE_INTERNSHIP}",
+    f"Ecommerce website package: {ECOMMERCE_WEBSITE_PRICE}",
+    f"Small retail shop website: {RETAIL_SHOP_WEBSITE_PRICE}",
     f"Course eligibility: {ELIGIBILITY_REQUIREMENT}",
     f"Products: {', '.join(PRODUCTS)}",
     f"Services: {', '.join(SERVICES)}",
@@ -47,6 +57,10 @@ MUST_BE_EXACT = (
 _INVENTED_PRICE_RE = re.compile(
     r"(₹|rs\.?\s*\d+|\$\s*\d+|inr\s*\d+|\d{1,3}(?:,\d{3})+\s*(?:per|/)\s*(?:month|year)|"
     r"\d+\s*(?:per month|/month|per year|/year))",
+    re.IGNORECASE,
+)
+_ALLOWED_PRICE_RE = re.compile(
+    r"(?:₹|rs\.?|inr)\s*(?:9,?999|3,?000)\b",
     re.IGNORECASE,
 )
 
@@ -105,14 +119,21 @@ def polish_ai_reply(reply: str) -> str:
     return text
 
 
+def _has_disallowed_price(sentence: str) -> bool:
+    if not _INVENTED_PRICE_RE.search(sentence):
+        return False
+    without_allowed = _ALLOWED_PRICE_RE.sub("", sentence)
+    return bool(_INVENTED_PRICE_RE.search(without_allowed))
+
+
 def enforce_verified_facts(reply: str) -> str:
-    """Strip risky invented pricing from AI replies."""
+    """Strip risky invented pricing from AI replies. Keep the two official website prices."""
     text = polish_ai_reply(reply)
-    if not text or not _INVENTED_PRICE_RE.search(text):
+    if not text or not _has_disallowed_price(text):
         return text
 
     sentences = re.split(r"(?<=[.!?])\s+", text.strip())
-    safe = [s for s in sentences if not _INVENTED_PRICE_RE.search(s)]
+    safe = [s for s in sentences if not _has_disallowed_price(s)]
     cleaned = " ".join(safe).strip()
     if not cleaned:
         cleaned = (

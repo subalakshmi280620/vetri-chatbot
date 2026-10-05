@@ -826,6 +826,37 @@ class DemoQuestionCoverageTests(TestCase):
             self.assertNotRegex(reply, r"₹\s*\d")
             self.assertNotRegex(reply.lower(), r"rs\.?\s*\d")
 
+    def test_official_website_prices_are_allowed(self):
+        ecommerce = get_conversational_fallback("How much is an ecommerce website?")
+        retail = get_conversational_fallback("small retail shop website price")
+        self.assertIn("₹9,999", ecommerce)
+        self.assertIn("₹3,000", retail)
+        kept = enforce_verified_facts(
+            "An ecommerce website is ₹9,999. A shop site is ₹3,000."
+        )
+        self.assertIn("₹9,999", kept)
+        self.assertIn("₹3,000", kept)
+
+    def test_yes_continues_course_with_a_short_enroll_reply(self):
+        from .knowledge import reply_to_short_yes
+
+        history = [{
+            "role": "bot",
+            "text": "Python Fullstack includes a 3 month internship. Say enroll when you want to join.",
+        }]
+        reply, source = generate_reply("yes", history)
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertLess(len(reply), 220)
+        self.assertNotIn("Testing Status", reply)
+        self.assertIn("Enroll", reply)
+        self.assertIn("Enroll", reply_to_short_yes(history))
+
+    def test_course_reply_mentions_internship_before_enroll(self):
+        reply = get_conversational_fallback("Tell me about Python Fullstack")
+        self.assertIn("3 months", reply)
+        self.assertIn("enroll", reply.lower())
+        self.assertIn("do not need to sign in", reply.lower())
+
 
 class GeminiRetryTests(TestCase):
     _GEMINI_SETTINGS = {
