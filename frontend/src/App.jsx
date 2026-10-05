@@ -62,6 +62,8 @@ const HEALTH_URL = `${API_BASE}/health/`
 const EMBED_SEARCH = new URLSearchParams(window.location.search)
 const IS_EMBED = EMBED_SEARCH.get('embed') === '1'
 const EMBED_HOST_WIDGET = EMBED_SEARCH.get('open') === '1'
+// Website embed is paused until mentor review so it cannot spend Gemini quota.
+const EMBED_PAUSED = true
 const CLIENT_TOKEN_KEY = 'visClientToken'
 const CONVERSATION_ID_KEY = 'visConversationId'
 
@@ -927,7 +929,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!IS_EMBED || !widgetOpen) return
+    if (EMBED_PAUSED || !IS_EMBED || !widgetOpen) return
     void bootstrapChat()
   }, [widgetOpen])
 
@@ -962,6 +964,7 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (IS_EMBED && EMBED_PAUSED) return
     void checkHealth()
     const timer = window.setInterval(() => {
       void checkHealth({ retries: 1, delayMs: 0 })
@@ -1409,6 +1412,18 @@ function App() {
     (index, msg, current) => (msg.role === 'bot' ? current : index),
     -1
   )
+
+  if (IS_EMBED && EMBED_PAUSED) {
+    return (
+      <div className="widget-root widget-root-host" style={{ padding: 24, fontFamily: 'Inter, Segoe UI, sans-serif' }}>
+        <p style={{ margin: 0, color: '#0c1e3d', fontWeight: 700 }}>Coach AI embed is paused</p>
+        <p style={{ margin: '8px 0 0', color: '#4b5563', fontSize: 14, lineHeight: 1.5 }}>
+          The website button is turned off until the mentor review so it does not use the daily AI quota.
+          Use the main chat page for the demo.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div

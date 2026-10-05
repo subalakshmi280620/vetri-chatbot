@@ -100,10 +100,10 @@
   </head>
   <body>
     <div class="banner">
-      <strong>Preview page for developers.</strong>
-      End users should open the chat at
-      <a href="https://vetri-chatbot-ui.onrender.com">vetri-chatbot-ui.onrender.com</a>
-      — not this page. Click the green <strong>Coach AI</strong> button below to test the website widget.
+      <strong>Website embed is paused</strong>
+      until the mentor review. The floating button is turned off so it cannot call the chat API
+      or use the daily Gemini quota. Demo the main chat at
+      <a href="https://vetri-chatbot-ui.onrender.com">vetri-chatbot-ui.onrender.com</a>.
     </div>
 
     <nav class="site-nav">
@@ -118,8 +118,7 @@
         green button in the bottom-right corner. Your real website content would go here.
       </p>
       <p class="hint">
-        👉 Click <strong>Coach AI</strong> (bottom-right) to open the chat. The send button
-        and full composer should fit inside the panel.
+        The green Coach AI button is hidden on purpose. Open the main chat link above for the mentor demo.
       </p>
 
       <details>
@@ -146,14 +145,6 @@
       </details>
     </main>
 
-    <script>
-      (function () {
-        const tag = document.createElement('script')
-        tag.src = '/coach-ai-widget.js'
-        tag.defer = true
-        tag.setAttribute('data-chat-url', window.location.origin)
-        document.body.appendChild(tag)
-      })()
-    </script>
+    <!-- Widget script is not loaded while embed is paused. -->
   </body>
 </html>
