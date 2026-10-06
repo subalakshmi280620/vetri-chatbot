@@ -7,6 +7,7 @@
  * Optional:
  *   data-chat-url="https://vetri-chatbot-ui.onrender.com"
  *   data-title="Coach AI"
+ *   data-icon-url="https://vetri-chatbot-ui.onrender.com/coach-ai-embed-icon.png"
  */
 (function initCoachAiWidget() {
   const EMBED_PAUSED = false
@@ -19,9 +20,22 @@
   }
 
   const script = document.currentScript
-  const chatBase = (script && script.getAttribute('data-chat-url')) || 'https://vetri-chatbot-ui.onrender.com'
+  const scriptOrigin = (() => {
+    if (!script || !script.src) {
+      return window.location.origin
+    }
+    try {
+      return new URL(script.src, window.location.href).origin
+    } catch {
+      return window.location.origin
+    }
+  })()
+  const chatBase = (script && script.getAttribute('data-chat-url')) || scriptOrigin
   const chatTitle = (script && script.getAttribute('data-title')) || 'Coach AI'
-  const chatUrl = `${chatBase.replace(/\/$/, '')}/?embed=1&open=1`
+  const chatRoot = chatBase.replace(/\/$/, '')
+  const chatUrl = `${chatRoot}/?embed=1&open=1`
+  const iconUrl = (script && script.getAttribute('data-icon-url'))
+    || `${scriptOrigin}/coach-ai-embed-icon.png`
 
   const root = document.createElement('div')
   root.id = 'coach-ai-widget-root'
@@ -40,34 +54,35 @@
       right: 20px;
       bottom: 20px;
       z-index: 2147483000;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 60px;
-      height: 60px;
-      padding: 0 18px 0 16px;
+      display: block;
+      width: 84px;
+      height: 84px;
+      padding: 0;
       border: 0;
-      border-radius: 999px;
-      background: var(--vis-green);
-      color: var(--vis-green-text);
-      font-size: 14px;
-      font-weight: 700;
+      border-radius: 0;
+      background: transparent;
       cursor: pointer;
-      box-shadow: 0 4px 20px rgba(74, 222, 128, 0.45);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: none;
+      transition: transform 0.15s ease, filter 0.15s ease;
     }
     #coach-ai-widget-root .coach-ai-launcher:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 28px rgba(74, 222, 128, 0.55);
+      transform: translateY(-3px) scale(1.03);
     }
     #coach-ai-widget-root .coach-ai-launcher:focus-visible {
       outline: 3px solid var(--vis-navy);
       outline-offset: 3px;
     }
-    #coach-ai-widget-root .coach-ai-launcher svg {
-      width: 22px;
-      height: 22px;
-      flex-shrink: 0;
+    #coach-ai-widget-root .coach-ai-launcher img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      pointer-events: none;
+      user-select: none;
+      filter: drop-shadow(0 8px 14px rgba(12, 30, 61, 0.22));
+    }
+    #coach-ai-widget-root .coach-ai-launcher:hover img {
+      filter: drop-shadow(0 12px 20px rgba(12, 30, 61, 0.28));
     }
     #coach-ai-widget-root .coach-ai-panel {
       position: fixed;
@@ -99,8 +114,8 @@
       #coach-ai-widget-root .coach-ai-launcher {
         right: 16px;
         bottom: 16px;
-        height: 56px;
-        padding: 0 16px 0 14px;
+        width: 72px;
+        height: 72px;
       }
       #coach-ai-widget-root .coach-ai-panel {
         right: 0;
@@ -118,12 +133,7 @@
   launcher.className = 'coach-ai-launcher'
   launcher.setAttribute('aria-label', `Open ${chatTitle}`)
   launcher.setAttribute('aria-expanded', 'false')
-  launcher.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8A2.5 2.5 0 0 1 17.5 16H11l-4.2 3.15a.75.75 0 0 1-1.15-.64V16H6.5A2.5 2.5 0 0 1 4 13.5v-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-    </svg>
-    <span>${chatTitle}</span>
-  `
+  launcher.innerHTML = `<img src="${iconUrl}" alt="" width="84" height="84" decoding="async">`
 
   const panel = document.createElement('div')
   panel.className = 'coach-ai-panel'
