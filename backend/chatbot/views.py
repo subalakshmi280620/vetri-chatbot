@@ -99,16 +99,24 @@ def _try_grok_reply(user_message: str, prompt: str, history=None) -> str | None:
     if not settings.XAI_API_KEY:
         return None
     try:
-        return ask_grok(user_message, prompt, history)
+        reply = ask_grok(user_message, prompt, history)
+        logger.info(
+            "AI provider success: grok fallback model=%s",
+            settings.GROK_MODEL,
+        )
+        return reply
     except GrokAPIError as exc:
         logger.warning(
-            "Grok fallback unavailable: HTTP=%s",
+            "AI provider error: grok fallback HTTP=%s",
             exc.code or "unknown",
         )
         return None
     except Exception as exc:
         detail = str(exc).replace(settings.XAI_API_KEY, "***")[:240]
-        logger.warning("Grok fallback unavailable: %s", detail or type(exc).__name__)
+        logger.warning(
+            "AI provider error: grok fallback %s",
+            detail or type(exc).__name__,
+        )
         return None
 
 
@@ -116,11 +124,19 @@ def _try_deepseek_reply(user_message: str, prompt: str, history=None) -> str | N
     if not settings.DEEPSEEK_API_KEY:
         return None
     try:
-        return ask_deepseek(user_message, prompt, history)
+        reply = ask_deepseek(user_message, prompt, history)
+        logger.info(
+            "AI provider success: deepseek fallback model=%s",
+            settings.DEEPSEEK_MODEL,
+        )
+        return reply
     except Exception as exc:
         # Log safe detail (HTTP code/message) — never log API keys.
         detail = str(exc).replace(settings.DEEPSEEK_API_KEY, "***")[:240]
-        logger.warning("DeepSeek fallback unavailable: %s", detail or type(exc).__name__)
+        logger.warning(
+            "AI provider error: deepseek fallback %s",
+            detail or type(exc).__name__,
+        )
         return None
 
 
@@ -149,16 +165,18 @@ def _try_ai_reply(
 
     if settings.GEMINI_API_KEY:
         try:
-            return ask_gemini(user_message, prompt, history, images=images)
+            reply = ask_gemini(user_message, prompt, history, images=images)
+            logger.info("AI provider success: gemini")
+            return reply
         except GeminiAPIError as exc:
             logger.warning(
-                "Gemini unavailable: model=%s HTTP=%s — trying fallbacks",
+                "AI provider error: gemini model=%s HTTP=%s — trying fallbacks",
                 exc.model or "unknown",
                 exc.code or "unknown",
             )
         except Exception as exc:
             logger.warning(
-                "Gemini unavailable: %s — trying Grok/DeepSeek fallbacks",
+                "AI provider error: gemini %s — trying fallbacks",
                 type(exc).__name__,
             )
 
