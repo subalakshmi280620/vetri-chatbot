@@ -131,8 +131,8 @@ COURSE_DURATION = "180 days"
 COURSE_INTERNSHIP = "3 months"
 ELIGIBILITY_REQUIREMENT = "Any degree completion"
 # Official website packages only. Do not invent other ₹ prices.
-ECOMMERCE_WEBSITE_PRICE = "₹9,999"
-RETAIL_SHOP_WEBSITE_PRICE = "₹3,000"
+ECOMMERCE_WEBSITE_PRICE = "₹9,999 + GST"
+RETAIL_SHOP_WEBSITE_PRICE = "₹3,000 + GST"
 
 DEGREE_INDICATORS = (
     "degree", "graduate", "graduation", "graduated", "bachelor", "master",
@@ -502,8 +502,7 @@ AI_BUSY_KB_PREFIX = (
 
 AI_FULLY_UNAVAILABLE_MESSAGE = (
     "I'm having trouble reaching our AI service right now — likely due to "
-    "high demand or API limits. Please try again in a minute.\n\n"
-    f"You can also reach our team at {CONTACT_PHONE} or {CONTACT_EMAIL}."
+    f"high demand or API limits. Please try again in a minute, or call {CONTACT_PHONE}."
 )
 
 GENERIC_FALLBACK_MARKER = (
@@ -613,7 +612,7 @@ Voice and tone:
 - Sound conversational: use plain English, short sentences, and a helpful tone.
 - You may start with a brief friendly phrase when it fits ("Sure!", "Good question.", "Happy to help.") — but keep it natural, not cheesy.
 - Write COMPLETE sentences. Never stop mid-thought or mid-number.
-- Give a full answer in 2–4 short lines, then stop. End with a gentle follow-up question when helpful.
+- __REPLY_LENGTH_GUIDANCE__
 - Use conversation history — answer follow-ups directly without repeating your last reply word-for-word.
 - For hi/hello only: one line like "Hello! How can I help you today?" — no product lists (welcome card already shown).
 
@@ -661,6 +660,42 @@ AI approach: DATA → CONTEXT → MODEL → ACTION → IMPACT.
 Portfolio: Retail POS System, Healthcare Portal, Food Delivery App, E-commerce Platform.
 """
 
+REPLY_STYLE_BRIEF = "brief"
+REPLY_STYLE_DETAILED = "detailed"
+VALID_REPLY_STYLES = {REPLY_STYLE_BRIEF, REPLY_STYLE_DETAILED}
+
+_REPLY_LENGTH_LINES = {
+    REPLY_STYLE_BRIEF: (
+        "- Give a short answer in 1–2 tight sentences (about 50 words max). "
+        "Include the key verified facts (price, duration, eligibility, product name) — do not skip them."
+    ),
+    REPLY_STYLE_DETAILED: (
+        "- Give a fuller answer in 2–4 short lines, then stop. End with a gentle follow-up question when helpful."
+    ),
+}
+
+def normalize_reply_style(value) -> str:
+    style = str(value or REPLY_STYLE_BRIEF).strip().lower()
+    return style if style in VALID_REPLY_STYLES else REPLY_STYLE_BRIEF
+
+
+def get_system_prompt(reply_style: str = REPLY_STYLE_BRIEF) -> str:
+    style = normalize_reply_style(reply_style)
+    guidance = _REPLY_LENGTH_LINES[style]
+    if guidance.startswith("- "):
+        guidance = guidance[2:]
+    return SYSTEM_PROMPT.replace("__REPLY_LENGTH_GUIDANCE__", guidance)
+
+
+def apply_reply_style(text: str, reply_style: str = REPLY_STYLE_BRIEF) -> str:
+    """Trim verified/KB replies for brief mode when no dedicated short template exists."""
+    if normalize_reply_style(reply_style) != REPLY_STYLE_BRIEF or not text:
+        return text
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    if len(sentences) <= 3:
+        return text
+    return " ".join(sentences[:3]).strip()
+
 
 def _compact(text: str) -> str:
     return "".join(ch.lower() for ch in text if ch.isalnum())
@@ -705,6 +740,30 @@ def _last_bot_text(history) -> str:
     return ""
 
 
+def _last_user_text(history) -> str:
+    for item in reversed(history or []):
+        if item.get("role") == "user":
+            return (item.get("text") or "").strip()
+    return ""
+
+
+_ACTION_OFFER_PHRASES = (
+    "say enroll",
+    "tap enroll",
+    "enroll now",
+    "request demo",
+    "tap enquiry",
+    "choose quotation",
+    "choose consultation",
+    "submit your details",
+)
+
+
+def _bot_offered_action(history) -> bool:
+    last = _last_bot_text(history).lower()
+    return any(phrase in last for phrase in _ACTION_OFFER_PHRASES)
+
+
 def reply_to_short_yes(history=None) -> str:
     """One short reply when the user only says yes. Do not start a long report."""
     last = _last_bot_text(history).lower()
@@ -728,23 +787,104 @@ _VAGUE_FOLLOW_UPS = (
     "what else", "anything else",
 )
 
+_CONTINUATION_REPLIES = {
+    "that", "that one", "this", "this one", "it", "same", "those",
+    "the same", "about that", "about it", "what about that",
+}
+
+
+def is_vague_follow_up(message: str) -> bool:
+    lowered = normalize_user_text(message).strip().rstrip(".!?")
+    if lowered in _CONTINUATION_REPLIES:
+        return True
+    return any(phrase in lowered for phrase in _VAGUE_FOLLOW_UPS)
+
+
+def is_contextual_follow_up(message: str) -> bool:
+    return is_short_yes(message) or is_vague_follow_up(message)
+
+
+def wants_more_detail(message: str, history=None) -> bool:
+    """User is asking to continue or expand — switch to a longer reply."""
+    if is_vague_follow_up(message):
+        return True
+    return is_short_yes(message) and not _bot_offered_action(history)
+
+
+def infer_reply_style(message: str, history=None) -> str:
+    """Short fact-packed answers by default; longer only when the user wants more."""
+    if wants_more_detail(message, history):
+        return REPLY_STYLE_DETAILED
+    return REPLY_STYLE_BRIEF
+
+
+def resolve_follow_up_query(message: str, history=None) -> str:
+    """Turn short or vague follow-ups into a searchable query using recent chat."""
+    text = (message or "").strip()
+    if not is_contextual_follow_up(text):
+        return text
+    if is_short_yes(text) and _bot_offered_action(history):
+        return text
+
+    parts: list[str] = []
+    last_user = _last_user_text(history)
+    last_bot = _last_bot_text(history)
+
+    if last_user and not is_short_yes(last_user) and not is_vague_follow_up(last_user):
+        parts.append(last_user)
+
+    if last_bot:
+        bot_snippet = last_bot.split(".")[0].strip()
+        if bot_snippet and len(bot_snippet) > 15:
+            parts.append(bot_snippet)
+
+    if text not in parts:
+        parts.append(text)
+
+    return " ".join(parts)
+
 
 def expand_message_for_matching(message: str, history=None) -> str:
-    """Include recent user context for vague follow-ups like 'tell me more'."""
-    text = message.strip()
-    lowered = normalize_user_text(text)
-    if not any(phrase in lowered for phrase in _VAGUE_FOLLOW_UPS):
-        return text
-    parts = [text]
-    for item in reversed(history or []):
-        if item.get("role") != "user":
-            continue
-        prior = item.get("text", "").strip()
-        if prior:
-            parts.insert(0, prior)
-        if len(parts) >= 3:
-            break
-    return " ".join(parts)
+    """Backward-compatible alias for resolve_follow_up_query."""
+    return resolve_follow_up_query(message, history)
+
+
+def _rag_snippet_reply(query: str) -> str | None:
+    """Short verified excerpt when KB routing has no specific template."""
+    from .rag import retrieve
+
+    chunks = retrieve(query, limit=2)
+    if not chunks:
+        return None
+    text = " ".join(chunks[0].get("text", "").split())
+    if len(text) < 40:
+        return None
+    snippet = text[:240].rstrip(".,; ")
+    return f"Sure — {snippet}. Ask if you want more on any part."
+
+
+def get_contextual_follow_up_reply(
+    message: str,
+    history=None,
+    reply_style: str | None = None,
+) -> str | None:
+    """Answer yes / tell me more using the previous question and topic."""
+    style = normalize_reply_style(reply_style or infer_reply_style(message, history))
+    if is_short_yes(message) and _bot_offered_action(history):
+        return reply_to_short_yes(history)
+
+    resolved = resolve_follow_up_query(message, history)
+    fallback = get_conversational_fallback(resolved, style)
+    if GENERIC_FALLBACK_MARKER not in fallback:
+        return fallback
+
+    rag_reply = _rag_snippet_reply(resolved)
+    if rag_reply:
+        return rag_reply
+
+    if is_short_yes(message):
+        return reply_to_short_yes(history)
+    return None
 
 
 def match_product_id(message: str) -> str | None:
@@ -1235,9 +1375,10 @@ def get_grounding_facts(message: str) -> str:
     return "\n\n".join(parts).strip()
 
 
-def get_conversational_fallback(message: str) -> str:
+def get_conversational_fallback(message: str, reply_style: str = REPLY_STYLE_BRIEF) -> str:
     """Short natural reply when the LLM is unavailable — not the long FAQ templates."""
     text = message.strip().lower()
+    detailed = normalize_reply_style(reply_style) == REPLY_STYLE_DETAILED
 
     if is_greeting(text):
         return SHORT_GREETING_REPLY
@@ -1258,8 +1399,7 @@ def get_conversational_fallback(message: str) -> str:
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return (
             "Pricing depends on scope — users, features, and timeline. "
-            "Tell me what you need and I can outline what's typically included. "
-            "For a formal quote, tap Enquiry → Quotation and submit your details."
+            "Tap Enquiry → Quotation and tell us what you need for a formal quote."
         )
 
     product_id = match_product_id(text)
@@ -1272,40 +1412,65 @@ def get_conversational_fallback(message: str) -> str:
     if course_id:
         course_name = match_course_name(course_id)
         if any(k in text for k in ("duration", "how long")):
+            if detailed:
+                return (
+                    f"The {course_name} programme runs for {COURSE_DURATION}. "
+                    f"Eligibility is {ELIGIBILITY_REQUIREMENT.lower()}."
+                )
             return (
-                f"The {course_name} programme runs for {COURSE_DURATION}. "
-                f"Eligibility is {ELIGIBILITY_REQUIREMENT.lower()}."
+                f"{course_name} runs for {COURSE_DURATION} with a {COURSE_INTERNSHIP} internship. "
+                f"Eligibility: {ELIGIBILITY_REQUIREMENT.lower()}."
             )
         if any(k in text for k in ("fee", "fees", "tuition", "course fee", "price", "cost")):
+            if detailed:
+                return (
+                    f"{course_name} is a {COURSE_DURATION} programme with degree eligibility. "
+                    "Fees depend on the batch and programme — I can explain the course content "
+                    "and eligibility first. Use the Enquiry form for an exact fee quote."
+                )
             return (
-                f"{course_name} is a {COURSE_DURATION} programme with degree eligibility. "
-                "Fees depend on the batch and programme — I can explain the course content "
-                "and eligibility first. Use the Enquiry form for an exact fee quote."
+                f"{course_name} fees vary by batch. Programme is {COURSE_DURATION} — "
+                "use Enquiry for an exact fee quote."
+            )
+        if detailed:
+            return (
+                f"{course_name} is a {COURSE_DURATION} VIS training programme. "
+                f"You need {ELIGIBILITY_REQUIREMENT.lower()}. "
+                f"Every course includes a {COURSE_INTERNSHIP} internship. "
+                "I can explain more first. When you want to join, say enroll and I will take your details here. "
+                "You do not need to sign in on the website."
             )
         return (
-            f"{course_name} is a {COURSE_DURATION} VIS training programme. "
-            f"You need {ELIGIBILITY_REQUIREMENT.lower()}. "
-            f"Every course includes a {COURSE_INTERNSHIP} internship. "
-            "I can explain more first. When you want to join, say enroll and I will take your details here. "
-            "You do not need to sign in on the website."
+            f"{course_name}: {COURSE_DURATION} programme with a {COURSE_INTERNSHIP} internship. "
+            f"You need {ELIGIBILITY_REQUIREMENT.lower()}. Say enroll to join — no sign-in needed."
         )
 
     if _matches_why_vis_intent(text):
         stats = COMPANY_STATS
+        if detailed:
+            return (
+                f"Businesses choose VIS for enterprise-grade trust, cloud-native delivery, "
+                f"and AI-first product engineering — not just one-off projects. "
+                f"We've delivered {stats['projects']} projects over {stats['years']} with "
+                f"{stats['clients']} clients, plus ready-made products like Vetri Bills and "
+                f"Coach AI. What matters most for your use case — products, custom build, or AI?"
+            )
         return (
-            f"Businesses choose VIS for enterprise-grade trust, cloud-native delivery, "
-            f"and AI-first product engineering — not just one-off projects. "
-            f"We've delivered {stats['projects']} projects over {stats['years']} with "
-            f"{stats['clients']} clients, plus ready-made products like Vetri Bills and "
-            f"Coach AI. What matters most for your use case — products, custom build, or AI?"
+            f"Teams choose VIS for trusted delivery and AI-first engineering — "
+            f"{stats['projects']} projects, {stats['years']} years, products like Vetri Bills and Coach AI."
         )
 
     if _matches_about_intent(text):
+        if detailed:
+            return (
+                f"{ORG_NAME} is a Tamil Nadu–based IT company that builds websites, mobile apps, "
+                "and enterprise software, and also ships ready-to-use products such as Vetri Bills "
+                "(GST billing), Project Management, HR Management Tool, and Coach AI. "
+                "What would you like to explore — a product or a custom service?"
+            )
         return (
-            f"{ORG_NAME} is a Tamil Nadu–based IT company that builds websites, mobile apps, "
-            "and enterprise software, and also ships ready-to-use products such as Vetri Bills "
-            "(GST billing), Project Management, HR Management Tool, and Coach AI. "
-            "What would you like to explore — a product or a custom service?"
+            f"{ORG_NAME} builds websites, apps, and enterprise software in Tamil Nadu, "
+            "plus products like Vetri Bills (GST billing) and Coach AI."
         )
 
     if _matches_vision_mission_intent(text):

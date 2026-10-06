@@ -66,7 +66,6 @@ const EMBED_HOST_WIDGET = EMBED_SEARCH.get('open') === '1'
 const EMBED_PAUSED = true
 const CLIENT_TOKEN_KEY = 'visClientToken'
 const CONVERSATION_ID_KEY = 'visConversationId'
-
 function migrateLegacySessionStorage() {
   for (const key of [CLIENT_TOKEN_KEY, CONVERSATION_ID_KEY]) {
     const legacyValue = window.sessionStorage.getItem(key)
@@ -182,8 +181,8 @@ const ENROLL_INTEREST_OPTIONS = [
   'AWS & DevOps',
   'Data Science',
   'Digital Marketing',
-  'Ecommerce website (₹9,999)',
-  'Small retail shop website (₹3,000)',
+  'Ecommerce website (₹9,999 + GST)',
+  'Small retail shop website (₹3,000 + GST)',
   ...DEMO_PRODUCT_OPTIONS,
   'Other',
 ]
@@ -1464,7 +1463,7 @@ function App() {
           The website button is turned off until the mentor review so it does not use the daily AI quota.
           Use the main chat page for the demo.
         </p>
-      </div>
+        </div>
     )
   }
 

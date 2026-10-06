@@ -70,14 +70,21 @@ _PRICING_REDIRECT = (
 )
 
 
-def get_verified_facts_prompt() -> str:
+def get_verified_facts_prompt(reply_style: str = "brief") -> str:
     """Prompt block injected before every AI call."""
+    from .knowledge import REPLY_STYLE_BRIEF, normalize_reply_style
+
     never = "\n".join(f"- {item}" for item in NEVER_INVENT)
     exact = "\n".join(f"- {item}" for item in MUST_BE_EXACT)
+    length_hint = (
+        "Use 1 to 2 short sentences with the key facts included."
+        if normalize_reply_style(reply_style) == REPLY_STYLE_BRIEF
+        else "Use 2 to 4 short sentences."
+    )
     return (
         "VERIFIED FACTS ONLY (critical):\n"
         "Reply like a friendly human on chat — warm, clear, and complete. "
-        "Use 2 to 4 short sentences. Never copy grounding labels or sound like a brochure. "
+        f"{length_hint} Never copy grounding labels or sound like a brochure. "
         "Answer the user's exact question first. Do NOT default to 'contact our team' — "
         "only suggest contact for exact pricing or when they want a human.\n\n"
         "Never invent:\n"

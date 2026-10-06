@@ -12,9 +12,14 @@ from .knowledge import (
     PRODUCTS,
     SERVICES,
     SHORT_GREETING_REPLY,
+    apply_reply_style,
     get_conversational_fallback,
     get_grounding_facts,
     get_structured_reply,
+    get_system_prompt,
+    infer_reply_style,
+    normalize_reply_style,
+    wants_more_detail,
 )
 from .models import Enquiry
 from .throttles import ChatRateThrottle
@@ -139,6 +144,33 @@ class VerifiedFactsTests(TestCase):
         prompt = build_prompt("What products does VIS offer?")
         self.assertIn("VERIFIED FACTS ONLY", prompt)
         self.assertIn("Vetri Bills", prompt)
+
+    def test_build_prompt_brief_mode_uses_short_length_hint(self):
+        prompt = build_prompt("What products does VIS offer?", reply_style="brief")
+        self.assertIn("1–2 short sentences", prompt)
+        self.assertIn("Use 1 to 2 short sentences with the key facts included.", prompt)
+
+    def test_apply_reply_style_brief_keeps_three_sentences(self):
+        long = (
+            "First sentence here. Second sentence here. Third sentence here. "
+            "Fourth sentence here."
+        )
+        self.assertEqual(
+            apply_reply_style(long, "brief"),
+            "First sentence here. Second sentence here. Third sentence here.",
+        )
+
+    def test_normalize_reply_style_defaults_to_brief(self):
+        self.assertEqual(normalize_reply_style(None), "brief")
+        self.assertEqual(normalize_reply_style("detailed"), "detailed")
+        self.assertEqual(normalize_reply_style("unknown"), "brief")
+
+    def test_get_system_prompt_changes_length_guidance(self):
+        brief = get_system_prompt("brief")
+        detailed = get_system_prompt("detailed")
+        self.assertIn("1–2 tight sentences", brief)
+        self.assertIn("key verified facts", brief)
+        self.assertIn("2–4 short lines", detailed)
 
 
 class ChatMessageLengthTests(ChatApiTestCase):
@@ -829,13 +861,13 @@ class DemoQuestionCoverageTests(TestCase):
     def test_official_website_prices_are_allowed(self):
         ecommerce = get_conversational_fallback("How much is an ecommerce website?")
         retail = get_conversational_fallback("small retail shop website price")
-        self.assertIn("₹9,999", ecommerce)
-        self.assertIn("₹3,000", retail)
+        self.assertIn("₹9,999 + GST", ecommerce)
+        self.assertIn("₹3,000 + GST", retail)
         kept = enforce_verified_facts(
-            "An ecommerce website is ₹9,999. A shop site is ₹3,000."
+            "An ecommerce website is ₹9,999 + GST. A shop site is ₹3,000 + GST."
         )
-        self.assertIn("₹9,999", kept)
-        self.assertIn("₹3,000", kept)
+        self.assertIn("₹9,999 + GST", kept)
+        self.assertIn("₹3,000 + GST", kept)
 
     def test_yes_continues_course_with_a_short_enroll_reply(self):
         from .knowledge import reply_to_short_yes
@@ -852,10 +884,96 @@ class DemoQuestionCoverageTests(TestCase):
         self.assertIn("Enroll", reply_to_short_yes(history))
 
     def test_course_reply_mentions_internship_before_enroll(self):
-        reply = get_conversational_fallback("Tell me about Python Fullstack")
+        reply = get_conversational_fallback("Tell me about Python Fullstack", "detailed")
         self.assertIn("3 months", reply)
         self.assertIn("enroll", reply.lower())
         self.assertIn("do not need to sign in", reply.lower())
+
+    def test_course_brief_reply_packs_key_facts(self):
+        reply = get_conversational_fallback("Tell me about Python Fullstack", "brief")
+        self.assertIn("180", reply)
+        self.assertIn("internship", reply.lower())
+        self.assertIn("enroll", reply.lower())
+        self.assertIn("sign-in", reply.lower())
+
+    def test_default_reply_is_short_but_includes_key_course_facts(self):
+        reply, source = generate_reply("Tell me about Python Fullstack")
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertLess(len(reply), 260)
+        self.assertIn("Python", reply)
+        self.assertIn("180", reply)
+        self.assertIn("internship", reply.lower())
+        self.assertIn("enroll", reply.lower())
+
+    def test_tell_me_more_returns_longer_course_reply(self):
+        history = [
+            {"role": "user", "text": "Tell me about Python Fullstack"},
+            {
+                "role": "bot",
+                "text": (
+                    "Python Fullstack: 180 days programme with a 3 months internship. "
+                    "You need a completed degree (UG/PG). Say enroll to join."
+                ),
+            },
+        ]
+        short_reply, _ = generate_reply("Tell me about Python Fullstack")
+        long_reply, _ = generate_reply("tell me more", history)
+        self.assertGreater(len(long_reply), len(short_reply))
+        self.assertIn("do not need to sign in", long_reply.lower())
+
+    def test_infer_reply_style_switches_automatically(self):
+        history = [{"role": "bot", "text": "Python Fullstack is a 180-day programme."}]
+        self.assertEqual(infer_reply_style("What is Python Fullstack?"), "brief")
+        self.assertEqual(infer_reply_style("tell me more", history), "detailed")
+        self.assertTrue(wants_more_detail("more details"))
+        self.assertFalse(
+            wants_more_detail(
+                "yes",
+                [{"role": "bot", "text": "Say enroll when you want to join."}],
+            )
+        )
+
+    def test_tell_me_more_uses_previous_user_question(self):
+        from .knowledge import resolve_follow_up_query
+
+        history = [
+            {"role": "user", "text": "Tell me about Python Fullstack"},
+            {
+                "role": "bot",
+                "text": "Python Fullstack is a 180-day programme with a 3 month internship.",
+            },
+        ]
+        expanded = resolve_follow_up_query("tell me more", history)
+        self.assertIn("Python Fullstack", expanded)
+        reply, source = generate_reply("tell me more", history)
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("Python", reply)
+        self.assertIn("180", reply)
+
+    def test_yes_without_action_offer_expands_to_course_details(self):
+        history = [
+            {"role": "user", "text": "What is Java Fullstack?"},
+            {
+                "role": "bot",
+                "text": "Java Fullstack covers Spring Boot, REST APIs, and frontend basics.",
+            },
+        ]
+        reply, source = generate_reply("yes", history)
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("Java", reply)
+        self.assertIn("180", reply)
+
+    def test_continuation_that_one_resolves_from_history(self):
+        history = [
+            {"role": "user", "text": "How much is an ecommerce website?"},
+            {
+                "role": "bot",
+                "text": f"VIS offers an ecommerce website package at ₹9,999 + GST.",
+            },
+        ]
+        reply, source = generate_reply("tell me more", history)
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("₹9,999 + GST", reply)
 
 
 class GeminiRetryTests(TestCase):
@@ -1305,3 +1423,15 @@ class BuildPromptVectorTests(TestCase):
 
         self.assertIn("support@vetri-it.com", prompt)
         self.assertIn("do not have that specific detail", prompt)
+
+    def test_build_prompt_expands_follow_up_for_rag(self):
+        history = [
+            {"role": "user", "text": "Tell me about Vetri Bills"},
+            {"role": "bot", "text": "Vetri Bills is GST-ready billing software."},
+        ]
+        with patch("chatbot.views.retrieve") as mock_retrieve:
+            mock_retrieve.return_value = []
+            build_prompt("tell me more", history)
+            called_query = mock_retrieve.call_args[0][0]
+        self.assertIn("Vetri Bills", called_query)
+        self.assertIn("tell me more", called_query)
