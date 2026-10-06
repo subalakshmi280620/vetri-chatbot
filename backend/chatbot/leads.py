@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from django.db.models import Count, Q
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Prefetch, Q
 
-from .models import Enquiry
-
+from .models import Enquiry, EnquiryNote
 VALID_LEAD_STATUSES = {
     Enquiry.STATUS_NEW,
     Enquiry.STATUS_CONTACTED,
@@ -43,7 +43,12 @@ def filter_leads(
     date_from=None,
     date_to=None,
 ):
-    queryset = Enquiry.objects.select_related("conversation").all()
+    queryset = Enquiry.objects.select_related("conversation", "assigned_to").prefetch_related(
+        Prefetch(
+            "notes",
+            queryset=EnquiryNote.objects.select_related("author").order_by("-created_at"),
+        )
+    )
 
     if search:
         queryset = queryset.filter(
@@ -82,6 +87,37 @@ def get_lead_counts(queryset=None) -> dict:
     }
 
 
+def get_assignable_staff_users():
+    User = get_user_model()
+    return User.objects.filter(is_staff=True, is_active=True).order_by("username")
+
+
+def add_lead_note(enquiry_id, text: str, author) -> EnquiryNote:
+    cleaned = (text or "").strip()
+    if not cleaned:
+        raise ValueError("Note text is required")
+    enquiry = Enquiry.objects.get(pk=enquiry_id)
+    return EnquiryNote.objects.create(enquiry=enquiry, author=author, text=cleaned)
+
+
+def update_lead_assignment(enquiry_id, assigned_to_id) -> Enquiry:
+    User = get_user_model()
+    enquiry = Enquiry.objects.get(pk=enquiry_id)
+    if assigned_to_id in (None, "", "none"):
+        enquiry.assigned_to = None
+    else:
+        try:
+            user_id = int(assigned_to_id)
+        except (TypeError, ValueError):
+            raise ValueError("Invalid staff user")
+        user = User.objects.get(pk=user_id)
+        if not user.is_staff or not user.is_active:
+            raise ValueError("Can only assign to active staff users")
+        enquiry.assigned_to = user
+    enquiry.save(update_fields=["assigned_to"])
+    return enquiry
+
+
 def update_lead_status(enquiry_id, status: str) -> Enquiry:
     if status not in VALID_LEAD_STATUSES:
         raise ValueError(f"Invalid status: {status}")
@@ -117,5 +153,6 @@ def build_leads_context(request) -> dict:
         "counts": get_lead_counts(),
         "enquiry_type_choices": Enquiry.TYPE_CHOICES,
         "status_choices": Enquiry.STATUS_CHOICES,
+        "staff_users": get_assignable_staff_users(),
         "query_string": build_leads_query_string(filters),
     }

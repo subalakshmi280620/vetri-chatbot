@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 
 
@@ -79,6 +80,13 @@ class Enquiry(models.Model):
         blank=True,
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_NEW)
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_enquiries",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -86,6 +94,27 @@ class Enquiry(models.Model):
 
     def __str__(self):
         return f"{self.get_enquiry_type_display()} — {self.full_name}"
+
+
+class EnquiryNote(models.Model):
+    enquiry = models.ForeignKey(
+        Enquiry,
+        related_name="notes",
+        on_delete=models.CASCADE,
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="enquiry_notes",
+    )
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Note on {self.enquiry_id} by {self.author_id}"
 
 
 class KnowledgeChunk(models.Model):

@@ -22,7 +22,7 @@ from .knowledge import (
     normalize_reply_style,
     wants_more_detail,
 )
-from .models import Enquiry
+from .models import Enquiry, EnquiryNote
 from .throttles import ChatRateThrottle
 from .attachments import build_user_message_with_attachments, parse_attachments
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
@@ -1739,3 +1739,127 @@ class LeadsDashboardTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Enquiry.objects.filter(email="enrollee@example.com").count(), 1)
+        data = response.json()
+        self.assertNotIn("notes", data)
+        self.assertNotIn("assigned_to", data)
+
+    def test_add_lead_note(self):
+        from .leads import add_lead_note
+
+        enquiry = self._create_enquiry()
+        note = add_lead_note(enquiry.id, "Called and left voicemail", self.admin_user)
+        self.assertEqual(note.text, "Called and left voicemail")
+        self.assertEqual(note.author, self.admin_user)
+        self.assertEqual(note.enquiry_id, enquiry.id)
+
+    def test_multiple_lead_notes(self):
+        from .leads import add_lead_note
+
+        enquiry = self._create_enquiry()
+        add_lead_note(enquiry.id, "First follow-up", self.admin_user)
+        add_lead_note(enquiry.id, "Sent quotation PDF", self.admin_user)
+
+        notes = list(EnquiryNote.objects.filter(enquiry=enquiry).order_by("-created_at"))
+        self.assertEqual(len(notes), 2)
+        self.assertEqual(notes[0].text, "Sent quotation PDF")
+        self.assertEqual(notes[1].text, "First follow-up")
+
+    def test_staff_can_add_note_from_dashboard(self):
+        enquiry = self._create_enquiry(full_name="Note Test")
+        self.client.login(username="leads_admin", password="test-pass-123")
+
+        response = self.client.post(
+            "/admin/chatbot-leads/",
+            {
+                "action": "add_note",
+                "enquiry_id": enquiry.id,
+                "note_text": "Follow up tomorrow",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        note = EnquiryNote.objects.get(enquiry=enquiry)
+        self.assertEqual(note.text, "Follow up tomorrow")
+        self.assertEqual(note.author, self.admin_user)
+
+    def test_note_permissions_require_staff_login(self):
+        enquiry = self._create_enquiry()
+        response = self.client.post(
+            "/admin/chatbot-leads/",
+            {
+                "action": "add_note",
+                "enquiry_id": enquiry.id,
+                "note_text": "Should not save",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+        self.assertEqual(EnquiryNote.objects.filter(enquiry=enquiry).count(), 0)
+
+    def test_assign_lead_to_staff(self):
+        from .leads import update_lead_assignment
+
+        enquiry = self._create_enquiry()
+        updated = update_lead_assignment(enquiry.id, self.admin_user.id)
+        self.assertEqual(updated.assigned_to, self.admin_user)
+
+    def test_change_and_clear_lead_assignment(self):
+        from .leads import update_lead_assignment
+
+        other_staff = User.objects.create_user(
+            username="other_staff",
+            email="other@example.com",
+            password="test-pass-123",
+            is_staff=True,
+        )
+        enquiry = self._create_enquiry()
+        update_lead_assignment(enquiry.id, self.admin_user.id)
+        update_lead_assignment(enquiry.id, other_staff.id)
+        enquiry.refresh_from_db()
+        self.assertEqual(enquiry.assigned_to, other_staff)
+
+        cleared = update_lead_assignment(enquiry.id, None)
+        self.assertIsNone(cleared.assigned_to)
+
+    def test_staff_can_assign_from_dashboard(self):
+        enquiry = self._create_enquiry(full_name="Assign Test")
+        self.client.login(username="leads_admin", password="test-pass-123")
+
+        response = self.client.post(
+            "/admin/chatbot-leads/",
+            {
+                "action": "assign",
+                "enquiry_id": enquiry.id,
+                "assigned_to": self.admin_user.id,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        enquiry.refresh_from_db()
+        self.assertEqual(enquiry.assigned_to, self.admin_user)
+
+    def test_assignment_permissions_reject_non_staff_user(self):
+        from .leads import update_lead_assignment
+
+        regular_user = User.objects.create_user(
+            username="regular_user",
+            email="regular@example.com",
+            password="test-pass-123",
+            is_staff=False,
+        )
+        enquiry = self._create_enquiry()
+        with self.assertRaises(ValueError):
+            update_lead_assignment(enquiry.id, regular_user.id)
+
+    def test_assignment_permissions_require_staff_login(self):
+        enquiry = self._create_enquiry()
+        response = self.client.post(
+            "/admin/chatbot-leads/",
+            {
+                "action": "assign",
+                "enquiry_id": enquiry.id,
+                "assigned_to": self.admin_user.id,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+        enquiry.refresh_from_db()
+        self.assertIsNone(enquiry.assigned_to)

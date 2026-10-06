@@ -1,126 +1,184 @@
-{% extends "admin/base_site.html" %}
-
-{% block content %}
-<div class="analytics-page leads-page">
-  <h1>Leads Dashboard</h1>
-  <p class="page-intro">Manage Coach AI enquiries — Enroll, Quotation, Consultation, Demo, and more.</p>
-
-  <div class="analytics-stats leads-stats">
-    <div class="analytics-stat-card">
-      <strong>Total leads</strong>
-      <div class="stat-value">{{ counts.total }}</div>
-    </div>
-    <div class="analytics-stat-card stat-warning">
-      <strong>New</strong>
-      <div class="stat-value">{{ counts.new }}</div>
-    </div>
-    <div class="analytics-stat-card">
-      <strong>Contacted</strong>
-      <div class="stat-value">{{ counts.contacted }}</div>
-    </div>
-    <div class="analytics-stat-card stat-success">
-      <strong>Closed</strong>
-      <div class="stat-value">{{ counts.closed }}</div>
-    </div>
-  </div>
-
-  <div class="analytics-section">
-    <h2>Search &amp; filters</h2>
-    <form method="get" class="leads-filter-form">
-      <div class="leads-filter-grid">
-        <label>
-          Search
-          <input type="search" name="q" value="{{ filters.search }}" placeholder="Name, email, or phone">
-        </label>
-        <label>
-          Enquiry type
-          <select name="enquiry_type">
-            <option value="">All types</option>
-            {% for value, label in enquiry_type_choices %}
-              <option value="{{ value }}" {% if filters.enquiry_type == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          Status
-          <select name="status">
-            <option value="">All statuses</option>
-            {% for value, label in status_choices %}
-              <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          From date
-          <input type="date" name="date_from" value="{{ filters.date_from|date:'Y-m-d' }}">
-        </label>
-        <label>
-          To date
-          <input type="date" name="date_to" value="{{ filters.date_to|date:'Y-m-d' }}">
-        </label>
-      </div>
-      <div class="leads-filter-actions">
-        <button type="submit" class="leads-btn leads-btn-primary">Apply filters</button>
-        <a href="{% url 'admin:chatbot-leads' %}" class="leads-btn leads-btn-secondary">Clear</a>
-      </div>
-    </form>
-  </div>
-
-  <div class="analytics-section">
-    <h2>All enquiries{% if leads %} ({{ leads|length }} shown){% endif %}</h2>
-    <table class="analytics-table leads-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Phone</th>
-          <th>Type</th>
-          <th>Interest</th>
-          <th>Submitted</th>
-          <th>Status</th>
-          <th>Update</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for lead in leads %}
-          <tr>
-            <td>{{ lead.full_name }}</td>
-            <td><a href="mailto:{{ lead.email }}">{{ lead.email }}</a></td>
-            <td>{{ lead.phone|default:"—" }}</td>
-            <td>{{ lead.get_enquiry_type_display }}</td>
-            <td>{{ lead.interest|default:"—" }}</td>
-            <td>{{ lead.created_at }}</td>
-            <td>
-              <span class="lead-status lead-status-{{ lead.status }}">{{ lead.get_status_display }}</span>
-            </td>
-            <td>
-              <form method="post" class="leads-status-form">
-                {% csrf_token %}
-                <input type="hidden" name="enquiry_id" value="{{ lead.id }}">
-                <input type="hidden" name="q" value="{{ filters.search }}">
-                <input type="hidden" name="enquiry_type" value="{{ filters.enquiry_type }}">
-                <input type="hidden" name="status_filter" value="{{ filters.status }}">
-                <input type="hidden" name="date_from" value="{{ filters.date_from|date:'Y-m-d' }}">
-                <input type="hidden" name="date_to" value="{{ filters.date_to|date:'Y-m-d' }}">
-                <select name="status" aria-label="Update status for {{ lead.full_name }}">
-                  {% for value, label in status_choices %}
-                    <option value="{{ value }}" {% if lead.status == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-                <button type="submit" class="leads-btn leads-btn-small">Save</button>
-              </form>
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="8">No enquiries match your filters.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="analytics-actions">
-    <a href="{% url 'admin:chatbot-analytics' %}">Analytics dashboard</a>
-    <a href="{% url 'admin:chatbot_enquiry_changelist' %}" class="admin-home-secondary">Django enquiry admin</a>
-  </div>
-</div>
-{% endblock %}
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="analytics-page leads-page">
+  <h1>Leads Dashboard</h1>
+  <p class="page-intro">Manage Coach AI enquiries — Enroll, Quotation, Consultation, Demo, and more.</p>
+
+  <div class="analytics-stats leads-stats">
+    <div class="analytics-stat-card">
+      <strong>Total leads</strong>
+      <div class="stat-value">{{ counts.total }}</div>
+    </div>
+    <div class="analytics-stat-card stat-warning">
+      <strong>New</strong>
+      <div class="stat-value">{{ counts.new }}</div>
+    </div>
+    <div class="analytics-stat-card">
+      <strong>Contacted</strong>
+      <div class="stat-value">{{ counts.contacted }}</div>
+    </div>
+    <div class="analytics-stat-card stat-success">
+      <strong>Closed</strong>
+      <div class="stat-value">{{ counts.closed }}</div>
+    </div>
+  </div>
+
+  <div class="analytics-section">
+    <h2>Search &amp; filters</h2>
+    <form method="get" class="leads-filter-form">
+      <div class="leads-filter-grid">
+        <label>
+          Search
+          <input type="search" name="q" value="{{ filters.search }}" placeholder="Name, email, or phone">
+        </label>
+        <label>
+          Enquiry type
+          <select name="enquiry_type">
+            <option value="">All types</option>
+            {% for value, label in enquiry_type_choices %}
+              <option value="{{ value }}" {% if filters.enquiry_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Status
+          <select name="status">
+            <option value="">All statuses</option>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          From date
+          <input type="date" name="date_from" value="{{ filters.date_from|date:'Y-m-d' }}">
+        </label>
+        <label>
+          To date
+          <input type="date" name="date_to" value="{{ filters.date_to|date:'Y-m-d' }}">
+        </label>
+      </div>
+      <div class="leads-filter-actions">
+        <button type="submit" class="leads-btn leads-btn-primary">Apply filters</button>
+        <a href="{% url 'admin:chatbot-leads' %}" class="leads-btn leads-btn-secondary">Clear</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="analytics-section">
+    <h2>All enquiries{% if leads %} ({{ leads|length }} shown){% endif %}</h2>
+    <table class="analytics-table leads-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Type</th>
+          <th>Interest</th>
+          <th>Submitted</th>
+          <th>Status</th>
+          <th>Assigned</th>
+          <th>Update</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in leads %}
+          <tr>
+            <td>{{ lead.full_name }}</td>
+            <td><a href="mailto:{{ lead.email }}">{{ lead.email }}</a></td>
+            <td>{{ lead.phone|default:"—" }}</td>
+            <td>{{ lead.get_enquiry_type_display }}</td>
+            <td>{{ lead.interest|default:"—" }}</td>
+            <td>{{ lead.created_at }}</td>
+            <td>
+              <span class="lead-status lead-status-{{ lead.status }}">{{ lead.get_status_display }}</span>
+            </td>
+            <td>
+              <form method="post" class="leads-assign-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="assign">
+                <input type="hidden" name="enquiry_id" value="{{ lead.id }}">
+                <input type="hidden" name="q" value="{{ filters.search }}">
+                <input type="hidden" name="enquiry_type" value="{{ filters.enquiry_type }}">
+                <input type="hidden" name="status_filter" value="{{ filters.status }}">
+                <input type="hidden" name="date_from" value="{{ filters.date_from|date:'Y-m-d' }}">
+                <input type="hidden" name="date_to" value="{{ filters.date_to|date:'Y-m-d' }}">
+                <select name="assigned_to" aria-label="Assign staff for {{ lead.full_name }}">
+                  <option value="">Unassigned</option>
+                  {% for staff in staff_users %}
+                    <option value="{{ staff.id }}" {% if lead.assigned_to_id == staff.id %}selected{% endif %}>
+                      {{ staff.get_full_name|default:staff.username }}
+                    </option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="leads-btn leads-btn-small">Save</button>
+              </form>
+            </td>
+            <td>
+              <form method="post" class="leads-status-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_status">
+                <input type="hidden" name="enquiry_id" value="{{ lead.id }}">
+                <input type="hidden" name="q" value="{{ filters.search }}">
+                <input type="hidden" name="enquiry_type" value="{{ filters.enquiry_type }}">
+                <input type="hidden" name="status_filter" value="{{ filters.status }}">
+                <input type="hidden" name="date_from" value="{{ filters.date_from|date:'Y-m-d' }}">
+                <input type="hidden" name="date_to" value="{{ filters.date_to|date:'Y-m-d' }}">
+                <select name="status" aria-label="Update status for {{ lead.full_name }}">
+                  {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if lead.status == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="leads-btn leads-btn-small">Save</button>
+              </form>
+            </td>
+          </tr>
+          <tr class="lead-notes-row">
+            <td colspan="9">
+              <div class="lead-notes-panel">
+                <h3 class="lead-notes-title">Internal notes</h3>
+                {% if lead.notes.all %}
+                  <ul class="lead-notes-list">
+                    {% for note in lead.notes.all %}
+                      <li>
+                        <span class="lead-note-meta">
+                          {{ note.created_at }} — {{ note.author.get_full_name|default:note.author.username }}
+                        </span>
+                        <p class="lead-note-text">{{ note.text }}</p>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="lead-notes-empty">No notes yet.</p>
+                {% endif %}
+                <form method="post" class="lead-add-note-form">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="add_note">
+                  <input type="hidden" name="enquiry_id" value="{{ lead.id }}">
+                  <input type="hidden" name="q" value="{{ filters.search }}">
+                  <input type="hidden" name="enquiry_type" value="{{ filters.enquiry_type }}">
+                  <input type="hidden" name="status_filter" value="{{ filters.status }}">
+                  <input type="hidden" name="date_from" value="{{ filters.date_from|date:'Y-m-d' }}">
+                  <input type="hidden" name="date_to" value="{{ filters.date_to|date:'Y-m-d' }}">
+                  <label class="lead-note-label" for="note-{{ lead.id }}">Add note</label>
+                  <textarea id="note-{{ lead.id }}" name="note_text" rows="2" placeholder="Private staff note…" required></textarea>
+                  <button type="submit" class="leads-btn leads-btn-small">Add note</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9">No enquiries match your filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="analytics-actions">
+    <a href="{% url 'admin:chatbot-analytics' %}">Analytics dashboard</a>
+    <a href="{% url 'admin:chatbot_enquiry_changelist' %}" class="admin-home-secondary">Django enquiry admin</a>
+  </div>
+</div>
+{% endblock %}
+

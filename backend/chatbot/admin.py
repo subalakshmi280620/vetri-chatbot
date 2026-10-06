@@ -12,11 +12,15 @@ from .analytics import build_analytics_context
 
 from .leads import (
 
+    add_lead_note,
+
     build_leads_context,
 
     build_leads_query_string,
 
     parse_date_param,
+
+    update_lead_assignment,
 
     update_lead_status,
 
@@ -152,23 +156,79 @@ def analytics_view(request):
 
 
 
+def _redirect_leads_after_post(request):
+
+    preserved_filters = {
+
+        "search": (request.POST.get("q") or "").strip(),
+
+        "enquiry_type": (request.POST.get("enquiry_type") or "").strip(),
+
+        "status": (request.POST.get("status_filter") or "").strip(),
+
+        "date_from": parse_date_param((request.POST.get("date_from") or "").strip()),
+
+        "date_to": parse_date_param((request.POST.get("date_to") or "").strip()),
+
+    }
+
+    query = build_leads_query_string(preserved_filters)
+
+    url = reverse("admin:chatbot-leads")
+
+    if query:
+
+        url = f"{url}?{query}"
+
+    return redirect(url)
+
+
+
+
+
 def leads_view(request):
 
     if request.method == "POST":
 
-        enquiry_id = request.POST.get("enquiry_id")
+        action = (request.POST.get("action") or "update_status").strip()
 
-        new_status = request.POST.get("status", "").strip()
+        enquiry_id = request.POST.get("enquiry_id")
 
         try:
 
-            update_lead_status(enquiry_id, new_status)
+            if action == "add_note":
 
-            messages.success(request, "Lead status updated.")
+                add_lead_note(enquiry_id, request.POST.get("note_text", ""), request.user)
+
+                messages.success(request, "Note added.")
+
+            elif action == "assign":
+
+                update_lead_assignment(enquiry_id, request.POST.get("assigned_to", ""))
+
+                messages.success(request, "Assignment updated.")
+
+            else:
+
+                new_status = request.POST.get("status", "").strip()
+
+                update_lead_status(enquiry_id, new_status)
+
+                messages.success(request, "Lead status updated.")
 
         except (ValueError, TypeError):
 
-            messages.error(request, "Invalid status selected.")
+            if action == "add_note":
+
+                messages.error(request, "Could not add note.")
+
+            elif action == "assign":
+
+                messages.error(request, "Invalid assignment selected.")
+
+            else:
+
+                messages.error(request, "Invalid status selected.")
 
         except Enquiry.DoesNotExist:
 
@@ -176,29 +236,7 @@ def leads_view(request):
 
 
 
-        preserved_filters = {
-
-            "search": (request.POST.get("q") or "").strip(),
-
-            "enquiry_type": (request.POST.get("enquiry_type") or "").strip(),
-
-            "status": (request.POST.get("status_filter") or "").strip(),
-
-            "date_from": parse_date_param((request.POST.get("date_from") or "").strip()),
-
-            "date_to": parse_date_param((request.POST.get("date_to") or "").strip()),
-
-        }
-
-        query = build_leads_query_string(preserved_filters)
-
-        url = reverse("admin:chatbot-leads")
-
-        if query:
-
-            url = f"{url}?{query}"
-
-        return redirect(url)
+        return _redirect_leads_after_post(request)
 
 
 
