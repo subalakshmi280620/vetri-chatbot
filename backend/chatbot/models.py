@@ -55,10 +55,12 @@ class Enquiry(models.Model):
     )
 
     STATUS_NEW = "new"
-    STATUS_REVIEWED = "reviewed"
+    STATUS_CONTACTED = "contacted"
+    STATUS_CLOSED = "closed"
     STATUS_CHOICES = (
         (STATUS_NEW, "New"),
-        (STATUS_REVIEWED, "Reviewed"),
+        (STATUS_CONTACTED, "Contacted"),
+        (STATUS_CLOSED, "Closed"),
     )
 
     enquiry_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_GENERAL)

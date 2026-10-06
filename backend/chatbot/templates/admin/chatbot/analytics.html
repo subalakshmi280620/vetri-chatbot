@@ -3,7 +3,7 @@
 {% block content %}
 <div class="analytics-page">
   <h1>Coach AI Analytics</h1>
-  <p class="page-intro">Usage summary for the Vetri IT Systems chatbot — conversations, enquiries, and feedback.</p>
+  <p class="page-intro">Usage summary for the Vetri IT Systems chatbot — conversations, enquiries, feedback, and trends.</p>
 
   <div class="analytics-stats">
     <div class="analytics-stat-card">
@@ -41,12 +41,82 @@
     </div>
   </div>
 
+  <div class="analytics-grid-2">
+    <div class="analytics-section">
+      <h2>Daily usage (last 7 days)</h2>
+      <p class="section-note">Total messages per day.</p>
+      <ul class="analytics-trend-list">
+        {% for item in daily_usage %}
+          <li>
+            <span class="trend-label">{{ item.label }}</span>
+            <span class="trend-bar-wrap">
+              <span class="trend-bar" style="width: {{ item.percent }}%;"></span>
+            </span>
+            <span class="trend-count">{{ item.total }}</span>
+          </li>
+        {% empty %}
+          <li><span>No messages yet.</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="analytics-section">
+      <h2>Weekly usage (last 4 weeks)</h2>
+      <p class="section-note">Total messages per week.</p>
+      <ul class="analytics-trend-list">
+        {% for item in weekly_usage %}
+          <li>
+            <span class="trend-label">W/C {{ item.label }}</span>
+            <span class="trend-bar-wrap">
+              <span class="trend-bar trend-bar-week" style="width: {{ item.percent }}%;"></span>
+            </span>
+            <span class="trend-count">{{ item.total }}</span>
+          </li>
+        {% empty %}
+          <li><span>No weekly data yet.</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="analytics-grid-2">
+    <div class="analytics-section">
+      <h2>Common topics</h2>
+      <p class="section-note">Grouped from user questions.</p>
+      <ul class="analytics-list">
+        {% for item in top_topics %}
+          <li>
+            <span>{{ item.topic }}</span>
+            <span class="count">{{ item.total }}</span>
+          </li>
+        {% empty %}
+          <li><span>No topic data yet.</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="analytics-section">
+      <h2>Top user questions</h2>
+      <p class="section-note">Most repeated questions.</p>
+      <ul class="analytics-list analytics-list-questions">
+        {% for item in top_questions %}
+          <li>
+            <span>{{ item.question }}</span>
+            <span class="count">{{ item.total }}</span>
+          </li>
+        {% empty %}
+          <li><span>No questions yet.</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
   <div class="analytics-section">
     <h2>Enquiries by type</h2>
     <ul class="analytics-list">
       {% for item in enquiry_breakdown %}
         <li>
-          <span>{{ item.enquiry_type }}</span>
+          <span>{{ item.label }}</span>
           <span class="count">{{ item.total }}</span>
         </li>
       {% empty %}
@@ -55,36 +125,63 @@
     </ul>
   </div>
 
-  <div class="analytics-section">
-    <h2>Recent enquiries</h2>
-    <table class="analytics-table">
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Interest</th>
-          <th>When</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for enquiry in recent_enquiries %}
+  <div class="analytics-grid-2">
+    <div class="analytics-section">
+      <h2>Recent enquiries</h2>
+      <table class="analytics-table">
+        <thead>
           <tr>
-            <td>{{ enquiry.get_enquiry_type_display }}</td>
-            <td>{{ enquiry.full_name }}</td>
-            <td>{{ enquiry.email }}</td>
-            <td>{{ enquiry.interest|default:"—" }}</td>
-            <td>{{ enquiry.created_at }}</td>
+            <th>Type</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Interest</th>
+            <th>When</th>
           </tr>
-        {% empty %}
-          <tr><td colspan="5">No enquiries yet.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for enquiry in recent_enquiries %}
+            <tr>
+              <td>{{ enquiry.get_enquiry_type_display }}</td>
+              <td>{{ enquiry.full_name }}</td>
+              <td>{{ enquiry.email }}</td>
+              <td>{{ enquiry.interest|default:"—" }}</td>
+              <td>{{ enquiry.created_at }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5">No enquiries yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="analytics-section">
+      <h2>Recent feedback</h2>
+      <table class="analytics-table">
+        <thead>
+          <tr>
+            <th>Rating</th>
+            <th>Reply preview</th>
+            <th>When</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for message in recent_feedback %}
+            <tr>
+              <td>{% if message.feedback == "up" %}Helpful{% else %}Not helpful{% endif %}</td>
+              <td>{{ message.text|truncatechars:80 }}</td>
+              <td>{{ message.created_at }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3">No feedback yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <div class="analytics-actions">
     <a href="{% url 'admin:chatbot_enquiry_changelist' %}">View all enquiries</a>
+    <a href="{% url 'admin:chatbot_conversation_changelist' %}" class="admin-home-secondary">View conversations</a>
   </div>
 </div>
 {% endblock %}

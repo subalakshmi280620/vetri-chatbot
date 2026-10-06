@@ -16,7 +16,6 @@ from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import (
     AI_FULLY_UNAVAILABLE_MESSAGE,
     GENERIC_FALLBACK_MARKER,
-    SHORT_GREETING_REPLY,
     apply_reply_style,
     detect_suggested_enquiry_type,
     get_conversational_fallback,
@@ -29,6 +28,8 @@ from .knowledge import (
     normalize_reply_style,
     resolve_follow_up_query,
 )
+from .language import LANG_TA, detect_language, normalize_language
+from .tamil_replies import get_tamil_ai_unavailable
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
 from .email_notifications import dispatch_enquiry_notification
 from .models import Conversation, Enquiry, Message
@@ -44,7 +45,12 @@ logger = logging.getLogger(__name__)
 HISTORY_LIMIT = 12
 
 
-def build_prompt(user_message: str, history=None, reply_style: str = "brief") -> str:
+def build_prompt(
+    user_message: str,
+    history=None,
+    reply_style: str = "brief",
+    language: str = "en",
+) -> str:
     style = normalize_reply_style(reply_style)
     query = resolve_follow_up_query(user_message, history)
     length_hint = (
@@ -52,7 +58,7 @@ def build_prompt(user_message: str, history=None, reply_style: str = "brief") ->
         if style == "brief"
         else "2–4 short lines"
     )
-    parts = [get_system_prompt(style), get_verified_facts_prompt(style)]
+    parts = [get_system_prompt(style), get_verified_facts_prompt(style, language)]
     context = format_context(retrieve(query, limit=settings.GEMINI_RAG_LIMIT))
     if context:
         parts.append(context)
@@ -66,7 +72,12 @@ def build_prompt(user_message: str, history=None, reply_style: str = "brief") ->
     return "\n\n".join(parts)
 
 
-def build_compact_prompt(user_message: str, history=None, reply_style: str = "brief") -> str:
+def build_compact_prompt(
+    user_message: str,
+    history=None,
+    reply_style: str = "brief",
+    language: str = "en",
+) -> str:
     """Smaller prompt for a last-chance Gemini retry after rate-limit errors."""
     style = normalize_reply_style(reply_style)
     query = resolve_follow_up_query(user_message, history)
@@ -76,7 +87,7 @@ def build_compact_prompt(user_message: str, history=None, reply_style: str = "br
             f"You are Coach AI for Vetri IT Systems (VIS). Reply warmly in {sentence_hint}. "
             "Use only verified facts below — never invent pricing."
         ),
-        get_verified_facts_prompt(style),
+        get_verified_facts_prompt(style, language),
     ]
     grounding = get_grounding_facts(query)
     if grounding:
@@ -125,6 +136,7 @@ def _try_ai_reply(
     history=None,
     attachments=None,
     reply_style: str = "brief",
+    language: str = "en",
 ) -> str | None:
     """Gemini first (images + primary). Grok, then DeepSeek, when Gemini fails."""
     if not settings.AI_ENABLED:
@@ -132,7 +144,7 @@ def _try_ai_reply(
     if not (settings.XAI_API_KEY or settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY):
         return None
 
-    prompt = build_prompt(user_message, history, reply_style)
+    prompt = build_prompt(user_message, history, reply_style, language)
     images = attachments.images if attachments else None
 
     if settings.GEMINI_API_KEY:
@@ -164,12 +176,15 @@ def _kb_fallback_reply(
     user_message: str,
     ai_was_attempted: bool,
     reply_style: str = "brief",
+    language: str = "en",
 ) -> tuple[str, str]:
     """Verified KB fallback when AI is unavailable."""
-    fallback = get_conversational_fallback(user_message, reply_style)
+    fallback = get_conversational_fallback(user_message, reply_style, language)
     if not ai_was_attempted:
         return fallback, SOURCE_VERIFIED_KB
     if GENERIC_FALLBACK_MARKER in fallback:
+        if normalize_language(language) == LANG_TA:
+            return get_tamil_ai_unavailable(), SOURCE_UNVERIFIED
         return AI_FULLY_UNAVAILABLE_MESSAGE, SOURCE_UNVERIFIED
     # Specific verified answer — read naturally; UI source badge shows verified_kb.
     return fallback, SOURCE_VERIFIED_KB
@@ -180,23 +195,27 @@ def generate_reply(
     history=None,
     attachments=None,
     reply_style: str | None = None,
+    language: str | None = None,
 ) -> tuple[str, str]:
+    from .knowledge import get_greeting_reply
+
     style = normalize_reply_style(reply_style or infer_reply_style(user_message, history))
+    lang = normalize_language(language or detect_language(user_message, history))
 
     if user_message and is_greeting(user_message) and not (attachments and (attachments.images or attachments.document_text)):
-        return apply_reply_style(SHORT_GREETING_REPLY, style), SOURCE_AI
+        return apply_reply_style(get_greeting_reply(lang), style), SOURCE_AI
 
     if (
         user_message
         and is_contextual_follow_up(user_message)
         and not (attachments and (attachments.images or attachments.document_text))
     ):
-        contextual = get_contextual_follow_up_reply(user_message, history, style)
+        contextual = get_contextual_follow_up_reply(user_message, history, style, lang)
         if contextual:
             return apply_reply_style(contextual, style), SOURCE_VERIFIED_KB
 
     ai_configured = _ai_providers_configured()
-    ai_reply = _try_ai_reply(user_message, history, attachments, style)
+    ai_reply = _try_ai_reply(user_message, history, attachments, style, lang)
     if ai_reply:
         return apply_reply_style(enforce_verified_facts(ai_reply.strip()), style), SOURCE_AI
 
@@ -208,7 +227,7 @@ def generate_reply(
         ), SOURCE_UNVERIFIED
 
     if not is_non_eligibility_faq(user_message):
-        eligibility = handle_eligibility(user_message, history)
+        eligibility = handle_eligibility(user_message, history, lang)
         if eligibility:
             return apply_reply_style(eligibility, style), SOURCE_ELIGIBILITY
 
@@ -216,6 +235,7 @@ def generate_reply(
         user_message,
         ai_was_attempted=ai_configured,
         reply_style=style,
+        language=lang,
     )
     return apply_reply_style(reply, style), source
 
@@ -314,6 +334,7 @@ def chat(request):
     history.reverse()
 
     reply_style = infer_reply_style(user_message, history)
+    language = detect_language(user_message, history)
 
     try:
         reply, source = generate_reply(
@@ -321,6 +342,7 @@ def chat(request):
             history,
             processed_attachments,
             reply_style,
+            language,
         )
     except Exception as exc:
         logger.exception("generate_reply failed: %s", type(exc).__name__)
@@ -328,6 +350,7 @@ def chat(request):
             prompt_message,
             ai_was_attempted=_ai_providers_configured(),
             reply_style=reply_style,
+            language=language,
         )
     suggestions = get_follow_up_suggestions(prompt_message, reply, source)
     suggest_enquiry = detect_suggested_enquiry_type(user_message, history)

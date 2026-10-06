@@ -40,6 +40,11 @@ ELIGIBILITY_PHRASES = (
     "am i eligible",
     "requirements for admission",
     "who is eligible",
+    "thaguthi",
+    "padikalaama",
+    "padikalam",
+    "join pannalaama",
+    "serthalama",
 )
 
 QUALIFICATION_HINTS = (
@@ -181,7 +186,51 @@ def _is_waiting_for_eligibility_details(last_bot: str) -> bool:
     )
 
 
-def handle_eligibility(user_message: str, history=None) -> str | None:
+def _eligibility_reply_in_language(english_reply: str, language: str) -> str:
+    from .language import LANG_TA, normalize_language
+
+    if normalize_language(language) != LANG_TA:
+        return english_reply
+    if "you meet the requirement" in english_reply.lower():
+        return english_reply.replace(
+            "Good news — with your",
+            "நல்ல செய்தி — உங்கள்",
+        ).replace(
+            "Would you like to know about fees or how to apply?",
+            "fees அல்லது apply பற்றி தெரிய வேண்டுமா?",
+        )
+    if "may not meet that yet" in english_reply.lower():
+        return english_reply.replace(
+            "For ",
+            "",
+        ).replace(
+            ", a completed degree is required",
+            " — முடித்த degree தேவை",
+        ).replace(
+            "Based on what you shared",
+            "நீங்கள் பகிர்ந்தது",
+        )
+    if "Which course are you interested in" in english_reply:
+        return (
+            "நன்றி! எந்த course-ல் interest? Python Fullstack, Java Fullstack, UI/UX, "
+            "Software Testing மற்றும் பல உள்ளன."
+        )
+    if "What's your qualification" in english_reply:
+        return english_reply.replace(
+            "What's your qualification?",
+            "உங்கள் qualification என்ன? (எ.கா. B.Tech, B.Sc, BCA, B.Com, MBA, MCA)",
+        )
+    if "don't have enough verified info" in english_reply.lower():
+        return (
+            english_reply.replace(
+                "Thanks for sharing",
+                "பகிர்ந்ததற்கு நன்றி",
+            )
+        )
+    return english_reply
+
+
+def handle_eligibility(user_message: str, history=None, language: str = "en") -> str | None:
     text = user_message.strip()
     if is_non_eligibility_faq(text):
         return None
@@ -196,8 +245,11 @@ def handle_eligibility(user_message: str, history=None) -> str | None:
 
     if not is_self_check(text) and not waiting:
         if explicit_course_id:
-            return eligibility_reply(explicit_course_name)
-        return general_eligibility_reply()
+            return _eligibility_reply_in_language(
+                eligibility_reply(explicit_course_name),
+                language,
+            )
+        return _eligibility_reply_in_language(general_eligibility_reply(), language)
 
     user_combined = f"{_user_history_text(history)} {text}"
     course_id = explicit_course_id or (match_course_id(user_combined) if waiting else None)
@@ -207,19 +259,28 @@ def handle_eligibility(user_message: str, history=None) -> str | None:
     )
 
     if not course_id and not qualification:
-        return general_eligibility_reply()
+        return _eligibility_reply_in_language(general_eligibility_reply(), language)
 
     if not course_id:
         course_sample = ", ".join(COURSES[:4]) + ", and more"
-        return (
-            f"Thanks! Which course are you interested in? We offer programmes like "
-            f"{course_sample}."
+        return _eligibility_reply_in_language(
+            (
+                f"Thanks! Which course are you interested in? We offer programmes like "
+                f"{course_sample}."
+            ),
+            language,
         )
 
     if not qualification:
-        return (
-            f"For {course_name}, you need {ELIGIBILITY_REQUIREMENT.lower()}. "
-            "What's your qualification? (e.g. B.Tech, B.Sc, BCA, B.Com, MBA, MCA)"
+        return _eligibility_reply_in_language(
+            (
+                f"For {course_name}, you need {ELIGIBILITY_REQUIREMENT.lower()}. "
+                "What's your qualification? (e.g. B.Tech, B.Sc, BCA, B.Com, MBA, MCA)"
+            ),
+            language,
         )
 
-    return _evaluate_eligibility(course_id, course_name, qualification)
+    return _eligibility_reply_in_language(
+        _evaluate_eligibility(course_id, course_name, qualification),
+        language,
+    )

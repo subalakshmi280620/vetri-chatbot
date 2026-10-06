@@ -3,8 +3,9 @@ import json
 import uuid
 from unittest.mock import patch
 
+from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 
 from .eligibility import handle_eligibility
 from .knowledge import (
@@ -1411,6 +1412,85 @@ class VectorRagTests(TestCase):
         self.assertEqual(KnowledgeIndexState.objects.count(), 1)
 
 
+class LanguageSupportTests(TestCase):
+    def test_detect_language_english(self):
+        from .language import LANG_EN, detect_language
+
+        self.assertEqual(detect_language("What products does VIS offer?"), LANG_EN)
+        self.assertEqual(detect_language("How much is Vetri Bills?"), LANG_EN)
+
+    def test_detect_language_tamil_script(self):
+        from .language import LANG_TA, detect_language
+
+        self.assertEqual(
+            detect_language("Python Fullstack பாடம் பற்றி சொல்லுங்கள்"),
+            LANG_TA,
+        )
+
+    def test_detect_language_tanglish(self):
+        from .language import LANG_TA, detect_language
+
+        self.assertEqual(
+            detect_language("Python course pathi enna sollunga"),
+            LANG_TA,
+        )
+
+    def test_tamil_follow_up_inherits_language(self):
+        from .language import LANG_EN, LANG_TA, detect_language
+
+        history = [
+            {"role": "user", "text": "Python course pathi enna"},
+            {"role": "bot", "text": "Python Fullstack is a 180-day programme."},
+        ]
+        self.assertEqual(detect_language("tell me more", history), LANG_TA)
+        self.assertEqual(detect_language("innum details", history), LANG_TA)
+
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", XAI_API_KEY="")
+    def test_tamil_course_question_returns_tamil_kb_reply(self):
+        reply, source = generate_reply("Python Fullstack பற்றி சொல்லுங்கள்")
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertRegex(reply, r"[\u0B80-\u0BFF]")
+        self.assertIn("180", reply)
+        self.assertIn("internship", reply.lower())
+
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", XAI_API_KEY="")
+    def test_tanglish_website_price_returns_tamil_with_gst(self):
+        reply, source = generate_reply("ecommerce website evlo")
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertRegex(reply, r"[\u0B80-\u0BFF]|enroll")
+        self.assertIn("₹9,999 + GST", reply)
+
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", XAI_API_KEY="")
+    def test_english_question_stays_english_without_ai(self):
+        reply, source = generate_reply("Tell me about Python Fullstack")
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertNotRegex(reply, r"[\u0B80-\u0BFF]")
+        self.assertIn("Python", reply)
+
+    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="", XAI_API_KEY="")
+    @patch("chatbot.views.ask_gemini", return_value="ஆம், Vetri Bills GST billing-க்கு உதவும்.")
+    def test_ai_prompt_includes_tamil_instruction(self, _mock_gemini):
+        from .language import LANG_TA
+
+        with patch("chatbot.views.build_prompt") as mock_prompt:
+            mock_prompt.return_value = "tamil prompt"
+            reply, source = generate_reply(
+                "Vetri Bills enna",
+                language=LANG_TA,
+            )
+        self.assertEqual(source, SOURCE_AI)
+        mock_prompt.assert_called_once()
+        self.assertEqual(mock_prompt.call_args.args[3], LANG_TA)
+        self.assertRegex(reply, r"[\u0B80-\u0BFF]")
+
+    def test_build_prompt_includes_tamil_language_block(self):
+        from .language import LANG_TA
+
+        prompt = build_prompt("Vetri Bills pathi", language=LANG_TA)
+        self.assertIn("Tamil", prompt)
+        self.assertIn("தமிழ்", prompt)
+
+
 class BuildPromptVectorTests(TestCase):
     def test_build_prompt_includes_rag_context(self):
         with patch("chatbot.views.retrieve") as mock_retrieve:
@@ -1435,3 +1515,227 @@ class BuildPromptVectorTests(TestCase):
             called_query = mock_retrieve.call_args[0][0]
         self.assertIn("Vetri Bills", called_query)
         self.assertIn("tell me more", called_query)
+
+
+class AnalyticsDashboardTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="analytics_admin",
+            email="admin@example.com",
+            password="test-pass-123",
+        )
+        self.client = Client()
+
+    def test_analytics_dashboard_requires_login(self):
+        response = self.client.get("/admin/chatbot-analytics/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+
+    def test_analytics_dashboard_accessible_to_staff(self):
+        self.client.login(username="analytics_admin", password="test-pass-123")
+        response = self.client.get("/admin/chatbot-analytics/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Coach AI Analytics")
+        self.assertContains(response, "Daily usage")
+
+    def test_get_dashboard_stats_counts_records(self):
+        from .analytics import get_dashboard_stats
+        from .models import Conversation, Message
+
+        conversation = Conversation.objects.create()
+        Message.objects.create(conversation=conversation, role="user", text="What is Python Fullstack?")
+        Message.objects.create(
+            conversation=conversation,
+            role="bot",
+            text="Python Fullstack is a 180-day programme.",
+            source="verified_kb",
+            feedback="up",
+        )
+        Enquiry.objects.create(
+            enquiry_type=Enquiry.TYPE_ENROLL,
+            full_name="Test User",
+            email="test@example.com",
+            message="I want to join Python Fullstack",
+            client_token=uuid.uuid4(),
+        )
+
+        stats = get_dashboard_stats()
+        self.assertGreaterEqual(stats["conversations"], 1)
+        self.assertGreaterEqual(stats["messages"], 2)
+        self.assertGreaterEqual(stats["user_messages"], 1)
+        self.assertGreaterEqual(stats["enquiries"], 1)
+        self.assertGreaterEqual(stats["feedback_up"], 1)
+
+    def test_topic_and_question_summaries(self):
+        from .analytics import get_top_user_questions, get_topic_summary
+        from .models import Conversation, Message
+
+        conversation = Conversation.objects.create()
+        for _ in range(3):
+            Message.objects.create(
+                conversation=conversation,
+                role="user",
+                text="Tell me about Python Fullstack course",
+            )
+        Message.objects.create(
+            conversation=conversation,
+            role="user",
+            text="How much is an ecommerce website?",
+        )
+
+        topics = get_topic_summary()
+        topic_names = [item["topic"] for item in topics]
+        self.assertIn("Courses & training", topic_names)
+
+        questions = get_top_user_questions()
+        self.assertTrue(any(item["total"] >= 3 for item in questions))
+
+    def test_daily_and_weekly_usage_series(self):
+        from .analytics import get_daily_message_counts, get_weekly_message_counts
+        from .models import Conversation, Message
+
+        conversation = Conversation.objects.create()
+        Message.objects.create(conversation=conversation, role="user", text="Hello Coach AI")
+
+        daily = get_daily_message_counts(days=7)
+        weekly = get_weekly_message_counts(weeks=4)
+        self.assertEqual(len(daily), 7)
+        self.assertGreaterEqual(sum(item["total"] for item in daily), 1)
+        self.assertGreaterEqual(len(weekly), 1)
+
+    def test_enquiry_breakdown_includes_labels(self):
+        from .analytics import get_enquiry_breakdown
+
+        Enquiry.objects.create(
+            enquiry_type=Enquiry.TYPE_DEMO,
+            full_name="Demo User",
+            email="demo@example.com",
+            message="Need a Vetri Bills demo",
+            client_token=uuid.uuid4(),
+        )
+        breakdown = get_enquiry_breakdown()
+        self.assertTrue(any(item["label"] == "Request a product demo" for item in breakdown))
+
+
+class LeadsDashboardTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="leads_admin",
+            email="leads@example.com",
+            password="test-pass-123",
+        )
+        self.client = Client()
+        self.token = uuid.uuid4()
+
+    def _create_enquiry(self, **kwargs):
+        defaults = {
+            "enquiry_type": Enquiry.TYPE_QUOTATION,
+            "full_name": "Lead User",
+            "email": "lead@example.com",
+            "phone": "9876543210",
+            "interest": "Vetri Bills",
+            "message": "Need a quotation",
+            "client_token": self.token,
+            "status": Enquiry.STATUS_NEW,
+        }
+        defaults.update(kwargs)
+        return Enquiry.objects.create(**defaults)
+
+    def test_leads_dashboard_requires_login(self):
+        response = self.client.get("/admin/chatbot-leads/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response.url)
+
+    def test_leads_dashboard_accessible_to_staff(self):
+        self.client.login(username="leads_admin", password="test-pass-123")
+        response = self.client.get("/admin/chatbot-leads/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Leads Dashboard")
+
+    def test_get_lead_counts(self):
+        from .leads import get_lead_counts
+
+        self._create_enquiry(status=Enquiry.STATUS_NEW)
+        self._create_enquiry(
+            full_name="Contacted Lead",
+            email="contacted@example.com",
+            status=Enquiry.STATUS_CONTACTED,
+        )
+        self._create_enquiry(
+            full_name="Closed Lead",
+            email="closed@example.com",
+            status=Enquiry.STATUS_CLOSED,
+        )
+
+        counts = get_lead_counts()
+        self.assertEqual(counts["total"], 3)
+        self.assertEqual(counts["new"], 1)
+        self.assertEqual(counts["contacted"], 1)
+        self.assertEqual(counts["closed"], 1)
+
+    def test_filter_leads_by_search_type_and_status(self):
+        from .leads import filter_leads
+
+        self._create_enquiry(full_name="Arun Kumar", email="arun@example.com")
+        self._create_enquiry(
+            full_name="Priya",
+            email="priya@example.com",
+            enquiry_type=Enquiry.TYPE_DEMO,
+            status=Enquiry.STATUS_CONTACTED,
+        )
+
+        by_name = filter_leads(search="Arun")
+        self.assertEqual(by_name.count(), 1)
+        self.assertEqual(by_name.first().email, "arun@example.com")
+
+        by_phone = filter_leads(search="9876543210")
+        self.assertEqual(by_phone.count(), 2)
+
+        by_type = filter_leads(enquiry_type=Enquiry.TYPE_DEMO)
+        self.assertEqual(by_type.count(), 1)
+
+        by_status = filter_leads(status=Enquiry.STATUS_CONTACTED)
+        self.assertEqual(by_status.count(), 1)
+
+    def test_update_lead_status(self):
+        from .leads import update_lead_status
+
+        enquiry = self._create_enquiry()
+        updated = update_lead_status(enquiry.id, Enquiry.STATUS_CONTACTED)
+        self.assertEqual(updated.status, Enquiry.STATUS_CONTACTED)
+
+        with self.assertRaises(ValueError):
+            update_lead_status(enquiry.id, "invalid")
+
+    def test_staff_can_update_status_from_dashboard(self):
+        enquiry = self._create_enquiry(full_name="Status Test")
+        self.client.login(username="leads_admin", password="test-pass-123")
+
+        response = self.client.post(
+            "/admin/chatbot-leads/",
+            {
+                "enquiry_id": enquiry.id,
+                "status": Enquiry.STATUS_CLOSED,
+                "q": "Status",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        enquiry.refresh_from_db()
+        self.assertEqual(enquiry.status, Enquiry.STATUS_CLOSED)
+
+    def test_enquiry_submission_still_works_after_status_change(self):
+        response = self.client.post(
+            "/api/chatbot/enquiries/",
+            data=json.dumps({
+                "enquiry_type": "enroll",
+                "full_name": "New Enrollee",
+                "email": "enrollee@example.com",
+                "phone": "9000000001",
+                "interest": "Python Fullstack",
+                "message": "I want to enroll",
+                "client_token": str(self.token),
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Enquiry.objects.filter(email="enrollee@example.com").count(), 1)

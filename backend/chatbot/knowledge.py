@@ -764,8 +764,23 @@ def _bot_offered_action(history) -> bool:
     return any(phrase in last for phrase in _ACTION_OFFER_PHRASES)
 
 
-def reply_to_short_yes(history=None) -> str:
+def get_greeting_reply(language: str = "en") -> str:
+    from .language import LANG_TA, normalize_language
+    from .tamil_replies import get_tamil_greeting
+
+    if normalize_language(language) == LANG_TA:
+        return get_tamil_greeting()
+    return SHORT_GREETING_REPLY
+
+
+def reply_to_short_yes(history=None, language: str = "en") -> str:
     """One short reply when the user only says yes. Do not start a long report."""
+    from .language import LANG_TA, normalize_language
+    from .tamil_replies import reply_to_short_yes_tamil
+
+    if normalize_language(language) == LANG_TA:
+        return reply_to_short_yes_tamil(history)
+
     last = _last_bot_text(history).lower()
     if any(word in last for word in ("enroll", "join", "course", "internship")):
         return (
@@ -785,6 +800,8 @@ _VAGUE_FOLLOW_UPS = (
     "more detail", "more details", "tell me more", "more info", "more information",
     "explain more", "want more", "go on", "continue", "elaborate", "expand on",
     "what else", "anything else",
+    "innum details", "konjam sollunga", "explain pannu", "explain pannunga",
+    "details venum", "innum sollunga", "மேலும்", "விவரம்",
 )
 
 _CONTINUATION_REPLIES = {
@@ -867,14 +884,15 @@ def get_contextual_follow_up_reply(
     message: str,
     history=None,
     reply_style: str | None = None,
+    language: str = "en",
 ) -> str | None:
     """Answer yes / tell me more using the previous question and topic."""
     style = normalize_reply_style(reply_style or infer_reply_style(message, history))
     if is_short_yes(message) and _bot_offered_action(history):
-        return reply_to_short_yes(history)
+        return reply_to_short_yes(history, language)
 
     resolved = resolve_follow_up_query(message, history)
-    fallback = get_conversational_fallback(resolved, style)
+    fallback = get_conversational_fallback(resolved, style, language)
     if GENERIC_FALLBACK_MARKER not in fallback:
         return fallback
 
@@ -883,7 +901,7 @@ def get_contextual_follow_up_reply(
         return rag_reply
 
     if is_short_yes(message):
-        return reply_to_short_yes(history)
+        return reply_to_short_yes(history, language)
     return None
 
 
@@ -1045,6 +1063,7 @@ def _matches_quotation_intent(text: str) -> bool:
     return any(k in text for k in (
         "quotation", "quote", "get quotation", "request a quotation", "get a quotation",
         "how can i get a quotation", "pricing", "how much", "cost", "price",
+        "evlo", "evalavu",
     ))
 
 
@@ -1375,13 +1394,25 @@ def get_grounding_facts(message: str) -> str:
     return "\n\n".join(parts).strip()
 
 
-def get_conversational_fallback(message: str, reply_style: str = REPLY_STYLE_BRIEF) -> str:
+def get_conversational_fallback(
+    message: str,
+    reply_style: str = REPLY_STYLE_BRIEF,
+    language: str = "en",
+) -> str:
     """Short natural reply when the LLM is unavailable — not the long FAQ templates."""
+    from .language import LANG_TA, normalize_language
+    from .tamil_replies import build_tamil_fallback, get_tamil_generic_fallback
+
     text = message.strip().lower()
     detailed = normalize_reply_style(reply_style) == REPLY_STYLE_DETAILED
 
+    if normalize_language(language) == LANG_TA:
+        tamil = build_tamil_fallback(message, reply_style)
+        if tamil:
+            return tamil
+
     if is_greeting(text):
-        return SHORT_GREETING_REPLY
+        return get_greeting_reply(language)
 
     website_offer = _matches_website_price_intent(text)
     if website_offer == "ecommerce":
@@ -1639,6 +1670,8 @@ def get_conversational_fallback(message: str, reply_style: str = REPLY_STYLE_BRI
             f"Sure — {snippet}. Happy to go deeper if you'd like — just ask a follow-up."
         )
 
+    if normalize_language(language) == "ta":
+        return get_tamil_generic_fallback()
     return f"{GENERIC_FALLBACK_MARKER} What would you like to know?"
 
 

@@ -10,6 +10,7 @@
     <div id="site-name"><a href="{% url 'admin:index' %}">Coach AI Admin</a></div>
 {% if user.is_staff %}
 <p class="admin-header-links">
+  <a href="{% url 'admin:chatbot-leads' %}">Leads</a>
   <a href="{% url 'admin:chatbot-analytics' %}">Analytics</a>
   <a href="{% url 'admin:chatbot_enquiry_changelist' %}">Enquiries</a>
 </p>

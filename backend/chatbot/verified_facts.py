@@ -70,9 +70,10 @@ _PRICING_REDIRECT = (
 )
 
 
-def get_verified_facts_prompt(reply_style: str = "brief") -> str:
+def get_verified_facts_prompt(reply_style: str = "brief", language: str = "en") -> str:
     """Prompt block injected before every AI call."""
     from .knowledge import REPLY_STYLE_BRIEF, normalize_reply_style
+    from .language import get_response_language_instruction
 
     never = "\n".join(f"- {item}" for item in NEVER_INVENT)
     exact = "\n".join(f"- {item}" for item in MUST_BE_EXACT)
@@ -82,6 +83,7 @@ def get_verified_facts_prompt(reply_style: str = "brief") -> str:
         else "Use 2 to 4 short sentences."
     )
     return (
+        f"{get_response_language_instruction(language)}\n\n"
         "VERIFIED FACTS ONLY (critical):\n"
         "Reply like a friendly human on chat — warm, clear, and complete. "
         f"{length_hint} Never copy grounding labels or sound like a brochure. "
