@@ -28,15 +28,24 @@ ELIGIBILITY_PHRASES = (
     "eligib",
     "who can apply",
     "who can join",
+    "who can study",
     "qualification required",
     "qualification is required",
+    "qualification needed",
     "what qualification",
     "qualifications required",
+    "minimum qualification",
+    "educational requirement",
+    "entry requirement",
+    "eligibility criteria",
+    "degree required",
+    "need a degree",
     "qualify",
     "admission",
     "can i join",
     "can i apply",
     "can i enroll",
+    "can freshers",
     "am i eligible",
     "requirements for admission",
     "who is eligible",
@@ -53,21 +62,6 @@ QUALIFICATION_HINTS = (
     "mba", "mca", "engineering", "arts", "commerce", "science",
     "fresher", "professional", "iti", "plus two", "+2",
 )
-
-NON_ELIGIBILITY_FAQ_PHRASES = (
-    "fee", "fees", "tuition", "course cost", "course fee", "price", "pricing",
-    "how to apply", "how do i apply", "how can i apply", "application process",
-    "admission process", "how to enroll", "how to join", "how to register",
-    "contact", "phone", "call", "mobile number",
-    "duration", "how long", "how many months", "how many days",
-    "which courses", "what courses", "courses available", "courses are available",
-    "mock interview", "login", "sign up", "get started",
-    "product", "products", "service", "services", "portfolio", "lms", "crm",
-    "vetri bills", "web development", "printing", "hardware", "networking",
-    "backup", "maintenance", "amc", "quotation", "quote", "about vis",
-    "about company", "about vetri",
-)
-
 
 def is_eligibility_intent(text: str) -> bool:
     lowered = text.lower()
@@ -112,8 +106,9 @@ def _user_history_text(history) -> str:
 
 
 def is_non_eligibility_faq(text: str) -> bool:
-    lowered = text.lower()
-    return any(phrase in lowered for phrase in NON_ELIGIBILITY_FAQ_PHRASES)
+    from .query_intents import is_non_eligibility_topic
+
+    return is_non_eligibility_topic(text)
 
 
 def is_self_check(text: str) -> bool:
@@ -259,6 +254,8 @@ def handle_eligibility(user_message: str, history=None, language: str = "en") ->
     )
 
     if not course_id and not qualification:
+        if waiting and not is_eligibility_intent(text) and not is_self_check(text):
+            return None
         return _eligibility_reply_in_language(general_eligibility_reply(), language)
 
     if not course_id:

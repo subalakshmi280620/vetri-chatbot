@@ -1398,9 +1398,15 @@ def get_conversational_fallback(
     message: str,
     reply_style: str = REPLY_STYLE_BRIEF,
     language: str = "en",
+    history=None,
 ) -> str:
     """Short natural reply when the LLM is unavailable — not the long FAQ templates."""
     from .language import LANG_TA, normalize_language
+    from .query_intents import (
+        has_training_context,
+        matches_duration_intent,
+        matches_fee_intent,
+    )
     from .tamil_replies import build_tamil_fallback, get_tamil_generic_fallback
 
     text = message.strip().lower()
@@ -1413,6 +1419,30 @@ def get_conversational_fallback(
 
     if is_greeting(text):
         return get_greeting_reply(language)
+
+    if matches_fee_intent(text) and (
+        has_training_context(text, history) or match_course_id(text) or _is_course_context(text)
+    ):
+        course_id = match_course_id(text) or match_course_id(
+            " ".join(item.get("text", "") for item in (history or []) if item.get("role") == "user")
+        )
+        if course_id:
+            course_name = match_course_name(course_id)
+            return (
+                f"{course_name} fees vary by batch. Programme is {COURSE_DURATION} — "
+                "use Enquiry for an exact fee quote."
+            )
+        return (
+            f"Training programme fees vary by course and batch. Programmes run for {COURSE_DURATION} "
+            f"and require {ELIGIBILITY_REQUIREMENT.lower()}. "
+            "Tell me which course you're interested in, or use Enquiry for an exact fee quote."
+        )
+
+    if matches_duration_intent(text) and (
+        has_training_context(text, history) or match_course_id(text) or _is_course_context(text)
+    ):
+        course_name = match_course_name(match_course_id(text)) or "VIS courses"
+        return f"{course_name} runs for {COURSE_DURATION}."
 
     website_offer = _matches_website_price_intent(text)
     if website_offer == "ecommerce":

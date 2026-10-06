@@ -403,6 +403,32 @@ class EligibilityReplyTests(TestCase):
         self.assertNotIn("Outcome: ELIGIBLE", reply)
         self.assertEqual(source, SOURCE_VERIFIED_KB)
 
+    def test_cost_after_general_eligibility_uses_fees_not_eligibility(self):
+        first = handle_eligibility("What is the eligibility?")
+        history = [
+            {"role": "user", "text": "What is the eligibility?"},
+            {"role": "bot", "text": first},
+        ]
+        self.assertIsNone(handle_eligibility("How much does it cost?", history))
+        reply, source = generate_reply("How much does it cost?", history)
+        self.assertIn("fee", reply.lower())
+        self.assertNotEqual(reply, first)
+
+    def test_varied_fee_phrasings_after_eligibility(self):
+        first = handle_eligibility("What is the eligibility?")
+        history = [
+            {"role": "user", "text": "What is the eligibility?"},
+            {"role": "bot", "text": first},
+        ]
+        for question in (
+            "What's the price?",
+            "How much do I need to pay?",
+            "Course charges?",
+        ):
+            self.assertIsNone(handle_eligibility(question, history))
+            reply, _source = generate_reply(question, history)
+            self.assertIn("fee", reply.lower())
+
     def test_qualification_not_parsed_from_bot_general_eligibility_text(self):
         first = handle_eligibility("What are the eligibility requirements?")
         second = handle_eligibility(

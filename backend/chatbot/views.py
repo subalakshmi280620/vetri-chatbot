@@ -177,9 +177,12 @@ def _kb_fallback_reply(
     ai_was_attempted: bool,
     reply_style: str = "brief",
     language: str = "en",
+    history=None,
 ) -> tuple[str, str]:
     """Verified KB fallback when AI is unavailable."""
-    fallback = get_conversational_fallback(user_message, reply_style, language)
+    fallback = get_conversational_fallback(
+        user_message, reply_style, language, history=history
+    )
     if not ai_was_attempted:
         return fallback, SOURCE_VERIFIED_KB
     if GENERIC_FALLBACK_MARKER in fallback:
@@ -236,6 +239,7 @@ def generate_reply(
         ai_was_attempted=ai_configured,
         reply_style=style,
         language=lang,
+        history=history,
     )
     return apply_reply_style(reply, style), source
 
