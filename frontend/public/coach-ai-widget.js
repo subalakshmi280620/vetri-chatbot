@@ -9,9 +9,7 @@
  *   data-title="Coach AI"
  */
 (function initCoachAiWidget() {
-  // Paused until the mentor review so the website button cannot spend Gemini quota.
-  // Set to false after approval to show the floating Coach AI button again.
-  const EMBED_PAUSED = true
+  const EMBED_PAUSED = false
   if (EMBED_PAUSED) {
     return
   }

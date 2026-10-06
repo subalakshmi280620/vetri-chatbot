@@ -62,8 +62,7 @@ const HEALTH_URL = `${API_BASE}/health/`
 const EMBED_SEARCH = new URLSearchParams(window.location.search)
 const IS_EMBED = EMBED_SEARCH.get('embed') === '1'
 const EMBED_HOST_WIDGET = EMBED_SEARCH.get('open') === '1'
-// Website embed is paused until mentor review so it cannot spend Gemini quota.
-const EMBED_PAUSED = true
+const EMBED_PAUSED = false
 const CLIENT_TOKEN_KEY = 'visClientToken'
 const CONVERSATION_ID_KEY = 'visConversationId'
 function migrateLegacySessionStorage() {

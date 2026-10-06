@@ -100,9 +100,8 @@
   </head>
   <body>
     <div class="banner">
-      <strong>Website embed is paused</strong>
-      until the mentor review. The floating button is turned off so it cannot call the chat API
-      or use the daily Gemini quota. Demo the main chat at
+      <strong>Coach AI embed preview</strong> — click the green <strong>Coach AI</strong> button
+      in the bottom-right corner. Full chat:
       <a href="https://vetri-chatbot-ui.onrender.com">vetri-chatbot-ui.onrender.com</a>.
     </div>
 
@@ -118,7 +117,7 @@
         green button in the bottom-right corner. Your real website content would go here.
       </p>
       <p class="hint">
-        The green Coach AI button is hidden on purpose. Open the main chat link above for the mentor demo.
+        Click the green Coach AI button to open the chat widget.
       </p>
 
       <details>
@@ -145,6 +144,11 @@
       </details>
     </main>
 
-    <!-- Widget script is not loaded while embed is paused. -->
+    <script
+      src="/coach-ai-widget.js"
+      data-chat-url="https://vetri-chatbot-ui.onrender.com"
+      data-title="Coach AI"
+      defer
+    ></script>
   </body>
 </html>
