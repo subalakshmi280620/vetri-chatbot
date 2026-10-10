@@ -10,7 +10,7 @@
  *   data-icon-url="https://vetri-chatbot-ui.onrender.com/coach-ai-embed-icon.png"
  */
 (function initCoachAiWidget() {
-  const EMBED_PAUSED = false
+  const EMBED_PAUSED = true
   if (EMBED_PAUSED) {
     return
   }
