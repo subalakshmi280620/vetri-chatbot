@@ -11,7 +11,7 @@ from .throttles import ChatRateThrottle
 
 from .deepseek import ask_deepseek
 from .gemini import GeminiAPIError, ask_gemini
-from .grok import GrokAPIError, ask_grok
+from .groq import GroqAPIError, ask_groq
 from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import (
     AI_FULLY_UNAVAILABLE_MESSAGE,
@@ -95,26 +95,27 @@ def build_compact_prompt(
     return "\n\n".join(parts)
 
 
-def _try_grok_reply(user_message: str, prompt: str, history=None) -> str | None:
-    if not settings.XAI_API_KEY:
+def _try_groq_reply(user_message: str, prompt: str, history=None) -> str | None:
+    if not settings.GROQ_API_KEY:
         return None
+
     try:
-        reply = ask_grok(user_message, prompt, history)
+        reply = ask_groq(user_message, prompt, history)
         logger.info(
-            "AI provider success: grok fallback model=%s",
-            settings.GROK_MODEL,
+            "AI provider success: groq fallback model=%s",
+            settings.GROQ_MODEL,
         )
         return reply
-    except GrokAPIError as exc:
+    except GroqAPIError as exc:
         logger.warning(
-            "AI provider error: grok fallback HTTP=%s",
+            "AI provider error: groq fallback HTTP=%s",
             exc.code or "unknown",
         )
         return None
     except Exception as exc:
-        detail = str(exc).replace(settings.XAI_API_KEY, "***")[:240]
+        detail = str(exc).replace(settings.GROQ_API_KEY, "***")[:240]
         logger.warning(
-            "AI provider error: grok fallback %s",
+            "AI provider error: groq fallback %s",
             detail or type(exc).__name__,
         )
         return None
@@ -143,7 +144,11 @@ def _try_deepseek_reply(user_message: str, prompt: str, history=None) -> str | N
 def _ai_providers_configured() -> bool:
     return bool(
         settings.AI_ENABLED
-        and (settings.GEMINI_API_KEY or settings.XAI_API_KEY or settings.DEEPSEEK_API_KEY)
+        and (
+            settings.GEMINI_API_KEY
+            or settings.GROQ_API_KEY
+            or settings.DEEPSEEK_API_KEY
+        )
     )
 
 
@@ -154,10 +159,14 @@ def _try_ai_reply(
     reply_style: str = "brief",
     language: str = "en",
 ) -> str | None:
-    """Gemini first (images + primary). Grok, then DeepSeek, when Gemini fails."""
+    """Gemini first; Groq and then DeepSeek are text-chat fallbacks."""
     if not settings.AI_ENABLED:
         return None
-    if not (settings.XAI_API_KEY or settings.DEEPSEEK_API_KEY or settings.GEMINI_API_KEY):
+    if not (
+    settings.GROQ_API_KEY
+    or settings.DEEPSEEK_API_KEY
+    or settings.GEMINI_API_KEY
+):
         return None
 
     prompt = build_prompt(user_message, history, reply_style, language)
@@ -182,9 +191,9 @@ def _try_ai_reply(
 
     # Backup AI for text chat when Gemini is down (503, 429, timeout, etc.)
     if not images:
-        grok_reply = _try_grok_reply(user_message, prompt, history)
-        if grok_reply:
-            return grok_reply
+        groq_reply = _try_groq_reply(user_message, prompt, history)
+    if groq_reply:
+        return groq_reply
         return _try_deepseek_reply(user_message, prompt, history)
 
     return None

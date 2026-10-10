@@ -294,15 +294,16 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 
-XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
-GROK_BASE_URL = os.environ.get("GROK_BASE_URL", "https://api.x.ai/v1")
-GROK_MODEL = os.environ.get("GROK_MODEL", "grok-4.6")
+# Groq API settings
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
+
 try:
-    GROK_REQUEST_TIMEOUT = max(
-        10, min(int(os.environ.get("GROK_REQUEST_TIMEOUT", "45")), 60)
+    GROQ_REQUEST_TIMEOUT = max(
+        10, min(int(os.environ.get("GROQ_REQUEST_TIMEOUT", "45")), 60)
     )
 except (TypeError, ValueError):
-    GROK_REQUEST_TIMEOUT = 45
+    GROQ_REQUEST_TIMEOUT = 45
 
 # Set AI_ENABLED=false to skip Gemini/Grok/DeepSeek calls (saves quota; uses verified KB).
 AI_ENABLED = _env_bool("AI_ENABLED", True)

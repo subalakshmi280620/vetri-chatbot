@@ -27,7 +27,7 @@ from .throttles import ChatRateThrottle
 from .attachments import build_user_message_with_attachments, parse_attachments
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
 from .gemini import GeminiAPIError, ask_gemini
-from .grok import GrokAPIError, ask_grok
+from .groq import GroqAPIError, ask_groq
 from .views import (
     SOURCE_AI,
     SOURCE_ELIGIBILITY,
@@ -500,16 +500,24 @@ class KnowledgeReplyTests(TestCase):
         self.assertIn("Why VIS", why)
         self.assertNotEqual(about, why)
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(
+        AI_ENABLED=False,
+        GEMINI_API_KEY="",
+        GROQ_API_KEY="",
+        DEEPSEEK_API_KEY="",
+    )
     def test_generate_reply_general_eligibility_via_api_path(self):
         history = [
             {"role": "user", "text": "Tell me about Java Fullstack"},
             {"role": "bot", "text": "Course Overview — Java Fullstack"},
         ]
+
         reply, source = generate_reply("What is the eligibility?", history)
+
         self.assertIn("degree", reply.lower())
         self.assertNotIn("Java Fullstack", reply)
         self.assertEqual(source, SOURCE_ELIGIBILITY)
+
 
     @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="Vetri Bills is our GST billing product.")
@@ -718,7 +726,11 @@ class EnquiryApiTests(ChatApiTestCase):
 
 
 class ChatAdvancedFeatureTests(ChatApiTestCase):
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(
+        GEMINI_API_KEY="",
+        GROQ_API_KEY="",
+        DEEPSEEK_API_KEY="",
+    )
     def test_chat_returns_source_and_suggestions(self):
         response = self._post_chat("What courses are available?")
         self.assertEqual(response.status_code, 200)
@@ -729,7 +741,11 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         self.assertIn("message_id", data)
         self.assertGreaterEqual(len(data["suggestions"]), 1)
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(
+        GEMINI_API_KEY="",
+        GROQ_API_KEY="",
+        DEEPSEEK_API_KEY="",
+    )
     def test_chat_never_returns_long_faq_template(self):
         response = self._post_chat("What products does VIS offer?")
         self.assertEqual(response.status_code, 200)
@@ -819,7 +835,7 @@ class DemoQuestionCoverageTests(TestCase):
         ("Tell me about Vetri Bills", "What products does VIS offer?"),
     ]
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_demo_questions_return_expected_topics(self):
         for question, markers in self.DEMO_QUESTIONS:
             reply, source = generate_reply(question)
@@ -1009,7 +1025,7 @@ class GeminiRetryTests(TestCase):
         "GEMINI_MODEL": "gemini-3.8-flash",
         "GEMINI_FALLBACK_MODELS": ["gemini-3.6-flash"],
         "GEMINI_CONSERVE_QUOTA": False,
-        "XAI_API_KEY": "",
+        "GROQ_API_KEY": "",
         "DEEPSEEK_API_KEY": "",
     }
 
@@ -1154,15 +1170,15 @@ class GeminiRetryTests(TestCase):
         self.assertEqual(mock_call.call_args.args[0], "gemini-3.8-flash")
 
 
-class GrokFallbackTests(TestCase):
+class GroqFallbackTests(TestCase):
     _AI_SETTINGS = {
         "GEMINI_API_KEY": "test-gemini-key",
         "GEMINI_MODEL": "gemini-3.8-flash",
         "GEMINI_FALLBACK_MODELS": ["gemini-3.6-flash"],
         "GEMINI_CONSERVE_QUOTA": True,
-        "XAI_API_KEY": "test-xai-key",
-        "GROK_MODEL": "grok-4.6",
-        "GROK_BASE_URL": "https://api.x.ai/v1",
+        "GROQ_API_KEY": "test-xai-key",
+        "GROQ_MODEL": "openai/gpt-oss-120b",
+        "GROQ_BASE_URL": "https://api.groq.com/openai/v1",
         "DEEPSEEK_API_KEY": "",
     }
 
@@ -1176,7 +1192,7 @@ class GrokFallbackTests(TestCase):
         mock_gemini.assert_called_once()
 
     @override_settings(**_AI_SETTINGS)
-    @patch("chatbot.views.ask_grok", return_value="Grok reply about Vetri Bills.")
+    @patch("chatbot.views.ask_groq", return_value="Groq reply about Vetri Bills.")
     @patch(
         "chatbot.views.ask_gemini",
         side_effect=GeminiAPIError(
@@ -1189,12 +1205,12 @@ class GrokFallbackTests(TestCase):
         reply, source = generate_reply("What products does VIS offer?")
 
         self.assertEqual(source, SOURCE_AI)
-        self.assertIn("Grok reply", reply)
+        self.assertIn("Groq reply", reply)
         mock_gemini.assert_called()
         mock_grok.assert_called_once()
 
     @override_settings(**_AI_SETTINGS)
-    @patch("chatbot.views.ask_grok", return_value=None)
+    @patch("chatbot.views.ask_groq", return_value=None)
     @patch(
         "chatbot.views.ask_gemini",
         side_effect=GeminiAPIError(
@@ -1210,8 +1226,8 @@ class GrokFallbackTests(TestCase):
         self.assertIn("Vetri Bills", reply)
         mock_grok.assert_called_once()
 
-    @override_settings(**{**_AI_SETTINGS, "XAI_API_KEY": ""})
-    @patch("chatbot.views.ask_grok")
+    @override_settings(**{**_AI_SETTINGS, "GROQ_API_KEY": ""})
+    @patch("chatbot.views.ask_groq")
     @patch(
         "chatbot.views.ask_gemini",
         side_effect=GeminiAPIError(
@@ -1228,48 +1244,49 @@ class GrokFallbackTests(TestCase):
         self.assertIn("Vetri Bills", reply)
 
     @override_settings(
-        XAI_API_KEY="test-xai-key",
-        GROK_MODEL="grok-4.6",
-        GROK_BASE_URL="https://api.x.ai/v1",
-        GROK_REQUEST_TIMEOUT=45,
+        GROQ_API_KEY="test-xai-key",
+        GROQ_MODEL="openai/gpt-oss-120b",
+        GROQ_BASE_URL="https://api.groq.com/openai/v1",
+        GROQ_REQUEST_TIMEOUT=45,
     )
-    @patch("chatbot.grok.urllib.request.urlopen")
-    def test_ask_grok_success(self, mock_urlopen):
+    @patch("chatbot.groq.urllib.request.urlopen")
+    def test_ask_groq_success(self, mock_urlopen):
         mock_response = mock_urlopen.return_value.__enter__.return_value
         mock_response.read.return_value = json.dumps({
             "choices": [{"message": {"content": "  Hello from Grok.  "}}],
         }).encode()
 
-        reply = ask_grok("What is VIS?", "system prompt")
+        reply = ask_groq("What is VIS?", "system prompt")
 
         self.assertEqual(reply, "Hello from Grok.")
         request = mock_urlopen.call_args[0][0]
-        self.assertEqual(request.get_full_url(), "https://api.x.ai/v1/chat/completions")
+        self.assertEqual(request.get_full_url(), "https://api.groq.com/openai/v1/chat/completions")
         self.assertTrue(request.headers.get("Authorization", "").startswith("Bearer "))
         payload = json.loads(request.data.decode())
-        self.assertEqual(payload["model"], "grok-4.6")
+        self.assertEqual(payload["model"], "openai/gpt-oss-120b")
         self.assertEqual(payload["messages"][0]["role"], "system")
         self.assertEqual(payload["messages"][-1]["content"], "What is VIS?")
 
-    @override_settings(XAI_API_KEY="")
-    def test_ask_grok_missing_key_raises(self):
-        with self.assertRaises(GrokAPIError) as ctx:
-            ask_grok("Hello", "system prompt")
+    @override_settings(GROQ_API_KEY="")
+    def test_ask_groq_missing_key_raises(self):
+        with self.assertRaises(GroqAPIError) as ctx:
+            ask_groq("Hello", "system prompt")
 
-        self.assertIn("not set", str(ctx.exception))
+        self.assertIn("not configured", str(ctx.exception))
+
 
     @override_settings(
-        XAI_API_KEY="test-xai-key",
-        GROK_MODEL="grok-4.6",
-        GROK_BASE_URL="https://api.x.ai/v1",
+        GROQ_API_KEY="test-xai-key",
+        GROQ_MODEL="openai/gpt-oss-120b",
+        GROQ_BASE_URL="https://api.groq.com/openai/v1",
     )
-    @patch("chatbot.grok.urllib.request.urlopen")
-    def test_ask_grok_http_error(self, mock_urlopen):
+    @patch("chatbot.groq.urllib.request.urlopen")
+    def test_ask_groq_http_error(self, mock_urlopen):
         import io
         import urllib.error
 
         mock_urlopen.side_effect = urllib.error.HTTPError(
-            "https://api.x.ai/v1/chat/completions",
+            "https://api.groq.com/openai/v1/chat/completions",
             503,
             "Service Unavailable",
             {},
@@ -1278,8 +1295,8 @@ class GrokFallbackTests(TestCase):
             ),
         )
 
-        with self.assertRaises(GrokAPIError) as ctx:
-            ask_grok("Hello", "system prompt")
+        with self.assertRaises(GroqAPIError) as ctx:
+            ask_groq("Hello", "system prompt")
 
         self.assertEqual(ctx.exception.code, 503)
 
@@ -1471,7 +1488,7 @@ class LanguageSupportTests(TestCase):
         self.assertEqual(detect_language("tell me more", history), LANG_TA)
         self.assertEqual(detect_language("innum details", history), LANG_TA)
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", XAI_API_KEY="")
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", GROQ_API_KEY="")
     def test_tamil_course_question_returns_tamil_kb_reply(self):
         reply, source = generate_reply("Python Fullstack பற்றி சொல்லுங்கள்")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
@@ -1479,21 +1496,21 @@ class LanguageSupportTests(TestCase):
         self.assertIn("180", reply)
         self.assertIn("internship", reply.lower())
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", XAI_API_KEY="")
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", GROQ_API_KEY="")
     def test_tanglish_website_price_returns_tamil_with_gst(self):
         reply, source = generate_reply("ecommerce website evlo")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertRegex(reply, r"[\u0B80-\u0BFF]|enroll")
         self.assertIn("₹9,999 + GST", reply)
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", XAI_API_KEY="")
+    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", GROQ_API_KEY="")
     def test_english_question_stays_english_without_ai(self):
         reply, source = generate_reply("Tell me about Python Fullstack")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertNotRegex(reply, r"[\u0B80-\u0BFF]")
         self.assertIn("Python", reply)
 
-    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="", XAI_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="", GROQ_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="ஆம், Vetri Bills GST billing-க்கு உதவும்.")
     def test_ai_prompt_includes_tamil_instruction(self, _mock_gemini):
         from .language import LANG_TA
