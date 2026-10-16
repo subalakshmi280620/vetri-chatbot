@@ -1,26 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 :root {
-  /* VIS Figma design tokens */
-  --vis-navy: #0c1e3d;
-  --vis-navy-deep: #061428;
-  --vis-green: #4ade80;
-  --vis-green-hover: #22c55e;
-  --vis-green-text: #0c1e3d;
-  --vis-blue: #2563eb;
-  --vis-gradient: linear-gradient(90deg, #4ade80 0%, #38bdf8 50%, #2563eb 100%);
-  --bg: #f8f9fb;
-  --section: #ffffff;
+  --vis-navy: #171b62;
+  --vis-navy-deep: #101545;
+  --vis-green: #25e46f;
+  --vis-green-hover: #12c960;
+  --vis-green-text: #0b1837;
+  --vis-blue: #4057c6;
+  --vis-gradient: linear-gradient(110deg, #27e673, #a6f4b7);
+  --bg: #f7f8fc;
+  --section: #f1f3fb;
   --panel: #ffffff;
-  --text: #111827;
-  --muted: #6b7280;
-  --border: #e5e7eb;
+  --text: #15172c;
+  --muted: #66708c;
+  --border: #dce1ee;
   --bot: #ffffff;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 30px rgba(12, 30, 61, 0.12);
-  --radius: 8px;
+  --shadow: 0 8px 24px rgba(31, 38, 100, 0.08);
+  --shadow-lg: 0 24px 80px rgba(10, 17, 69, 0.22);
+  --radius: 12px;
   --radius-pill: 999px;
-  font-family: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  font-family: var(--font-body);
   color: var(--text);
   background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -28,15 +33,46 @@
   box-sizing: border-box;
 }
 
-html,
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 96px;
+}
+
 body,
 #root {
   margin: 0;
   min-height: 100%;
 }
 
+body {
+  min-width: 320px;
+  background: var(--bg);
+  font-family: var(--font-body);
+}
+
 #root {
   min-height: 100svh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(37, 228, 111, 0.7);
+  outline-offset: 3px;
 }
 
 html.embed,
@@ -67,4 +103,15 @@ body.embed-host .widget-root-host {
   height: 100%;
   min-height: 100%;
   overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

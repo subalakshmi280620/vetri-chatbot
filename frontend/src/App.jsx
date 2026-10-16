@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import heroArtwork from './assets/hero.png'
 import './App.css'
 
 const PRODUCTION_API_URL = 'https://vetri-chatbot-1.onrender.com'
@@ -130,6 +131,8 @@ const ENQUIRY_TYPE_TABS = [
   { type: 'quotation', label: 'Quotation' },
   { type: 'consultation', label: 'Consultation' },
   { type: 'demo', label: 'Product Demo' },
+  { type: 'sales', label: 'Sales' },
+  { type: 'general', label: 'General' },
 ]
 
 const ENQUIRY_SUBTEXT = {
@@ -242,6 +245,26 @@ const ENQUIRY_FORM_CONFIG = {
     messagePlaceholder:
       'Your qualification, preferred start time, and anything the team should know.',
     submitLabel: 'Enroll now',
+  },
+  sales: {
+    companyLabel: 'Company / organisation',
+    companyPlaceholder: 'Your company name',
+    interestLabel: 'What can our sales team help with?',
+    interestRequired: false,
+    interestOptions: [...DEMO_PRODUCT_OPTIONS, ...CONSULTATION_INTEREST_OPTIONS],
+    messageLabel: 'How can we help? *',
+    messagePlaceholder: 'Tell us what you are looking for and any requirements to know.',
+    submitLabel: 'Contact sales',
+  },
+  general: {
+    companyLabel: 'Company / organisation',
+    companyPlaceholder: 'Optional',
+    interestLabel: 'Area of interest',
+    interestRequired: false,
+    interestOptions: [...DEMO_PRODUCT_OPTIONS, ...CONSULTATION_INTEREST_OPTIONS],
+    messageLabel: 'Your message *',
+    messagePlaceholder: 'Tell us a little about what you need.',
+    submitLabel: 'Send enquiry',
   },
 }
 
@@ -520,7 +543,7 @@ function MessageBubble({
                 {item.previewUrl ? (
                   <img src={item.previewUrl} alt={item.name} className="attachment-preview" />
                 ) : (
-                  <span className="attachment-file">📄 {item.name}</span>
+                  <span className="attachment-file">{item.name}</span>
                 )}
               </div>
             ))}
@@ -553,7 +576,7 @@ function MessageBubble({
                   onClick={() => onFeedback(messageId, 'up')}
                   aria-label="Helpful answer"
                 >
-                  👍
+                  Useful
                 </button>
                 <button
                   type="button"
@@ -561,7 +584,7 @@ function MessageBubble({
                   onClick={() => onFeedback(messageId, 'down')}
                   aria-label="Not helpful"
                 >
-                  👎
+                  Not useful
                 </button>
               </>
             )}
@@ -720,61 +743,434 @@ function EnquiryModal({
   )
 }
 
-function SiteNav() {
+function SiteNav({ onEnquiry }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const navItems = [
+    ['Home', '#home'],
+    ['About', '#about'],
+    ['Services', '#services'],
+    ['Products', '#products'],
+    ['Courses', '#courses'],
+    ['Portfolios', '#portfolios'],
+    ['Why VIS', '#why-vis'],
+    ['Contact', '#contact'],
+  ]
+
+  function closeMenu() {
+    setMenuOpen(false)
+  }
+
   return (
-    <nav className="site-nav" aria-label="Vetri IT Systems">
-      <div className="site-nav-inner">
-        <div className="site-brand">
-          <VisLogo size={36} className="site-logo-mark" />
-        <div>
+    <header className="site-nav">
+      <nav className="site-nav-inner" aria-label="Main navigation" onKeyDown={(event) => {
+        if (event.key === 'Escape') closeMenu()
+      }}>
+        <a href="#home" className="site-brand" onClick={closeMenu} aria-label="Vetri IT Systems home">
+          <VisLogo size={48} className="site-logo-mark" />
+          <span className="site-brand-copy">
             <span className="site-name">Vetri IT Systems</span>
-            <span className="site-sub">Private Limited</span>
-          </div>
+            <span className="site-sub">Technology with purpose</span>
+          </span>
+        </a>
+        <button
+          className={`mobile-menu-toggle ${menuOpen ? 'is-open' : ''}`}
+          type="button"
+          aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={menuOpen}
+          aria-controls="main-navigation-links"
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <span />
+          <span />
+        </button>
+        <div id="main-navigation-links" className={`site-nav-links ${menuOpen ? 'is-open' : ''}`}>
+          {navItems.map(([label, href]) => (
+            <a key={href} href={href} onClick={closeMenu}>{label}</a>
+          ))}
         </div>
-        <div className="site-nav-links">
-          <span>Home</span>
-          <span>Services</span>
-          <span>Products</span>
-          <span>Portfolios</span>
-          <span>Why VIS</span>
-          <span>Contact</span>
-        </div>
-        <span className="site-cta">Get Quotation</span>
-      </div>
-    </nav>
+        <button className="site-cta" type="button" onClick={() => onEnquiry('quotation')}>
+          Get a quotation <ArrowIcon />
+        </button>
+      </nav>
+    </header>
   )
 }
 
-function SiteFooter() {
+function SiteFooter({ onEnquiry }) {
   return (
     <footer className="site-footer">
       <div className="site-footer-grid">
-        <div className="footer-col">
-          <strong>Vetri IT Systems</strong>
-          <p>Enterprise Software, Applied AI And Digital Transformation For Businesses That Intend To Lead Their Category.</p>
+        <div className="footer-col footer-brand-col">
+          <div className="footer-brand">
+            <VisLogo size={46} />
+            <strong>Vetri IT Systems</strong>
+          </div>
+          <p>Enterprise software, applied AI and digital transformation for businesses that intend to lead their category.</p>
         </div>
         <div className="footer-col">
           <strong>Quick Links</strong>
-          <p>Home · About Us · Services · Products · Why VIS · Contact</p>
+          <a href="#home">Home</a>
+          <a href="#about">About</a>
+          <a href="#services">Services</a>
+          <a href="#courses">Courses</a>
+          <a href="#why-vis">Why VIS</a>
+          <a href="#contact">Contact</a>
         </div>
         <div className="footer-col">
           <strong>Our Products</strong>
-          <p>Vetri Bills · Vetri Files · Coach AI · Vetri AI Assistant · Vetri CRM</p>
+          <a href="#products">Vetri Bills</a>
+          <a href="#products">Vetri Files</a>
+          <a href="#products">Vetri Project Management</a>
+          <a href="#products">Coach AI</a>
+          <a href="#products">Vetri AI Assistant</a>
+          <a href="#products">Vetri CRM</a>
         </div>
         <div className="footer-col">
-          <strong>Contact</strong>
-          <p>
-            <a href="tel:+918438154827" className="footer-link">+91 84381 54827</a>
-          </p>
-          <p>
-            <a href="mailto:support@vetri-it.com" className="footer-link">support@vetri-it.com</a>
-          </p>
+          <strong>Talk to our team</strong>
+          <a href="tel:+918438154827" className="footer-link">+91 84381 54827</a>
+          <a href="mailto:support@vetri-it.com" className="footer-link">support@vetri-it.com</a>
+          <button className="footer-contact-btn" type="button" onClick={() => onEnquiry('general')}>
+            Start an enquiry <ArrowIcon />
+          </button>
         </div>
       </div>
       <div className="site-footer-copy">
-        © {new Date().getFullYear()} Vetri IT Systems. All rights reserved.
+        <span>© {new Date().getFullYear()} Vetri IT Systems Pvt Ltd</span>
+        <span>Built around your business.</span>
       </div>
     </footer>
+  )
+}
+
+const SERVICE_LIST = [
+  ['Website Development', 'Responsive websites and web applications designed around your business.'],
+  ['Mobile App Development', 'Native and cross-platform apps for iOS and Android.'],
+  ['Software Development', 'Custom enterprise software, APIs and automation tools.'],
+  ['UI/UX Design', 'Research-led interfaces, design systems and usability testing.'],
+  ['AI Solutions', 'Models, assistants and agents mapped to real business needs.'],
+  ['Generative AI', 'Content, code and document intelligence on secure LLM pipelines.'],
+  ['Simplify Operations', 'Connected platforms for billing, HR, projects and customer management.'],
+  ['CRM Development', 'Pipeline, quotation and follow-up automation for your sales motion.'],
+  ['ERP Development', 'Inventory, production and finance modules shaped to how you operate.'],
+  ['Cloud Services', 'Cloud architecture, deployment and managed support.'],
+  ['Digital Marketing', 'SEO, social media, search advertising and content strategy.'],
+  ['Google Ads', 'Search and performance campaigns tuned for qualified leads.'],
+  ['SEO', 'Technical SEO, content strategy and authority building.'],
+  ['Meta Ads', 'Creative testing and retargeting across Facebook and Instagram.'],
+]
+
+const PRODUCT_LIST = [
+  ['Vetri Bills', 'GST Billing & Invoicing', 'GST-ready billing, inventory management, barcode support, POS and sales reporting.'],
+  ['Vetri Files', 'Document Management', 'A secure document vault with OCR indexing, permissions, versioning and audit trail.'],
+  ['Vetri Project Management', 'Project & Delivery', 'Kanban, Gantt, time tracking, collaboration and automated workflows.'],
+  ['Coach AI', 'AI Learning Platform', 'Adaptive coaching that assesses skill gaps and builds learning journeys.'],
+  ['Vetri AI Assistant', 'Generative AI', 'A private assistant grounded in company knowledge, ready to answer, draft and act.'],
+  ['Vetri CRM', 'Sales & Customer', 'Lead capture, follow-ups, AI-scored pipelines and instant quotations.'],
+  ['Vetri Training Management System', 'Training Management', 'Enterprise training management for institutes and teams.'],
+  ['HR Management Tool', 'People-first HRMS', 'Employee records, attendance, payroll, leave and performance reviews.'],
+]
+
+const COURSE_LIST = [
+  'Python Fullstack',
+  'Prompt Engineering',
+  'Java Fullstack',
+  'UI/UX',
+  'Software Testing',
+  'Data Analytics',
+  'Mobile App Development',
+  'AWS & DevOps',
+  'Data Science',
+  'Digital Marketing',
+]
+
+const PORTFOLIO_LIST = [
+  {
+    name: 'Retail POS System',
+    type: 'Web + Mobile',
+    metric: '+40% Sales Efficiency',
+    description: 'Point-of-sale software for a 12-store retail chain across Tamil Nadu, with real-time inventory sync.',
+    tech: 'React · Node.js · PostgreSQL',
+  },
+  {
+    name: 'Healthcare Portal',
+    type: 'Web App',
+    metric: '10K+ Active Users',
+    description: 'Appointment booking, telemedicine and electronic health records for a multi-specialty clinic.',
+    tech: 'Next.js · WebSocket · AWS',
+  },
+  {
+    name: 'Food Delivery App',
+    type: 'Mobile App',
+    metric: '50K+ Downloads',
+    description: 'Cross-platform ordering with live tracking, multiple payment options and a restaurant dashboard.',
+    tech: 'React Native · Firebase · Maps',
+  },
+  {
+    name: 'E-commerce Platform',
+    type: 'Full Stack',
+    metric: '+60% Conversion Rate',
+    description: 'Fashion commerce with product recommendations, secure payments and an analytics dashboard.',
+    tech: 'Vue.js · Stripe · Elasticsearch',
+  },
+]
+
+function ArrowIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function SparkIcon() {
+  return (
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="m12 2 1.5 7 6.5 3-6.5 2.5L12 22l-1.5-7.5L4 12l6.5-3L12 2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="m19 2 .6 2.4L22 5l-2.4.6L19 8l-.6-2.4L16 5l2.4-.6L19 2Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+function MarketingSite({ onEnquiry, onChat }) {
+  return (
+    <main className="marketing-site">
+      <section className="hero-section" id="home">
+        <div className="hero-grid-glow" aria-hidden="true" />
+        <div className="hero-inner">
+          <div className="hero-copy">
+            <div className="hero-eyebrow"><span className="eyebrow-dot" /> AI-FIRST ENTERPRISE TECHNOLOGY <span className="eyebrow-rule" /> TAMIL NADU, INDIA</div>
+            <h1>Technology that moves <span>business forward.</span></h1>
+            <p className="hero-lede">We build practical software, apply AI where it matters, and help teams make digital transformation real.</p>
+            <p className="hero-detail">From custom platforms and mobile applications to enterprise products and career training, Vetri IT Systems brings business thinking and engineering together.</p>
+            <div className="hero-actions">
+              <button className="btn-primary" type="button" onClick={() => onEnquiry('consultation')}>Book a consultation <ArrowIcon /></button>
+              <a className="btn-quiet" href="#services">Explore our services <span className="circle-arrow"><ArrowIcon /></span></a>
+            </div>
+            <div className="hero-proofline"><span className="proof-mark"><span /></span><span>One accountable partner for software, AI, cloud and growth.</span></div>
+          </div>
+          <div className="hero-art" aria-label="Abstract layered technology illustration">
+            <div className="art-orbit orbit-one" />
+            <div className="art-orbit orbit-two" />
+            <div className="art-axis axis-one" />
+            <div className="art-axis axis-two" />
+            <div className="art-core">
+              <img src={heroArtwork} alt="" />
+              <div className="core-label"><span className="core-label-kicker">VETRI IT SYSTEMS</span><strong>Build for<br />what’s next.</strong><span className="core-label-status"><i /> READY TO BUILD</span></div>
+            </div>
+            <div className="art-node node-ai"><SparkIcon /><span>Applied AI</span></div>
+            <div className="art-node node-cloud"><span className="node-line-icon">↗</span><span>Cloud native</span></div>
+            <div className="art-note"><span className="note-label">IDEA → IMPACT</span><span>Connected by design</span></div>
+          </div>
+        </div>
+        <div className="hero-bottomline"><span>ENGINEERING WITH INTENT</span><span className="line-fill" /><span>SOFTWARE · AI · TRAINING</span></div>
+      </section>
+
+      <section className="about-section section-pad" id="about">
+        <div className="section-container about-layout">
+          <div className="about-intro">
+            <p className="section-kicker"><span>01</span> ABOUT VETRI IT SYSTEMS</p>
+            <h2>Technology built around <span>your business.</span></h2>
+            <p className="section-lede">Technology should solve real business problems — not create more complexity.</p>
+            <p>We work with businesses to understand their goals, identify the right technology approach and build solutions that are practical, scalable and ready for the future. From custom software and digital applications to AI-powered solutions, we combine technical expertise with a business-first approach.</p>
+            <button type="button" className="text-action" onClick={() => onEnquiry('consultation')}>Talk through your next step <ArrowIcon /></button>
+          </div>
+          <div className="about-side">
+            <div className="about-statement"><span className="statement-index">A / 01</span><span className="statement-overline">DIGITAL TRANSFORMATION</span><strong>Process <span>→</span> Platform</strong><small>Move from friction to a clearer way of working.</small></div>
+            <div className="about-statement"><span className="statement-index">A / 02</span><span className="statement-overline">APPLIED AI</span><strong>Assistants, agents & automation</strong><small>Put useful intelligence inside everyday workflows.</small></div>
+            <div className="about-statement"><span className="statement-index">A / 03</span><span className="statement-overline">ENGINEERING DEPTH</span><strong>Web, mobile, cloud, data</strong><small>Connected systems, made for real operations.</small></div>
+            <div className="about-tags"><span>Scalable architecture</span><span>Security minded</span><span>Made in India</span></div>
+          </div>
+        </div>
+        <div className="section-container values-strip">
+          <div><span className="value-n">01</span><strong>Enterprise trust</strong><p>Compliance, security and support built into every engagement.</p></div>
+          <div><span className="value-n">02</span><strong>Cloud native</strong><p>Scalable architectures on modern cloud infrastructure.</p></div>
+          <div><span className="value-n">03</span><strong>Product mindset</strong><p>Enterprise products as well as one-off projects.</p></div>
+          <div><span className="value-n">04</span><strong>AI-first engineering</strong><p>Intelligence and automation considered from the start.</p></div>
+        </div>
+      </section>
+
+      <section className="mission-section">
+        <div className="section-container">
+          <div className="mission-heading">
+            <p className="section-kicker"><span>02</span> MISSION & VISION</p>
+            <h2>What drives every line<br />of code we ship.</h2>
+          </div>
+          <div className="mission-cards">
+            <article className="mission-card vision-card">
+              <span className="mission-orb"><SparkIcon /></span><span className="mission-label">OUR VISION</span>
+              <h3>An AI-powered business for everyone.</h3>
+              <p>To become the trusted AI and digital transformation partner for growing enterprises — where every process is automated, every decision is data-backed, and every team is amplified by AI.</p>
+            </article>
+            <article className="mission-card">
+              <span className="mission-orb"><span className="orb-target">◎</span></span><span className="mission-label">OUR MISSION</span>
+              <h3>Make enterprise technology effortless.</h3>
+              <p>To deliver dependable, intelligent software that removes manual work, gives leaders real-time clarity, and lets businesses of every size compete with the very best.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="products-section section-pad" id="products">
+        <div className="section-container">
+          <div className="section-heading section-heading-centered">
+            <p className="section-kicker"><span>03</span> OUR PRODUCTS</p>
+            <h2>Enterprise products.<br /><span>Built for the work.</span></h2>
+            <p>Purpose-built software for the operational details that keep a business moving.</p>
+          </div>
+          <div className="product-grid">
+            {PRODUCT_LIST.map(([name, category, description], index) => (
+              <article className="product-card" key={name}>
+                <div className="product-card-top"><span className="product-index">0{index + 1}</span><span className="product-symbol">{name.slice(0, 1)}</span></div>
+                <p className="product-category">{category}</p>
+                <h3>{name}</h3>
+                <p className="product-description">{description}</p>
+                <button type="button" className="card-link" onClick={() => onEnquiry('demo', name)}>Request a demo <ArrowIcon /></button>
+              </article>
+            ))}
+          </div>
+          <div className="product-footnote"><span>ONE PRODUCT FAMILY</span><span className="line-fill" /><span>BUILT TO WORK TOGETHER</span></div>
+        </div>
+      </section>
+
+      <section className="services-section section-pad" id="services">
+        <div className="section-container">
+          <div className="services-heading">
+            <div><p className="section-kicker"><span>04</span> OUR SERVICES</p><h2>End-to-end capability,<br /><span>from idea to scale.</span></h2></div>
+            <div className="services-head-aside"><p>One accountable partner across design, engineering, AI, cloud and growth — so your roadmap never stalls between vendors.</p><button type="button" className="text-action" onClick={() => onEnquiry('consultation')}>Explore a project together <ArrowIcon /></button></div>
+          </div>
+          <div className="service-list">
+            {SERVICE_LIST.map(([name, description], index) => (
+              <article className="service-item" key={name}>
+                <span className="service-index">{String(index + 1).padStart(2, '0')}</span>
+                <h3>{name}</h3>
+                <p>{description}</p>
+                <button type="button" aria-label={`Enquire about ${name}`} onClick={() => onEnquiry('quotation', name)}><ArrowIcon /></button>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="ai-section">
+        <div className="section-container ai-layout">
+          <div className="ai-copy">
+            <p className="section-kicker section-kicker-light"><span>05</span> APPLIED AI</p>
+            <h2>Intelligence layered across <span>every business process.</span></h2>
+            <p>We design AI systems that are grounded, governed and useful — deployed inside your workflows, not bolted on beside them.</p>
+            <button type="button" className="ai-cta" onClick={() => onEnquiry('consultation', 'AI & automation strategy')}>Talk about AI for your business <ArrowIcon /></button>
+          </div>
+          <div className="ai-diagram">
+            <div className="process-line" aria-label="Data to context to model to action to impact">
+              {['Data', 'Context', 'Model', 'Action', 'Impact'].map((step, index) => <div className="process-step" key={step}><span>{index + 1}</span><small>{step}</small></div>)}
+            </div>
+            <div className="ai-capabilities">
+              <article><span className="cap-icon">AI</span><strong>Generative AI</strong><p>Content, code and document intelligence built on secure LLM pipelines.</p></article>
+              <article><span className="cap-icon">01</span><strong>AI assistants</strong><p>Knowledge-led assistants designed around your systems and teams.</p></article>
+              <article><span className="cap-icon">↗</span><strong>Workflow automation</strong><p>Reduce repetitive work and connect hand-offs across processes.</p></article>
+            </div>
+            <div className="ai-side-note"><span>GROUND</span><span>GOVERN</span><span>DEPLOY</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="courses-section section-pad" id="courses">
+        <div className="section-container course-layout">
+          <div className="course-intro">
+            <p className="section-kicker"><span>06</span> VIS ACADEMY</p>
+            <h2>Build skills for <span>what comes next.</span></h2>
+            <p className="section-lede">Practical training programmes designed to help learners move forward with confidence.</p>
+            <div className="course-facts">
+              <div><strong>180 days</strong><span>Course duration</span></div>
+              <div><strong>3 months</strong><span>Internship included</span></div>
+              <div><strong>Any degree</strong><span>Eligibility requirement</span></div>
+            </div>
+            <button type="button" className="btn-primary" onClick={() => onEnquiry('enroll')}>Ask about enrolment <ArrowIcon /></button>
+            <small className="course-note">Course fees are shared by the team. No fixed fee is listed here.</small>
+          </div>
+          <div className="course-panel">
+            <div className="course-panel-head"><span>AVAILABLE PROGRAMMES</span><span>10 TRACKS</span></div>
+            <div className="course-list">
+              {COURSE_LIST.map((course, index) => (
+                <button type="button" key={course} onClick={() => onEnquiry('enroll', course)}>
+                  <span className="course-row-index">{String(index + 1).padStart(2, '0')}</span><span>{course}</span><ArrowIcon />
+                </button>
+              ))}
+            </div>
+            <div className="course-panel-foot">Explore your options with the VIS team.</div>
+          </div>
+        </div>
+      </section>
+
+      <section className="portfolio-section section-pad" id="portfolios">
+        <div className="section-container">
+          <div className="portfolio-heading">
+            <div><p className="section-kicker"><span>07</span> SELECTED PORTFOLIO</p><h2>Work that makes<br /><span>business move.</span></h2></div>
+            <p>Selected project examples from the VIS portfolio.</p>
+          </div>
+          <div className="portfolio-grid">
+            {PORTFOLIO_LIST.map((project, index) => (
+              <article className={`portfolio-card portfolio-card-${index + 1}`} key={project.name}>
+                <div className="portfolio-visual">
+                  <span className="portfolio-type">{project.type}</span>
+                  <div className="portfolio-screen"><div className="screen-top"><i /><i /><i /><span>VIS / PROJECT</span></div><div className="screen-content"><span className="screen-small-line" /><span className="screen-large-line" /><span className="screen-large-line short" /><div className="screen-bars"><i /><i /><i /><i /><i /></div></div></div>
+                  <span className="portfolio-count">0{index + 1} / 04</span>
+                </div>
+                <div className="portfolio-copy">
+                  <span className="portfolio-result">{project.metric}</span><h3>{project.name}</h3><p>{project.description}</p><span className="portfolio-tech">{project.tech}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="why-section section-pad" id="why-vis">
+        <div className="section-container why-layout">
+          <div className="why-aside"><p className="section-kicker"><span>08</span> WHY VIS</p><span className="why-aside-line" /><span className="why-aside-note">THE PARTNER<br />BEHIND THE PLATFORM</span></div>
+          <div className="why-main">
+            <h2>Good technology is more than the code. It’s <span>how it works for you.</span></h2>
+            <p className="why-lede">A practical technology partner for businesses ready to make a meaningful next move.</p>
+            <div className="why-points">
+              <article><span>01</span><div><h3>Business-first thinking</h3><p>We start with your goals and processes, then match the technology to the problem.</p></div><span className="why-mark">↗</span></article>
+              <article><span>02</span><div><h3>One connected team</h3><p>Design, software, AI and digital growth under one partner.</p></div><span className="why-mark">↗</span></article>
+              <article><span>03</span><div><h3>Products and custom builds</h3><p>Choose a ready-to-use VIS product or build around your specific operation.</p></div><span className="why-mark">↗</span></article>
+              <article><span>04</span><div><h3>Support beyond launch</h3><p>Work with a team that can keep developing and supporting your solution.</p></div><span className="why-mark">↗</span></article>
+            </div>
+            <button type="button" className="btn-primary" onClick={() => onEnquiry('consultation')}>Let’s talk about your goals <ArrowIcon /></button>
+          </div>
+        </div>
+      </section>
+
+      <section className="contact-section section-pad" id="contact">
+        <div className="section-container">
+          <div className="contact-heading"><p className="section-kicker"><span>09</span> GET IN TOUCH</p><h2>Let’s scope your next <span>transformation.</span></h2><p>Tell us what you’re trying to achieve. The VIS team will help you find a practical next step.</p></div>
+          <div className="contact-grid">
+            <div className="contact-form-card">
+              <div className="contact-form-top"><span>START A CONVERSATION</span><span className="contact-top-line" /></div>
+              <h3>Where should we begin?</h3>
+              <p>Share your goals with our team — whether you’re exploring a product, a custom build, or training.</p>
+              <div className="contact-choices">
+                <button type="button" onClick={() => onEnquiry('quotation')}>Request a quotation <ArrowIcon /></button>
+                <button type="button" onClick={() => onEnquiry('consultation')}>Book a consultation <ArrowIcon /></button>
+                <button type="button" onClick={() => onEnquiry('demo')}>Request a product demo <ArrowIcon /></button>
+                <button type="button" onClick={() => onEnquiry('enroll')}>Ask about courses <ArrowIcon /></button>
+              </div>
+              <button className="contact-submit" type="button" onClick={() => onEnquiry('general')}>Send an enquiry <ArrowIcon /></button>
+              <small>Every enquiry is sent securely to the Vetri IT Systems team.</small>
+            </div>
+            <aside className="contact-details">
+              <span className="contact-details-kicker">DIRECT CONTACT</span>
+              <h3>Talk to our team.</h3>
+              <p>Speak directly with a solution consultant — no call centres, no scripts.</p>
+              <a href="tel:+918438154827"><span className="contact-icon">T</span><span><small>CALL US</small><strong>+91 84381 54827</strong></span><ArrowIcon /></a>
+              <a href="mailto:support@vetri-it.com"><span className="contact-icon">@</span><span><small>EMAIL</small><strong>support@vetri-it.com</strong></span><ArrowIcon /></a>
+              <div className="contact-address"><span className="contact-icon">V</span><span><small>VISIT</small><strong>Vetri Academy, Aerial Complex,<br />Behind Bus Stand, Surandai</strong></span></div>
+              <button type="button" className="chat-invite" onClick={onChat}><span className="chat-invite-indicator" /><span>Prefer a quick answer?</span><strong>Ask Coach AI <ArrowIcon /></strong></button>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
   )
 }
 
@@ -933,7 +1329,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [historyList, setHistoryList] = useState([])
-  const [widgetOpen, setWidgetOpen] = useState(!IS_EMBED || EMBED_HOST_WIDGET)
+  const [widgetOpen, setWidgetOpen] = useState(IS_EMBED ? EMBED_HOST_WIDGET : false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [apiStatus, setApiStatus] = useState('checking')
   const [followUps, setFollowUps] = useState([])
@@ -943,6 +1339,7 @@ function App() {
   const [enquiryForm, setEnquiryForm] = useState(EMPTY_ENQUIRY_FORM)
   const [enquirySubmitting, setEnquirySubmitting] = useState(false)
   const [enquiryError, setEnquiryError] = useState('')
+  const [siteNotice, setSiteNotice] = useState('')
   const bottomRef = useRef(null)
   const abortRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -1176,7 +1573,7 @@ function App() {
     })
   }
 
-  function openEnquiry(type = 'general') {
+  function openEnquiry(type = 'general', desiredInterest = '') {
     const activeType = ENQUIRY_TYPE_TABS.some((tab) => tab.type === type) ? type : 'quotation'
     const config = ENQUIRY_FORM_CONFIG[activeType]
     setEnquiryType(activeType)
@@ -1188,12 +1585,15 @@ function App() {
     setEnquiryForm((prev) => {
       if (!isEnquiryFormEmpty(prev)) {
         const interestValid = config.interestOptions.includes(prev.interest)
+        if (config.interestOptions.includes(desiredInterest)) {
+          return { ...prev, interest: desiredInterest }
+        }
         return interestValid ? prev : { ...prev, interest: '' }
       }
       const detectedInterest = detectInterestFromChat(chatContext, config.interestOptions)
       return {
         ...EMPTY_ENQUIRY_FORM,
-        interest: detectedInterest,
+        interest: config.interestOptions.includes(desiredInterest) ? desiredInterest : detectedInterest,
         message: buildEnquiryPrefill(activeType, chatContext),
       }
     })
@@ -1235,6 +1635,7 @@ function App() {
 
       setEnquiryOpen(false)
       setEnquiryForm(EMPTY_ENQUIRY_FORM)
+      setSiteNotice(data.confirmation || 'Thank you. Your enquiry has been submitted.')
       setMessages((prev) => [
         ...prev,
         {
@@ -1469,7 +1870,7 @@ function App() {
 
   if (IS_EMBED && EMBED_PAUSED) {
     return (
-      <div className="widget-root widget-root-host" style={{ padding: 24, fontFamily: 'Inter, Segoe UI, sans-serif' }}>
+      <div className="widget-root widget-root-host" style={{ padding: 24 }}>
         <p style={{ margin: 0, color: '#0c1e3d', fontWeight: 700 }}>Coach AI embed is paused</p>
         <p style={{ margin: '8px 0 0', color: '#4b5563', fontSize: 14, lineHeight: 1.5 }}>
           The website button is turned off until the mentor review so it does not use the daily AI quota.
@@ -1487,39 +1888,40 @@ function App() {
           : 'page'
       }
     >
-      {!IS_EMBED && <SiteNav />}
-
       {!IS_EMBED && (
-        <section className="page-hero" aria-label="Coach AI introduction">
-          <div className="page-hero-inner">
-            <VisLogo size={48} className="hero-logo-mark" />
-            <div>
-              <h1 className="page-hero-title">
-                Transforming Businesses with <span>AI-Powered Digital Solutions</span>
-              </h1>
-              <p className="page-hero-text">
-                AI-first enterprise technology — products, services, training, and support from Vetri IT Systems.
-              </p>
+        <>
+          <SiteNav onEnquiry={openEnquiry} />
+          <MarketingSite onEnquiry={openEnquiry} onChat={() => setWidgetOpen(true)} />
+          <SiteFooter onEnquiry={openEnquiry} />
+        </>
+      )}
+      {siteNotice && !IS_EMBED && (
+        <div className="site-notice" role="status">
+          <span className="notice-check" aria-hidden="true">✓</span>
+          <span>{siteNotice}</span>
+          <button type="button" onClick={() => setSiteNotice('')} aria-label="Dismiss enquiry confirmation">×</button>
         </div>
-        </div>
-        </section>
       )}
 
-      {IS_EMBED && !EMBED_HOST_WIDGET && !widgetOpen && (
+      {!widgetOpen && (
+        <div className="widget-root">
         <button
           type="button"
           className="launcher"
           onClick={() => setWidgetOpen(true)}
           aria-label="Open Coach AI"
+          aria-haspopup="dialog"
         >
           <span className="launcher-pulse" aria-hidden="true" />
           <ChatIcon />
           <span className="launcher-label">Coach AI</span>
         </button>
+        </div>
       )}
 
-      {(!IS_EMBED || widgetOpen) && (
-        <div className={`app ${IS_EMBED ? 'app-embed' : 'app-standalone'}`}>
+      {widgetOpen && (
+        <div className={`${IS_EMBED ? `widget-root${EMBED_HOST_WIDGET ? ' widget-root-host' : ''}` : 'widget-chat-root'}`}>
+        <div className={`app ${IS_EMBED ? 'app-embed' : 'app-widget'}`} role={!IS_EMBED ? 'dialog' : undefined} aria-modal={!IS_EMBED ? 'false' : undefined} aria-label={!IS_EMBED ? 'Coach AI chat' : undefined}>
           <header className="topbar">
             <div className="brand">
               <VisLogo size={42} className="chat-logo-mark" />
@@ -1545,8 +1947,8 @@ function App() {
               >
                 History
               </button>
-              {IS_EMBED && (
-                <button type="button" className="ghost icon-btn" onClick={closeEmbedWidget}>
+              {!EMBED_HOST_WIDGET && (
+                <button type="button" className="ghost icon-btn" onClick={closeEmbedWidget} aria-label="Close Coach AI">
                   ×
                 </button>
               )}
@@ -1671,7 +2073,7 @@ function App() {
                       {item.previewUrl ? (
                         <img src={item.previewUrl} alt="" className="composer-attachment-thumb" />
                       ) : (
-                        <span className="composer-attachment-name">📄 {item.name}</span>
+                        <span className="composer-attachment-name">{item.name}</span>
                       )}
                       <button
                         type="button"
@@ -1772,9 +2174,10 @@ function App() {
             )}
           </div>
         </div>
+        </div>
       )}
 
-      {!IS_EMBED && <SiteFooter />}
+      {!widgetOpen && !IS_EMBED && <span className="chat-launcher-hint" aria-hidden="true">Need a quick answer? Talk with Coach AI.</span>}
 
       <EnquiryModal
         open={enquiryOpen}
