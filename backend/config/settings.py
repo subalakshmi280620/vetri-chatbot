@@ -92,6 +92,12 @@ CSRF_TRUSTED_ORIGINS = [
     for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
     if origin.strip()
 ]
+if DEBUG:
+    _REPLIT_DEV_DOMAIN = os.environ.get("REPLIT_DEV_DOMAIN", "").strip()
+    if _REPLIT_DEV_DOMAIN:
+        _replit_dev_origin = f"https://{_REPLIT_DEV_DOMAIN}"
+        if _replit_dev_origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_replit_dev_origin)
 if RENDER_EXTERNAL_HOSTNAME:
     csrf_origin = f"https://{RENDER_EXTERNAL_HOSTNAME}"
     if csrf_origin not in CSRF_TRUSTED_ORIGINS:

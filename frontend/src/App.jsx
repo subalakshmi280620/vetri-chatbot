@@ -7,6 +7,8 @@ function resolveApiBase() {
   const fromEnv = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
   if (fromEnv) return fromEnv
 
+  if (import.meta.env.DEV) return ''
+
   if (typeof window !== 'undefined') {
     const host = window.location.hostname
     if (host.includes('onrender.com') || host.includes('vetriitsystems.com')) {
@@ -947,6 +949,33 @@ function App() {
   const speechRef = useRef(null)
   const voiceSupported = Boolean(SPEECH_RECOGNITION)
 
+  const loadHistoryList = useCallback(async () => {
+    try {
+      const res = await fetch(`${HISTORY_URL}?client_token=${encodeURIComponent(getClientToken())}`)
+      if (!res.ok) {
+        return []
+      }
+      const data = await res.json()
+      const conversations = data.conversations || []
+      setHistoryList(conversations)
+      return conversations
+    } catch {
+      if (!IS_EMBED) {
+        setError('Unable to load conversation history. Please check the backend is running.')
+      }
+      return []
+    }
+  }, [])
+
+  const bootstrapChat = useCallback(async () => {
+    await loadHistoryList()
+    removeStoredItem(CONVERSATION_ID_KEY)
+    setConversationId('')
+    setMessages([])
+    setFollowUps([])
+    setError('')
+  }, [loadHistoryList])
+
   useEffect(() => {
     document.documentElement.classList.toggle('embed', IS_EMBED)
     document.body.classList.toggle('embed', IS_EMBED)
@@ -960,13 +989,19 @@ function App() {
 
   useEffect(() => {
     if (IS_EMBED) return
-    void bootstrapChat()
-  }, [])
+    const timer = window.setTimeout(() => {
+      void bootstrapChat()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [bootstrapChat])
 
   useEffect(() => {
     if (EMBED_PAUSED || !IS_EMBED || !widgetOpen) return
-    void bootstrapChat()
-  }, [widgetOpen])
+    const timer = window.setTimeout(() => {
+      void bootstrapChat()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [bootstrapChat, widgetOpen])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -1000,11 +1035,16 @@ function App() {
 
   useEffect(() => {
     if (IS_EMBED && EMBED_PAUSED) return
-    void checkHealth()
+    const initialCheck = window.setTimeout(() => {
+      void checkHealth()
+    }, 0)
     const timer = window.setInterval(() => {
       void checkHealth({ retries: 1, delayMs: 0 })
     }, 60000)
-    return () => window.clearInterval(timer)
+    return () => {
+      window.clearTimeout(initialCheck)
+      window.clearInterval(timer)
+    }
   }, [checkHealth])
 
   function rememberConversation(id) {
@@ -1016,33 +1056,6 @@ function App() {
     setWidgetOpen(false)
     if (EMBED_HOST_WIDGET && window.parent !== window) {
       window.parent.postMessage({ type: 'coach-ai-close' }, '*')
-    }
-  }
-
-  async function bootstrapChat() {
-    await loadHistoryList()
-    removeStoredItem(CONVERSATION_ID_KEY)
-    setConversationId('')
-    setMessages([])
-    setFollowUps([])
-    setError('')
-  }
-
-  async function loadHistoryList() {
-    try {
-      const res = await fetch(`${HISTORY_URL}?client_token=${encodeURIComponent(getClientToken())}`)
-      if (!res.ok) {
-        return []
-      }
-      const data = await res.json()
-      const conversations = data.conversations || []
-      setHistoryList(conversations)
-      return conversations
-    } catch {
-      if (!IS_EMBED) {
-        setError('Unable to load conversation history. Please check the backend is running.')
-      }
-      return []
     }
   }
 

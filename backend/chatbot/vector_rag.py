@@ -156,8 +156,6 @@ def index_knowledge(force: bool = False) -> dict:
     """
     if not is_postgresql():
         return {"status": "skipped", "reason": "postgresql_required"}
-    if not settings.GEMINI_API_KEY:
-        return {"status": "skipped", "reason": "gemini_api_key_missing"}
 
     content_hash = compute_content_hash()
     state = KnowledgeIndexState.objects.first()
@@ -167,6 +165,9 @@ def index_knowledge(force: bool = False) -> dict:
             "content_hash": content_hash,
             "chunk_count": state.chunk_count,
         }
+
+    if not settings.GEMINI_API_KEY:
+        return {"status": "skipped", "reason": "gemini_api_key_missing"}
 
     source_chunks = collect_source_chunks()
     texts = [chunk["text"] for chunk in source_chunks]

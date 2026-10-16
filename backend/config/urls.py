@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.conf import settings
 from django.contrib import admin
+from django.db import DatabaseError, connections
 from django.http import JsonResponse
 from django.urls import include, path
 
@@ -32,6 +33,20 @@ def home(request):
 def health(request):
     engine = settings.DATABASES["default"]["ENGINE"]
     using_postgres = "postgresql" in engine
+    try:
+        with connections["default"].cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except DatabaseError:
+        return JsonResponse(
+            {
+                "status": "error",
+                "database": "unavailable",
+                "persistent": using_postgres,
+            },
+            status=503,
+        )
+
     return JsonResponse({
         "status": "ok",
         "database": "postgresql" if using_postgres else "sqlite",

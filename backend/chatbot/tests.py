@@ -53,6 +53,29 @@ class ChatApiTestCase(TestCase):
         )
 
 
+class HealthEndpointTests(TestCase):
+    def test_health_checks_database_connection(self):
+        response = self.client.get("/health/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+        self.assertIn(response.json()["database"], {"sqlite", "postgresql"})
+
+    @patch("config.urls.connections")
+    def test_health_reports_database_unavailable(self, mock_connections):
+        from django.db import OperationalError
+
+        mock_connections.__getitem__.return_value.cursor.side_effect = OperationalError(
+            "database unavailable"
+        )
+
+        response = self.client.get("/health/")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertEqual(response.json()["database"], "unavailable")
+
+
 class AttachmentTests(TestCase):
     def test_parse_text_document_attachment(self):
         content = base64.b64encode(b"Python Fullstack course details").decode("ascii")
