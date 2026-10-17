@@ -1,0 +1,35 @@
+Complete my existing Vetri AI Coach project fully and professionally, making it ready for final project review and deployment. Continue from the latest saved checkpoint in this existing project. Do not create a new project or unnecessarily rewrite working code.
+
+**1. Complete the entire website**
+Use my uploaded prototype screenshots as the design reference. Match the dark indigo and green theme, layout, typography, spacing, animations, and responsive design. Complete the homepage, hero section, business metrics, About, mission, vision, Products, Services, AI capabilities, Courses, and Contact sections. Add all necessary pages or sections with consistent styling.
+
+**2. Make all navigation and UI functional**
+Make the Home, About, Services, Products, Courses, and Contact navigation links work correctly. Make buttons, footer links, mobile navigation, and the floating Coach AI chatbot entry point functional. Do not leave static text pretending to be clickable links.
+
+**3. Complete the Coach AI chatbot**
+Preserve and test the existing chatbot and verified knowledge base. It must answer questions about Vetri IT Systems' products, services, courses, AI solutions, and contact details accurately. Use verified company information rather than inventing answers. Provide clear fallback responses when information is unavailable. Configure and test Gemini and the existing fallback provider safely, without exposing API keys. If credentials or quota prevent live AI responses, clearly report that limitation.
+
+**4. Complete all enquiry forms**
+Make the quotation, demo request, consultation, enrolment, and general contact forms work correctly. Each form must have appropriate fields, validation, loading indicators, success and error messages, and duplicate-submission protection. Connect every form to the existing Django API and save submitted information to the database. Enrolment must be used for course joining; quotation, demo, and consultation must remain separate request types.
+
+**5. Verify company information**
+Use the verified Vetri IT Systems information already in the project. Include the correct courses, course eligibility and duration, internship details, contact numbers, and website address. Never claim that training is free or invent prices. Only display verified prices and use quotation requests for other pricing.
+
+**6. Complete the admin and leads management**
+Preserve the existing Django admin and Leads dashboard. Ensure staff can view, search, and filter enquiries; inspect contact details and enquiry types; update statuses to New, Contacted, or Closed; assign leads to staff; and add internal notes. Verify that saved enquiries appear correctly in the dashboard. Keep admin access protected.
+
+**7. Check the database and backend**
+Inspect all models, migrations, API endpoints, form fields, and chatbot conversation storage. Confirm that all required fields are saved and retrieved correctly. Preserve existing data. Do not reset or delete the database. Keep the Replit development database separate from the Render production database.
+
+**8. Test the complete project**
+Run backend tests, frontend lint checks, the production build, and functional tests for navigation, mobile responsiveness, chatbot interactions, all forms, database persistence, and admin lead management. Fix the errors you find. Test the actual running preview, not only the code or mockup.
+
+**9. Preserve deployment and security**
+Keep the existing React + Vite frontend, Django REST API, database configuration, GitHub project, and Render deployment setup working. Check environment variables and deployment settings. Never hardcode or expose passwords, API keys, or other secrets. Do not change production settings or deploy to production without checking the consequences.
+
+**10. Final completion report**
+Work through all remaining tasks systematically from the current checkpoint. Do not stop after adding CSS or completing only the homepage. Do not replace working features with mockups or dummy data. If the daily quota interrupts the work, save a checkpoint and report exactly where to resume.
+
+At the end, provide a checklist showing what is completed, what has been tested and passed, what remains unfinished, any configuration I must supply, and the exact steps to run and deploy the website. Do not claim the project is fully complete unless the implementation and tests support that conclusion.
+
+My goal is a complete, professional, responsive, functional Vetri IT Systems website with the Coach AI chatbot and working admin/leads management, ready for my mentor's final project review.

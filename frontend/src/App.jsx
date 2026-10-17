@@ -127,11 +127,11 @@ const ENQUIRY_CTA_LABELS = {
 }
 
 const ENQUIRY_TYPE_TABS = [
-  { type: 'enroll', label: 'Enroll' },
   { type: 'quotation', label: 'Quotation' },
   { type: 'consultation', label: 'Consultation' },
   { type: 'demo', label: 'Product Demo' },
   { type: 'sales', label: 'Sales' },
+  { type: 'enroll', label: 'Enroll' },
   { type: 'general', label: 'General' },
 ]
 
@@ -143,7 +143,7 @@ const ENQUIRY_SUBTEXT = {
   demo:
     'See VIS enterprise products with live workflow previews. Tell us which product to explore.',
   enroll:
-    'Share your details here. Our team will contact you about the course, website, product, or service. No website sign-in.',
+    'Share your details here to join a course. Our team will contact you about the programme. No website sign-in.',
   sales: 'Our sales team will help with product selection and enterprise requirements.',
   general: 'Tell us what you need. Our VIS team will contact you by email or phone.',
 }
@@ -174,7 +174,7 @@ const QUOTATION_INTEREST_OPTIONS = [
   'Other',
 ]
 
-const ENROLL_INTEREST_OPTIONS = [
+const COURSE_LIST = [
   'Python Fullstack',
   'Java Fullstack',
   'Prompt Engineering',
@@ -185,11 +185,9 @@ const ENROLL_INTEREST_OPTIONS = [
   'AWS & DevOps',
   'Data Science',
   'Digital Marketing',
-  'Ecommerce website (₹9,999 + GST)',
-  'Small retail shop website (₹3,000 + GST)',
-  ...DEMO_PRODUCT_OPTIONS,
-  'Other',
 ]
+
+const ENROLL_INTEREST_OPTIONS = COURSE_LIST
 
 const CONSULTATION_INTEREST_OPTIONS = [
   'Product selection advice',
@@ -361,6 +359,10 @@ const SOURCE_LABELS = {
 }
 
 const LOGO_SRC = '/vetriit-logo.webp'
+
+function productAnchorId(name) {
+  return `product-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+}
 
 function VisLogo({ size = 36, className = '' }) {
   return (
@@ -812,23 +814,37 @@ function SiteFooter({ onEnquiry }) {
           <a href="#home">Home</a>
           <a href="#about">About</a>
           <a href="#services">Services</a>
+          <a href="#products">Products</a>
           <a href="#courses">Courses</a>
+          <a href="#ai-solutions">AI solutions</a>
           <a href="#why-vis">Why VIS</a>
           <a href="#contact">Contact</a>
         </div>
         <div className="footer-col">
           <strong>Our Products</strong>
-          <a href="#products">Vetri Bills</a>
-          <a href="#products">Vetri Files</a>
-          <a href="#products">Vetri Project Management</a>
-          <a href="#products">Coach AI</a>
-          <a href="#products">Vetri AI Assistant</a>
-          <a href="#products">Vetri CRM</a>
+          {[
+            'Vetri Bills',
+            'Vetri Files',
+            'Vetri Project Management',
+            'Coach AI',
+            'Vetri AI Assistant',
+            'Vetri CRM',
+            'Vetri Training Management System',
+            'HR Management Tool',
+          ].map((name) => (
+            <a key={name} href={`#${productAnchorId(name)}`}>{name}</a>
+          ))}
         </div>
         <div className="footer-col">
-          <strong>Talk to our team</strong>
+          <strong>Services & contact</strong>
+          <a href="#services">Website development</a>
+          <a href="#services">Mobile app development</a>
+          <a href="#services">AI solutions</a>
+          <a href="#services">Digital marketing & SEO</a>
+          <a href="#services">Cloud services</a>
           <a href="tel:+918438154827" className="footer-link">+91 84381 54827</a>
           <a href="mailto:support@vetri-it.com" className="footer-link">support@vetri-it.com</a>
+          <a href="https://vetriitsystems.com" target="_blank" rel="noreferrer">vetriitsystems.com</a>
           <button className="footer-contact-btn" type="button" onClick={() => onEnquiry('general')}>
             Start an enquiry <ArrowIcon />
           </button>
@@ -839,6 +855,118 @@ function SiteFooter({ onEnquiry }) {
         <span>Built around your business.</span>
       </div>
     </footer>
+  )
+}
+
+function ContactEnquiryForm({
+  enquiryType,
+  form,
+  onChange,
+  onTypeChange,
+  onSubmit,
+  submitting,
+  error,
+}) {
+  const activeType = ENQUIRY_TYPE_TABS.some((tab) => tab.type === enquiryType)
+    ? enquiryType
+    : 'general'
+  const fieldConfig = ENQUIRY_FORM_CONFIG[activeType] || ENQUIRY_FORM_CONFIG.general
+
+  return (
+    <form className="contact-inline-form" onSubmit={onSubmit}>
+      <div className="contact-form-tabs" role="group" aria-label="Choose enquiry type">
+        {ENQUIRY_TYPE_TABS.map((tab) => (
+          <button
+            key={tab.type}
+            type="button"
+            aria-pressed={activeType === tab.type}
+            className={activeType === tab.type ? 'is-active' : ''}
+            onClick={() => onTypeChange(tab.type)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="contact-fields">
+        <label>
+          Full name *
+          <input
+            autoComplete="name"
+            maxLength={120}
+            value={form.full_name}
+            onChange={(event) => onChange('full_name', event.target.value)}
+            placeholder="Your name"
+            required
+          />
+        </label>
+        <label>
+          {fieldConfig.companyLabel}
+          <input
+            autoComplete="organization"
+            maxLength={120}
+            value={form.company}
+            onChange={(event) => onChange('company', event.target.value)}
+            placeholder={fieldConfig.companyPlaceholder}
+          />
+        </label>
+        <label>
+          Work email *
+          <input
+            type="email"
+            autoComplete="email"
+            maxLength={254}
+            value={form.email}
+            onChange={(event) => onChange('email', event.target.value)}
+            placeholder="you@company.com"
+            required
+          />
+        </label>
+        <label>
+          Phone
+          <input
+            type="tel"
+            autoComplete="tel"
+            maxLength={30}
+            value={form.phone}
+            onChange={(event) => onChange('phone', event.target.value)}
+            placeholder="+91"
+          />
+        </label>
+        <label className="contact-field-wide">
+          {fieldConfig.interestLabel}
+          <select
+            value={form.interest}
+            onChange={(event) => onChange('interest', event.target.value)}
+            required={fieldConfig.interestRequired}
+          >
+            <option value="">
+              {fieldConfig.interestRequired ? 'Select one' : 'Optional — select a topic'}
+            </option>
+            {fieldConfig.interestOptions.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+        <label className="contact-field-wide">
+          {fieldConfig.messageLabel}
+          <textarea
+            maxLength={2000}
+            rows={4}
+            value={form.message}
+            onChange={(event) => onChange('message', event.target.value)}
+            placeholder={fieldConfig.messagePlaceholder}
+            required
+          />
+        </label>
+      </div>
+      {error && <p className="contact-form-error" role="alert">{error}</p>}
+      <div className="contact-form-submit-row">
+        <button className="contact-submit" type="submit" disabled={submitting}>
+          {submitting ? 'Sending…' : fieldConfig.submitLabel} <ArrowIcon />
+        </button>
+        <small>Your request is recorded for the Vetri IT Systems team to follow up.</small>
+      </div>
+    </form>
   )
 }
 
@@ -868,19 +996,6 @@ const PRODUCT_LIST = [
   ['Vetri CRM', 'Sales & Customer', 'Lead capture, follow-ups, AI-scored pipelines and instant quotations.'],
   ['Vetri Training Management System', 'Training Management', 'Enterprise training management for institutes and teams.'],
   ['HR Management Tool', 'People-first HRMS', 'Employee records, attendance, payroll, leave and performance reviews.'],
-]
-
-const COURSE_LIST = [
-  'Python Fullstack',
-  'Prompt Engineering',
-  'Java Fullstack',
-  'UI/UX',
-  'Software Testing',
-  'Data Analytics',
-  'Mobile App Development',
-  'AWS & DevOps',
-  'Data Science',
-  'Digital Marketing',
 ]
 
 const PORTFOLIO_LIST = [
@@ -931,7 +1046,17 @@ function SparkIcon() {
   )
 }
 
-function MarketingSite({ onEnquiry, onChat }) {
+function MarketingSite({
+  onEnquiry,
+  onChat,
+  enquiryType,
+  enquiryForm,
+  onEnquiryFieldChange,
+  onEnquiryTypeChange,
+  onEnquirySubmit,
+  enquirySubmitting,
+  enquiryError,
+}) {
   return (
     <main className="marketing-site">
       <section className="hero-section" id="home">
@@ -939,9 +1064,9 @@ function MarketingSite({ onEnquiry, onChat }) {
         <div className="hero-inner">
           <div className="hero-copy">
             <div className="hero-eyebrow"><span className="eyebrow-dot" /> AI-FIRST ENTERPRISE TECHNOLOGY <span className="eyebrow-rule" /> TAMIL NADU, INDIA</div>
-            <h1>Technology that moves <span>business forward.</span></h1>
-            <p className="hero-lede">We build practical software, apply AI where it matters, and help teams make digital transformation real.</p>
-            <p className="hero-detail">From custom platforms and mobile applications to enterprise products and career training, Vetri IT Systems brings business thinking and engineering together.</p>
+            <h1>Transforming businesses with <span>AI-powered digital solutions.</span></h1>
+            <p className="hero-lede">We build practical technology solutions that help businesses simplify operations, improve customer experiences and grow with confidence.</p>
+            <p className="hero-detail">From custom software and web applications to mobile solutions, Agentic AI and Generative AI, Vetri IT Systems brings technology, business thinking and execution together under one team.</p>
             <div className="hero-actions">
               <button className="btn-primary" type="button" onClick={() => onEnquiry('consultation')}>Book a consultation <ArrowIcon /></button>
               <a className="btn-quiet" href="#services">Explore our services <span className="circle-arrow"><ArrowIcon /></span></a>
@@ -963,6 +1088,23 @@ function MarketingSite({ onEnquiry, onChat }) {
           </div>
         </div>
         <div className="hero-bottomline"><span>ENGINEERING WITH INTENT</span><span className="line-fill" /><span>SOFTWARE · AI · TRAINING</span></div>
+      </section>
+
+      <section className="metrics-strip" aria-label="Vetri IT Systems at a glance">
+        <div className="metrics-inner section-container">
+          {[
+            ['150+', 'Projects delivered'],
+            ['8+', 'Years of experience'],
+            ['50+', 'Business clients'],
+            ['15+', 'Team members'],
+            [String(PRODUCT_LIST.length), 'Enterprise products'],
+          ].map(([value, label]) => (
+            <div className="metric-item" key={label}>
+              <strong>{value}</strong>
+              <span>{label}</span>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="about-section section-pad" id="about">
@@ -1019,7 +1161,7 @@ function MarketingSite({ onEnquiry, onChat }) {
           </div>
           <div className="product-grid">
             {PRODUCT_LIST.map(([name, category, description], index) => (
-              <article className="product-card" key={name}>
+              <article className="product-card" id={productAnchorId(name)} key={name}>
                 <div className="product-card-top"><span className="product-index">0{index + 1}</span><span className="product-symbol">{name.slice(0, 1)}</span></div>
                 <p className="product-category">{category}</p>
                 <h3>{name}</h3>
@@ -1051,13 +1193,13 @@ function MarketingSite({ onEnquiry, onChat }) {
         </div>
       </section>
 
-      <section className="ai-section">
+      <section className="ai-section" id="ai-solutions">
         <div className="section-container ai-layout">
           <div className="ai-copy">
             <p className="section-kicker section-kicker-light"><span>05</span> APPLIED AI</p>
             <h2>Intelligence layered across <span>every business process.</span></h2>
             <p>We design AI systems that are grounded, governed and useful — deployed inside your workflows, not bolted on beside them.</p>
-            <button type="button" className="ai-cta" onClick={() => onEnquiry('consultation', 'AI & automation strategy')}>Talk about AI for your business <ArrowIcon /></button>
+              <button type="button" className="ai-cta" onClick={() => onEnquiry('consultation', 'AI & automation strategy')}>Talk about AI for your business <ArrowIcon /></button>
           </div>
           <div className="ai-diagram">
             <div className="process-line" aria-label="Data to context to model to action to impact">
@@ -1149,14 +1291,15 @@ function MarketingSite({ onEnquiry, onChat }) {
               <div className="contact-form-top"><span>START A CONVERSATION</span><span className="contact-top-line" /></div>
               <h3>Where should we begin?</h3>
               <p>Share your goals with our team — whether you’re exploring a product, a custom build, or training.</p>
-              <div className="contact-choices">
-                <button type="button" onClick={() => onEnquiry('quotation')}>Request a quotation <ArrowIcon /></button>
-                <button type="button" onClick={() => onEnquiry('consultation')}>Book a consultation <ArrowIcon /></button>
-                <button type="button" onClick={() => onEnquiry('demo')}>Request a product demo <ArrowIcon /></button>
-                <button type="button" onClick={() => onEnquiry('enroll')}>Ask about courses <ArrowIcon /></button>
-              </div>
-              <button className="contact-submit" type="button" onClick={() => onEnquiry('general')}>Send an enquiry <ArrowIcon /></button>
-              <small>Every enquiry is sent securely to the Vetri IT Systems team.</small>
+              <ContactEnquiryForm
+                enquiryType={enquiryType}
+                form={enquiryForm}
+                onChange={onEnquiryFieldChange}
+                onTypeChange={onEnquiryTypeChange}
+                onSubmit={onEnquirySubmit}
+                submitting={enquirySubmitting}
+                error={enquiryError}
+              />
             </div>
             <aside className="contact-details">
               <span className="contact-details-kicker">DIRECT CONTACT</span>
@@ -1164,7 +1307,33 @@ function MarketingSite({ onEnquiry, onChat }) {
               <p>Speak directly with a solution consultant — no call centres, no scripts.</p>
               <a href="tel:+918438154827"><span className="contact-icon">T</span><span><small>CALL US</small><strong>+91 84381 54827</strong></span><ArrowIcon /></a>
               <a href="mailto:support@vetri-it.com"><span className="contact-icon">@</span><span><small>EMAIL</small><strong>support@vetri-it.com</strong></span><ArrowIcon /></a>
-              <div className="contact-address"><span className="contact-icon">V</span><span><small>VISIT</small><strong>Vetri Academy, Aerial Complex,<br />Behind Bus Stand, Surandai</strong></span></div>
+              <a href="https://vetriitsystems.com" target="_blank" rel="noreferrer"><span className="contact-icon">W</span><span><small>WEBSITE</small><strong>vetriitsystems.com</strong></span><ArrowIcon /></a>
+              <div className="contact-address">
+                <span className="contact-icon">V</span>
+                <span><small>VISIT</small><strong>Vetri Academy, Aerial Complex,<br />Behind Bus Stand, Surandai</strong></span>
+              </div>
+              <a
+                className="contact-map-card"
+                href="https://www.google.com/maps/search/?api=1&query=Vetri+Academy%2C+Aerial+Complex%2C+Behind+Bus+Stand%2C+Surandai"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open directions to Vetri Academy in Google Maps"
+              >
+                <span className="contact-map-art" aria-hidden="true">
+                  <span className="map-road map-road-one" />
+                  <span className="map-road map-road-two" />
+                  <span className="map-road map-road-three" />
+                  <span className="map-river" />
+                  <span className="map-pin">V</span>
+                  <span className="map-place map-place-one" />
+                  <span className="map-place map-place-two" />
+                  <span className="map-place map-place-three" />
+                </span>
+                <span className="contact-map-caption">
+                  <span><strong>Vetri Academy</strong><small>Surandai · Open directions</small></span>
+                  <ArrowIcon />
+                </span>
+              </a>
               <button type="button" className="chat-invite" onClick={onChat}><span className="chat-invite-indicator" /><span>Prefer a quick answer?</span><strong>Ask Coach AI <ArrowIcon /></strong></button>
             </aside>
           </div>
@@ -1344,6 +1513,7 @@ function App() {
   const abortRef = useRef(null)
   const fileInputRef = useRef(null)
   const speechRef = useRef(null)
+  const enquirySubmitLockRef = useRef(false)
   const voiceSupported = Boolean(SPEECH_RECOGNITION)
 
   const loadHistoryList = useCallback(async () => {
@@ -1566,6 +1736,7 @@ function App() {
   function handleEnquiryTypeChange(type) {
     const config = ENQUIRY_FORM_CONFIG[type]
     setEnquiryType(type)
+    setEnquiryError('')
     if (!config) return
     setEnquiryForm((prev) => {
       const interestValid = config.interestOptions.includes(prev.interest)
@@ -1612,8 +1783,9 @@ function App() {
 
   async function submitEnquiryForm(event) {
     event.preventDefault()
-    if (enquirySubmitting) return
+    if (enquirySubmitLockRef.current) return
 
+    enquirySubmitLockRef.current = true
     setEnquiryError('')
     setEnquirySubmitting(true)
 
@@ -1635,6 +1807,7 @@ function App() {
 
       setEnquiryOpen(false)
       setEnquiryForm(EMPTY_ENQUIRY_FORM)
+      setEnquiryError('')
       setSiteNotice(data.confirmation || 'Thank you. Your enquiry has been submitted.')
       setMessages((prev) => [
         ...prev,
@@ -1662,6 +1835,7 @@ function App() {
         setEnquiryError(message || 'Could not submit enquiry.')
       }
     } finally {
+      enquirySubmitLockRef.current = false
       setEnquirySubmitting(false)
     }
   }
@@ -1891,7 +2065,17 @@ function App() {
       {!IS_EMBED && (
         <>
           <SiteNav onEnquiry={openEnquiry} />
-          <MarketingSite onEnquiry={openEnquiry} onChat={() => setWidgetOpen(true)} />
+          <MarketingSite
+            onEnquiry={openEnquiry}
+            onChat={() => setWidgetOpen(true)}
+            enquiryType={enquiryType}
+            enquiryForm={enquiryForm}
+            onEnquiryFieldChange={updateEnquiryField}
+            onEnquiryTypeChange={handleEnquiryTypeChange}
+            onEnquirySubmit={submitEnquiryForm}
+            enquirySubmitting={enquirySubmitting}
+            enquiryError={enquiryError}
+          />
           <SiteFooter onEnquiry={openEnquiry} />
         </>
       )}

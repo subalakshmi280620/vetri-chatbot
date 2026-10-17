@@ -15,6 +15,7 @@ from .groq import GroqAPIError, ask_groq
 from .eligibility import handle_eligibility, is_non_eligibility_faq
 from .knowledge import (
     AI_FULLY_UNAVAILABLE_MESSAGE,
+    COURSES,
     GENERIC_FALLBACK_MARKER,
     apply_reply_style,
     detect_suggested_enquiry_type,
@@ -192,8 +193,8 @@ def _try_ai_reply(
     # Backup AI for text chat when Gemini is down (503, 429, timeout, etc.)
     if not images:
         groq_reply = _try_groq_reply(user_message, prompt, history)
-    if groq_reply:
-        return groq_reply
+        if groq_reply:
+            return groq_reply
         return _try_deepseek_reply(user_message, prompt, history)
 
     return None
@@ -547,7 +548,7 @@ ENQUIRY_CONFIRMATIONS = {
     Enquiry.TYPE_ENROLL: (
         "Enrollment request received\n\n"
         "Thank you. Our team will use the details you shared and contact you "
-        "about the course, website, product, or service you chose.\n\n"
+        "about the course you chose.\n\n"
         "You do not need to sign in on the website."
     ),
     Enquiry.TYPE_GENERAL: (
@@ -588,7 +589,12 @@ def submit_enquiry(request):
         return Response({"error": "Please select a product to demo."}, status=400)
     if enquiry_type == Enquiry.TYPE_ENROLL and not interest:
         return Response(
-            {"error": "Please select a course, website, product, or service to enroll."},
+            {"error": "Please select a course to enroll."},
+            status=400,
+        )
+    if enquiry_type == Enquiry.TYPE_ENROLL and interest not in COURSES:
+        return Response(
+            {"error": "Please select one of the available courses to enroll."},
             status=400,
         )
     if enquiry_type == Enquiry.TYPE_QUOTATION and not interest:

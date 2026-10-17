@@ -141,6 +141,7 @@ class VerifiedFactsTests(TestCase):
         prompt = get_verified_facts_prompt()
         self.assertIn("84381 54827", prompt)
         self.assertIn("support@vetri-it.com", prompt)
+        self.assertIn("https://vetriitsystems.com", prompt)
         self.assertIn("Never invent", prompt)
         self.assertIn("180 days", prompt)
 
@@ -582,6 +583,11 @@ class KnowledgeReplyTests(TestCase):
         self.assertIn("84381 54827", reply)
         self.assertIn("support@vetri-it.com", reply)
         self.assertIn("Surandai", reply)
+        self.assertIn("https://vetriitsystems.com", reply)
+
+    def test_website_questions_return_the_verified_site_address(self):
+        reply = get_structured_reply("What is your website address?")
+        self.assertIn("https://vetriitsystems.com", reply)
 
     def test_quotation_and_consultation_have_distinct_replies(self):
         quote = get_structured_reply("How can I get a quotation?")
@@ -668,6 +674,57 @@ class EnquiryApiTests(ChatApiTestCase):
         self.assertIn("Book a Consultation", consult)
         self.assertNotEqual(quote, consult)
 
+    @patch("chatbot.views.dispatch_enquiry_notification")
+    def test_all_enquiry_types_are_saved_and_visible_in_leads_dashboard(
+        self, _mock_notification
+    ):
+        client_token = str(uuid.uuid4())
+        requests = [
+            ("quotation", "Vetri Bills"),
+            ("consultation", "AI & automation strategy"),
+            ("demo", "Vetri CRM"),
+            ("sales", "Vetri AI Assistant"),
+            ("enroll", "Python Fullstack"),
+            ("general", "Website Development"),
+        ]
+
+        for index, (enquiry_type, interest) in enumerate(requests):
+            response = self._post_enquiry(
+                {
+                    "enquiry_type": enquiry_type,
+                    "full_name": f"Lead Request {index}",
+                    "email": f"lead-request-{index}@example.com",
+                    "phone": "+91 90000 00000",
+                    "interest": interest,
+                    "message": f"Request details for {enquiry_type}.",
+                },
+                client_token=client_token,
+            )
+            self.assertEqual(response.status_code, 200, response.content)
+            self.assertEqual(response.json()["enquiry_type"], enquiry_type)
+
+        saved_leads = Enquiry.objects.filter(client_token=client_token)
+        self.assertEqual(saved_leads.count(), len(requests))
+        self.assertEqual(
+            set(saved_leads.values_list("enquiry_type", flat=True)),
+            {enquiry_type for enquiry_type, _interest in requests},
+        )
+        self.assertEqual(
+            set(saved_leads.values_list("status", flat=True)),
+            {Enquiry.STATUS_NEW},
+        )
+
+        User.objects.create_superuser(
+            username="enquiry_dashboard_admin",
+            email="admin@example.com",
+            password="test-pass-123",
+        )
+        self.client.login(username="enquiry_dashboard_admin", password="test-pass-123")
+        dashboard = self.client.get("/admin/chatbot-leads/")
+        self.assertEqual(dashboard.status_code, 200)
+        for index in range(len(requests)):
+            self.assertContains(dashboard, f"lead-request-{index}@example.com")
+
     def test_enquiry_requires_email_and_message(self):
         response = self._post_enquiry({
             "enquiry_type": "demo",
@@ -695,6 +752,19 @@ class EnquiryApiTests(ChatApiTestCase):
         })
         self.assertEqual(response.status_code, 400)
         self.assertIn("quotation", response.json()["error"].lower())
+
+    def test_enrollment_only_accepts_an_available_course(self):
+        response = self._post_enquiry({
+            "enquiry_type": "enroll",
+            "full_name": "Course User",
+            "email": "course@example.com",
+            "interest": "Vetri Bills",
+            "message": "I want to join",
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("available courses", response.json()["error"].lower())
+        self.assertEqual(Enquiry.objects.count(), 0)
 
     @override_settings(
         RESEND_API_KEY="",
@@ -1266,6 +1336,28 @@ class GroqFallbackTests(TestCase):
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertIn("Vetri Bills", reply)
 
+    @override_settings(**{**_AI_SETTINGS, "DEEPSEEK_API_KEY": "test-deepseek-key"})
+    @patch("chatbot.views.ask_deepseek", return_value="DeepSeek reply about Vetri Bills.")
+    @patch("chatbot.views.ask_groq", return_value=None)
+    @patch(
+        "chatbot.views.ask_gemini",
+        side_effect=GeminiAPIError(
+            "Gemini HTTP 503: high demand",
+            code=503,
+            model="gemini-3.8-flash",
+        ),
+    )
+    def test_deepseek_is_used_after_gemini_and_groq_fail(
+        self, mock_gemini, mock_groq, mock_deepseek
+    ):
+        reply, source = generate_reply("What products does VIS offer?")
+
+        self.assertEqual(source, SOURCE_AI)
+        self.assertIn("DeepSeek reply", reply)
+        mock_gemini.assert_called_once()
+        mock_groq.assert_called_once()
+        mock_deepseek.assert_called_once()
+
     @override_settings(
         GROQ_API_KEY="test-xai-key",
         GROQ_MODEL="openai/gpt-oss-120b",
@@ -1332,6 +1424,7 @@ class KnowledgeExportTests(TestCase):
         combined = "\n".join(chunk["text"] for chunk in chunks)
         self.assertIn("+91 84381 54827", combined)
         self.assertIn("support@vetri-it.com", combined)
+        self.assertIn("https://vetriitsystems.com", combined)
 
     def test_export_includes_products(self):
         from .knowledge_export import export_knowledge_chunks

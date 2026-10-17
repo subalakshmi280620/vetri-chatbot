@@ -12,6 +12,7 @@ TAGLINE = (
 CONTACT_PHONE = "+91 84381 54827"
 CONTACT_EMAIL = "support@vetri-it.com"
 CONTACT_ADDRESS = "Vetri Academy, Aerial Complex, Behind Bus Stand, Surandai"
+CONTACT_WEBSITE = "https://vetriitsystems.com"
 
 CONTACT_LINE = (
     f"Please contact our team: {CONTACT_PHONE} or {CONTACT_EMAIL}"
@@ -19,8 +20,9 @@ CONTACT_LINE = (
 
 ENQUIRY_FORM_HINT = (
     "The chat has an Enquiry button (top of the chat panel). Users can submit "
-    "quotation, consultation, or product demo requests there with name, email, "
-    "phone, and their requirement — no need to email or call first."
+    "course enrolment, quotation, consultation, product demo, sales, or general "
+    "requests there with name, email, phone, and their requirement — no need to "
+    "email or call first."
 )
 
 HERO_BADGE = "PREMIUM IT SOLUTIONS — TAMIL NADU, INDIA"
@@ -561,13 +563,15 @@ REPLIES = {
         "deployment planning, and enterprise requirements.\n\n"
         f"Phone: {CONTACT_PHONE}\n"
         f"Email: {CONTACT_EMAIL}\n"
-        f"Address: {CONTACT_ADDRESS}"
+        f"Address: {CONTACT_ADDRESS}\n"
+        f"Website: {CONTACT_WEBSITE}"
     ),
     "contact": (
         f"Contact {ORG_NAME}\n\n"
         f"• Phone: {CONTACT_PHONE}\n"
         f"• Email: {CONTACT_EMAIL}\n"
-        f"• Address: {CONTACT_ADDRESS}\n\n"
+        f"• Address: {CONTACT_ADDRESS}\n"
+        f"• Website: {CONTACT_WEBSITE}\n\n"
         "Enquiry options:\n"
         "• Request a quotation\n"
         "• Book a consultation\n"
@@ -642,7 +646,7 @@ Ground rules:
 - Explain a course first. Only when the user wants to join, ask them to enroll in this chat. Do not ask them to sign in. There is no website login.
 - Official website prices only: ecommerce website {ECOMMERCE_WEBSITE_PRICE}; small retail shop website {RETAIL_SHOP_WEBSITE_PRICE}. Do NOT invent any other ₹ amount.
 - For eligibility: a completed degree (UG/PG) is required; check the user's qualification honestly.
-- Contact details when relevant: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}.
+- Contact details when relevant: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}, {CONTACT_WEBSITE}.
 - Say "contact the team" ONLY when: user explicitly wants phone/email, or topic is completely outside VIS.
 - For quotation, consultation, or product demo: explain what it is, then direct users to the
   **Enquiry button** in the chat (Quotation / Consultation / Product Demo tabs) — not only phone/email.
@@ -652,7 +656,7 @@ Hero: {HERO_HEADLINE} — {HERO_SUBHEADLINE}
 Stats: {COMPANY_STATS['projects']} projects, {COMPANY_STATS['years']} years, {COMPANY_STATS['clients']} clients, {COMPANY_STATS['team']} team experts.
 Highlights: {", ".join(COMPANY_HIGHLIGHTS)}.
 Organization: {TAGLINE}
-Contact: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}.
+Contact: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}, {CONTACT_WEBSITE}.
 Products: {", ".join(PRODUCTS)}.
 Services: {", ".join(SERVICES)}.
 Training courses: {", ".join(COURSES)}.
@@ -1145,6 +1149,13 @@ def _matches_contact_intent(text: str) -> bool:
     )) or text.strip() in {"contact", "phone", "email", "address"}
 
 
+def _matches_website_address_intent(text: str) -> bool:
+    return any(phrase in text for phrase in (
+        "website address", "website url", "website link", "website domain",
+        "web address", "web url", "official website", "company website",
+    ))
+
+
 def vision_mission_grounding_facts() -> str:
     return (
         "Vision — An AI-Powered Business For Everyone: trusted AI and digital transformation "
@@ -1164,7 +1175,7 @@ def portfolio_grounding_facts() -> str:
 def contact_grounding_facts() -> str:
     return (
         f"Phone {CONTACT_PHONE}, Email {CONTACT_EMAIL}, "
-        f"Address {CONTACT_ADDRESS}."
+        f"Address {CONTACT_ADDRESS}, Website {CONTACT_WEBSITE}."
     )
 
 
@@ -1223,7 +1234,10 @@ INTENTS = (
         "about us", "about vis", "about vetri", "who are you", "what is vis",
         "what is vetri", "what is vetri it", "who is vis", "who is vetri",
     )),
-    ("contact", ("contact", "phone", "email", "address", "call", "location", "where are you")),
+    ("contact", (
+        "contact", "phone", "email", "address", "call", "location", "where are you",
+        "website address", "website url", "web address",
+    )),
     ("courses", (
         "courses", "which courses", "what courses", "courses available",
         "training courses", "training programmes", "training programs",
@@ -1235,6 +1249,8 @@ INTENTS = (
 def _route_faq(message: str) -> str | None:
     text = message.strip().lower()
 
+    if _matches_website_address_intent(text):
+        return f"Our website is {CONTACT_WEBSITE}."
     if is_greeting(text):
         return REPLIES["greeting"]
     if _matches_apply_intent(text):
@@ -1339,6 +1355,9 @@ def get_grounding_facts(message: str) -> str:
     """Verified facts for AI grounding — not user-facing templates."""
     text = message.strip().lower()
     parts: list[str] = []
+
+    if _matches_website_address_intent(text):
+        return f"Official website: {CONTACT_WEBSITE}."
 
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return quotation_grounding_facts()
@@ -1553,7 +1572,8 @@ def get_conversational_fallback(
     if _matches_contact_intent(text):
         return (
             f"We're at {CONTACT_ADDRESS}. Phone: {CONTACT_PHONE}. "
-            f"Email: {CONTACT_EMAIL}. What can I help you with today?"
+            f"Email: {CONTACT_EMAIL}. Website: {CONTACT_WEBSITE}. "
+            "What can I help you with today?"
         )
 
     if _matches_apply_intent(text):
@@ -1673,7 +1693,8 @@ def get_conversational_fallback(
         if intent == "contact":
             return (
                 f"We're at {CONTACT_ADDRESS}. Phone: {CONTACT_PHONE}. "
-                f"Email: {CONTACT_EMAIL}. What can I help you with today?"
+                f"Email: {CONTACT_EMAIL}. Website: {CONTACT_WEBSITE}. "
+                "What can I help you with today?"
             )
         if intent == "courses":
             course_sample = ", ".join(COURSES[:5]) + ", and more"

@@ -34,6 +34,7 @@ def export_knowledge_chunks() -> list[dict]:
         f"Phone: {kb.CONTACT_PHONE}\n"
         f"Email: {kb.CONTACT_EMAIL}\n"
         f"Address: {kb.CONTACT_ADDRESS}\n"
+        f"Website: {kb.CONTACT_WEBSITE}\n"
         f"Stats: {kb.COMPANY_STATS['projects']} projects, "
         f"{kb.COMPANY_STATS['years']} years, "
         f"{kb.COMPANY_STATS['clients']} clients, "
@@ -85,7 +86,8 @@ def export_knowledge_chunks() -> list[dict]:
 
     add(
         "enquiry",
-        f"Contact VIS: {kb.CONTACT_PHONE}, {kb.CONTACT_EMAIL}. "
+        f"Contact VIS: {kb.CONTACT_PHONE}, {kb.CONTACT_EMAIL}, "
+        f"{kb.CONTACT_WEBSITE}. "
         f"{kb.ENQUIRY_FORM_HINT}",
     )
 
