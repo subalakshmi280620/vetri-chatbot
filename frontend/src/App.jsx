@@ -135,6 +135,16 @@ const ENQUIRY_TYPE_TABS = [
   { type: 'general', label: 'General' },
 ]
 
+
+const CHATBOT_ENQUIRY_TABS = [
+  { type: 'quotation', label: 'Quotation' },
+  { type: 'consultation', label: 'Consultation' },
+  { type: 'demo', label: 'Product Demo' },
+  { type: 'sales', label: 'Sales' },
+  { type: 'general', label: 'General Enquiry' },
+  { type: 'enroll', label: 'Enroll' },
+]
+
 const ENQUIRY_SUBTEXT = {
   quotation:
     'Tell us what you want to achieve. You will get a tailored proposal, timeline, and indicative pricing.',
@@ -402,23 +412,80 @@ function linkifyLine(line) {
 }
 
 function SmileAvatar() {
-  return (
-    <img src="/coach-ai-avatar.jpg" alt="" className="avatar-photo" />
-  )
+  return <RobotFace size={42} />
 }
 
-function ChatIcon() {
+
+function RobotFace({ size = 30 }) {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Robot antenna */}
       <path
-        d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v7A2.5 2.5 0 0 1 17.5 15H9l-4.5 3.5V5.5Z"
-        stroke="currentColor"
-        strokeWidth="1.75"
+        d="M21 10V7"
+        stroke="#25D366"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <circle cx="21" cy="5" r="2.5" fill="#25D366" />
+
+      {/* Robot head */}
+      <rect
+        x="5"
+        y="12"
+        width="34"
+        height="29"
+        rx="9"
+        fill="#0B2C6B"
+        stroke="#3D9BE9"
+        strokeWidth="1.5"
+      />
+
+      {/* Robot face */}
+      <rect
+        x="10"
+        y="17"
+        width="24"
+        height="17"
+        rx="5"
+        fill="#F4F8FF"
+      />
+      <circle cx="17" cy="24" r="2.5" fill="#25C96B" />
+      <circle cx="27" cy="24" r="2.5" fill="#25C96B" />
+      <path
+        d="M17 29H27"
+        stroke="#0B2C6B"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+
+      {/* Robot ears */}
+      <path
+        d="M5 23H2M39 23H42"
+        stroke="#25D366"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+
+      {/* AI sparkle */}
+      <path
+        d="M40 2L42 7L47 9L42 11L40 16L38 11L33 9L38 7Z"
+        fill="#25D366"
+        stroke="#F4F8FF"
+        strokeWidth="0.6"
         strokeLinejoin="round"
       />
+      <circle cx="43" cy="18" r="1.2" fill="#3D9BE9" />
     </svg>
-  )
+  );
 }
+
 
 function SendIcon() {
   return (
@@ -628,11 +695,12 @@ function EnquiryModal({
   onClose,
   onSubmit,
   submitting,
+  tabs = ENQUIRY_TYPE_TABS,
   error,
 }) {
   if (!open) return null
 
-  const activeType = ENQUIRY_TYPE_TABS.some((tab) => tab.type === enquiryType)
+  const activeType = tabs.some((tab) => tab.type === enquiryType)
     ? enquiryType
     : 'quotation'
   const fieldConfig = ENQUIRY_FORM_CONFIG[activeType] || ENQUIRY_FORM_CONFIG.quotation
@@ -654,7 +722,7 @@ function EnquiryModal({
         </div>
 
         <div className="enquiry-type-tabs" role="tablist" aria-label="Enquiry type">
-          {ENQUIRY_TYPE_TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.type}
               type="button"
@@ -858,6 +926,7 @@ function SiteFooter({ onEnquiry }) {
   )
 }
 
+
 function ContactEnquiryForm({
   enquiryType,
   form,
@@ -1029,9 +1098,10 @@ const PORTFOLIO_LIST = [
   },
 ]
 
+
 function ArrowIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
@@ -2097,7 +2167,7 @@ function App() {
           aria-haspopup="dialog"
         >
           <span className="launcher-pulse" aria-hidden="true" />
-          <ChatIcon />
+          <RobotFace size={30} />
           <span className="launcher-label">Coach AI</span>
         </button>
         </div>
@@ -2373,6 +2443,7 @@ function App() {
         onSubmit={submitEnquiryForm}
         submitting={enquirySubmitting}
         error={enquiryError}
+        tabs={CHATBOT_ENQUIRY_TABS}
       />
     </div>
   )

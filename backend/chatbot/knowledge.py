@@ -1355,14 +1355,47 @@ def get_grounding_facts(message: str) -> str:
     """Verified facts for AI grounding — not user-facing templates."""
     text = message.strip().lower()
     parts: list[str] = []
+    # Prefer active Admin course details over static course facts.
+    from .admin_course_helper import get_admin_course
+
+    admin_course = get_admin_course(message)
+    if admin_course:
+        return (
+            f"Course: {admin_course.name}\n"
+            f"Duration: {admin_course.duration or 'Not specified'}\n"
+            f"Eligibility: {admin_course.eligibility or 'Not specified'}\n"
+            f"Internship: {admin_course.internship or 'Not specified'}"
+        )
 
     if _matches_website_address_intent(text):
         return f"Official website: {CONTACT_WEBSITE}."
 
+
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return quotation_grounding_facts()
 
+    # Prefer current active Admin records over static product/service facts.
+    from .admin_knowledge_helper import (
+        get_admin_product,
+        get_admin_service,
+        get_admin_faq_answer,
+    )
+
+    admin_product = get_admin_product(message)
+    if admin_product:
+        return admin_product
+
+    admin_service = get_admin_service(message)
+    if admin_service and not _is_course_context(text):
+        return admin_service
+
+    # Use a matching active FAQ when its question is relevant.
+    admin_faq = get_admin_faq_answer(message)
+    if admin_faq:
+        return admin_faq
+
     product_id = match_product_id(text)
+
     if product_id:
         detail = PRODUCT_DETAILS.get(product_id)
         if detail:
@@ -1439,6 +1472,50 @@ def get_conversational_fallback(
     if is_greeting(text):
         return get_greeting_reply(language)
 
+    # Answer job-guarantee questions from verified policy without requiring AI.
+    if any(term in text for term in (
+        "job guarantee", "guarantee a job", "guaranteed job",
+        "placement guarantee", "assure me a job", "will i get a job",
+    )):
+        return (
+            "VIS does not guarantee a job after training. "
+            "The programmes run for 180 days and include a 3-month internship. "
+            "The internship and training can help build practical skills, "
+            "but employment is not guaranteed."
+        )
+
+    # Use active Admin course details before static fallback answers.
+    from .admin_course_helper import get_admin_course
+
+    admin_course = get_admin_course(message)
+    if admin_course:
+        course_name = admin_course.name
+        duration = admin_course.duration or "Not specified"
+        eligibility = admin_course.eligibility or "Not specified"
+        internship = admin_course.internship or "Not specified"
+
+        if matches_fee_intent(text):
+            return (
+                f"{course_name} fees vary by batch. "
+                f"Duration: {duration}. "
+                "Use the Enquiry form for an exact fee quote."
+            )
+
+        if matches_duration_intent(text):
+            return (
+                f"{course_name} runs for {duration}. "
+                f"Eligibility: {eligibility}. "
+                f"Internship: {internship}."
+            )
+
+        if not _matches_apply_intent(text):
+            return (
+                f"{course_name}: {duration} programme. "
+                f"Eligibility: {eligibility}. "
+                f"Internship: {internship}. "
+                "Say enroll if you want to join."
+            )
+
     if matches_fee_intent(text) and (
         has_training_context(text, history) or match_course_id(text) or _is_course_context(text)
     ):
@@ -1467,14 +1544,14 @@ def get_conversational_fallback(
     if website_offer == "ecommerce":
         return (
             f"VIS offers an ecommerce website package at {ECOMMERCE_WEBSITE_PRICE}. "
-            "When you want the team to start, say enroll and share your details in this chat. "
-            "No website sign-in is required."
+            "For a formal quote, tap Enquiry ? Quotation and share your website requirements."
         )
     if website_offer == "retail":
         return (
             f"For a small retail shop, VIS offers a website at {RETAIL_SHOP_WEBSITE_PRICE}. "
-            "Say enroll when you want our team to take your details and follow up."
+            "For a formal quote, tap Enquiry ? Quotation and share your website requirements."
         )
+
 
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return (
@@ -1482,7 +1559,21 @@ def get_conversational_fallback(
             "Tap Enquiry → Quotation and tell us what you need for a formal quote."
         )
 
+    # Prefer current active Admin company information for company questions.
+    from .admin_knowledge_helper import get_admin_company_text
+
+    if (
+        _matches_why_vis_intent(text)
+        or _matches_about_intent(text)
+        or _matches_vision_mission_intent(text)
+        or _matches_contact_intent(text)
+    ):
+        admin_company = get_admin_company_text(message)
+        if admin_company:
+            return admin_company
+
     product_id = match_product_id(text)
+
     if product_id:
         summary = SHORT_PRODUCT_SUMMARIES.get(product_id)
         if summary:

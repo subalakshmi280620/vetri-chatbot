@@ -25,6 +25,7 @@ from .knowledge import (
     get_system_prompt,
     is_contextual_follow_up,
     is_greeting,
+    match_course_id,
     infer_reply_style,
     normalize_reply_style,
     resolve_follow_up_query,
@@ -180,9 +181,9 @@ def _try_ai_reply(
             return reply
         except GeminiAPIError as exc:
             logger.warning(
-                "AI provider error: gemini model=%s HTTP=%s — trying fallbacks",
+                "AI provider error: gemini model=%s detail=%s — trying fallbacks",
                 exc.model or "unknown",
-                exc.code or "unknown",
+                str(exc)[:300],
             )
         except Exception as exc:
             logger.warning(
@@ -245,10 +246,42 @@ def generate_reply(
         if contextual:
             return apply_reply_style(contextual, style), SOURCE_VERIFIED_KB
 
+    if user_message and not (
+        attachments and (attachments.images or attachments.document_text)
+    ) and not is_non_eligibility_faq(user_message):
+        eligibility = handle_eligibility(user_message, history, lang)
+        if eligibility:
+            return apply_reply_style(eligibility, style), SOURCE_ELIGIBILITY
+
+    # Specific course-name questions use verified course facts first.
+    if (
+        user_message
+        and lang != "ta"
+        and match_course_id(user_message)
+        and not (attachments and (attachments.images or attachments.document_text))
+    ):
+        course_candidate = get_conversational_fallback(
+            user_message, style, lang, history=history
+        )
+        if GENERIC_FALLBACK_MARKER not in course_candidate:
+            return apply_reply_style(course_candidate, style), SOURCE_VERIFIED_KB
+
     ai_configured = _ai_providers_configured()
     ai_reply = _try_ai_reply(user_message, history, attachments, style, lang)
     if ai_reply:
         return apply_reply_style(enforce_verified_facts(ai_reply.strip()), style), SOURCE_AI
+
+    # Prefer a specific verified English KB answer when one exists.
+    # Keep AI available for questions the knowledge base cannot answer.
+    if user_message and lang != "ta" and not (
+        attachments and (attachments.images or attachments.document_text)
+    ):
+        kb_candidate = get_conversational_fallback(
+            user_message, style, lang, history=history
+        )
+        if GENERIC_FALLBACK_MARKER not in kb_candidate:
+            return apply_reply_style(kb_candidate, style), SOURCE_VERIFIED_KB
+
 
     if attachments and (attachments.images or attachments.document_text):
         names = ", ".join(attachments.display_labels) or "your file"
@@ -257,10 +290,6 @@ def generate_reply(
             f"Please try again shortly or email support@vetri-it.com."
         ), SOURCE_UNVERIFIED
 
-    if not is_non_eligibility_faq(user_message):
-        eligibility = handle_eligibility(user_message, history, lang)
-        if eligibility:
-            return apply_reply_style(eligibility, style), SOURCE_ELIGIBILITY
 
     reply, source = _kb_fallback_reply(
         user_message,

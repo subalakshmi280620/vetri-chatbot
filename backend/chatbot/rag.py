@@ -3,6 +3,7 @@ from pathlib import Path
 from django.conf import settings
 
 from .vector_rag import EXCLUDED_INDEX_FILES, vector_rag_available
+from .knowledge_export import export_knowledge_chunks
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 CHUNK_SIZE = 700
@@ -66,19 +67,28 @@ def load_chunks() -> list[dict]:
 def lexical_retrieve(query: str, limit: int = 4) -> list[dict]:
     query_tokens = _tokenize(query)
     scored = []
-    chunks = load_chunks()
+    chunks = load_chunks() + export_knowledge_chunks()
+
     for chunk in chunks:
         overlap = query_tokens & _tokenize(chunk["text"])
         if not overlap:
             continue
-        scored.append((len(overlap), chunk))
+
+        score = len(overlap)
+        if chunk["source"].startswith("admin:"):
+            score += 1
+
+        scored.append((score, chunk))
+
     scored.sort(key=lambda item: item[0], reverse=True)
+
     if scored:
         return [chunk for _, chunk in scored[:limit]]
 
     vis_chunks = [chunk for chunk in chunks if chunk["source"] == "vis_website.md"]
     if vis_chunks:
         return vis_chunks[:limit]
+
     return chunks[:limit]
 
 

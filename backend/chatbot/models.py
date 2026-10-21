@@ -148,3 +148,102 @@ class KnowledgeIndexState(models.Model):
 
     def __str__(self):
         return f"{self.chunk_count} chunks @ {self.indexed_at:%Y-%m-%d}"
+
+
+class CompanyInformation(models.Model):
+    company_name = models.CharField(max_length=200)
+    legal_name = models.CharField(max_length=200, blank=True)
+    tagline = models.CharField(max_length=300, blank=True)
+    description = models.TextField(blank=True)
+    mission = models.TextField(blank=True)
+    vision = models.TextField(blank=True)
+    phone = models.CharField(max_length=50, blank=True)
+    alternate_phone = models.CharField(max_length=50, blank=True)
+    email = models.EmailField(blank=True)
+    address = models.TextField(blank=True)
+    website = models.URLField(blank=True)
+    business_hours = models.CharField(max_length=300, blank=True)
+    facebook_url = models.URLField(blank=True)
+    instagram_url = models.URLField(blank=True)
+    linkedin_url = models.URLField(blank=True)
+    youtube_url = models.URLField(blank=True)
+    map_url = models.URLField(blank=True)
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+
+    class Meta:
+        verbose_name_plural = "Company Information"
+
+    def __str__(self):
+        return self.company_name
+
+
+class Product(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+    description = models.TextField()
+    features = models.TextField(blank=True)
+    price = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    price_note = models.CharField(max_length=300, blank=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Service(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+    description = models.TextField()
+    features = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Course(models.Model):
+    name = models.CharField(max_length=200, unique=True)
+    description = models.TextField()
+    duration = models.CharField(max_length=100, blank=True)
+    eligibility = models.TextField(blank=True)
+    internship = models.CharField(max_length=200, blank=True)
+    additional_details = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class FAQ(models.Model):
+    category = models.CharField(max_length=100, blank=True)
+    question = models.CharField(max_length=500, unique=True)
+    answer = models.TextField()
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "question"]
+        verbose_name = "FAQ"
+        verbose_name_plural = "FAQs"
+
+    def __str__(self):
+        return self.question

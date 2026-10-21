@@ -240,10 +240,13 @@ def handle_eligibility(user_message: str, history=None, language: str = "en") ->
 
     if not is_self_check(text) and not waiting:
         if explicit_course_id:
-            return _eligibility_reply_in_language(
-                eligibility_reply(explicit_course_name),
-                language,
+            reply = eligibility_reply(explicit_course_name)
+            reply = (
+                f"For {explicit_course_name}, the course duration is 180 days "
+                "and includes a 3-month internship. "
+                + reply
             )
+            return _eligibility_reply_in_language(reply, language)
         return _eligibility_reply_in_language(general_eligibility_reply(), language)
 
     user_combined = f"{_user_history_text(history)} {text}"

@@ -112,7 +112,7 @@ class AttachmentTests(TestCase):
         self.assertIn("Vetri Bills", message)
         self.assertIn("What product is mentioned here?", message)
 
-    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="I can see Vetri Bills in the image.")
     def test_chat_accepts_image_attachment(self, mock_gemini):
         image_bytes = base64.b64encode(b"fake-image-bytes").decode("ascii")
@@ -409,7 +409,7 @@ class EligibilityReplyTests(TestCase):
             {"role": "bot", "text": second},
         ]
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_fees_after_eligibility_outcome_uses_kb_not_eligibility(self):
         history = self._eligibility_conversation_history()
         self.assertIsNone(handle_eligibility("what are the fees?", history))
@@ -418,7 +418,7 @@ class EligibilityReplyTests(TestCase):
         self.assertNotIn("Outcome: ELIGIBLE", reply)
         self.assertEqual(source, SOURCE_VERIFIED_KB)
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_apply_after_eligibility_outcome_uses_kb_not_eligibility(self):
         history = self._eligibility_conversation_history()
         self.assertIsNone(handle_eligibility("How do I apply for a course?", history))
@@ -427,6 +427,7 @@ class EligibilityReplyTests(TestCase):
         self.assertNotIn("Outcome: ELIGIBLE", reply)
         self.assertEqual(source, SOURCE_VERIFIED_KB)
 
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_cost_after_general_eligibility_uses_fees_not_eligibility(self):
         first = handle_eligibility("What is the eligibility?")
         history = [
@@ -438,6 +439,7 @@ class EligibilityReplyTests(TestCase):
         self.assertIn("fee", reply.lower())
         self.assertNotEqual(reply, first)
 
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_varied_fee_phrasings_after_eligibility(self):
         first = handle_eligibility("What is the eligibility?")
         history = [
@@ -478,7 +480,7 @@ class KnowledgeReplyTests(TestCase):
         self.assertIn("Enquiry", reply)
         self.assertNotIn("register for free", reply.lower())
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_greeting_reply_is_short(self):
         for message in ("hi", "hii", "hello", "good morning"):
             reply, source = generate_reply(message)
@@ -487,7 +489,7 @@ class KnowledgeReplyTests(TestCase):
             self.assertNotIn("Vetri Bills", reply)
             self.assertNotIn("products", reply.lower())
 
-    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="Long AI greeting with products and services.")
     def test_greeting_skips_ai(self, mock_gemini):
         reply, source = generate_reply("hii")
@@ -509,7 +511,7 @@ class KnowledgeReplyTests(TestCase):
         self.assertIn("track record", why.lower())
         self.assertNotEqual(about, why)
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_about_and_why_vis_fallback_replies_differ(self):
         about = get_conversational_fallback("What is Vetri IT Systems?")
         why = get_conversational_fallback("Why should I choose VIS?")
@@ -543,7 +545,7 @@ class KnowledgeReplyTests(TestCase):
         self.assertEqual(source, SOURCE_ELIGIBILITY)
 
 
-    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="Vetri Bills is our GST billing product.")
     def test_generate_reply_prefers_ai_for_natural_answers(self, mock_gemini):
         reply, source = generate_reply("Tell me about Vetri Bills")
@@ -626,7 +628,7 @@ class KnowledgeReplyTests(TestCase):
         self.assertIn("CRM", facts)
         self.assertNotIn("contact our team", facts.lower())
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_generate_reply_uses_conversational_fallback_when_ai_unavailable(self):
         reply, source = generate_reply("What products does VIS offer?")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
@@ -846,14 +848,14 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         self.assertEqual(data["source"], SOURCE_VERIFIED_KB)
         self.assertNotIn("Our Products —", data["reply"])
 
-    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="We offer Python, Java, UI/UX, and more.")
     def test_chat_uses_ai_when_configured(self, _mock_gemini):
         response = self._post_chat("What courses do you have?")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["source"], "ai")
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_chat_suggests_enquiry_for_quotation_intent(self):
         response = self._post_chat("How can I get a quotation?")
         self.assertEqual(response.status_code, 200)
@@ -928,7 +930,7 @@ class DemoQuestionCoverageTests(TestCase):
         ("Tell me about Vetri Bills", "What products does VIS offer?"),
     ]
 
-    @override_settings(GEMINI_API_KEY="", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_demo_questions_return_expected_topics(self):
         for question, markers in self.DEMO_QUESTIONS:
             reply, source = generate_reply(question)
@@ -978,7 +980,7 @@ class DemoQuestionCoverageTests(TestCase):
                 msg=f"Grounding too similar:\n{left_q}: {left}\n{right_q}: {right}",
             )
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_greeting_stays_short_in_full_reply_flow(self):
         reply, _source = generate_reply("hii")
         self.assertEqual(reply, SHORT_GREETING_REPLY)
@@ -1604,7 +1606,7 @@ class LanguageSupportTests(TestCase):
         self.assertEqual(detect_language("tell me more", history), LANG_TA)
         self.assertEqual(detect_language("innum details", history), LANG_TA)
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", GROQ_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_tamil_course_question_returns_tamil_kb_reply(self):
         reply, source = generate_reply("Python Fullstack பற்றி சொல்லுங்கள்")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
@@ -1612,21 +1614,21 @@ class LanguageSupportTests(TestCase):
         self.assertIn("180", reply)
         self.assertIn("internship", reply.lower())
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", GROQ_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_tanglish_website_price_returns_tamil_with_gst(self):
         reply, source = generate_reply("ecommerce website evlo")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertRegex(reply, r"[\u0B80-\u0BFF]|enroll")
         self.assertIn("₹9,999 + GST", reply)
 
-    @override_settings(GEMINI_API_KEY="", DEEPSEEK_API_KEY="", GROQ_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_english_question_stays_english_without_ai(self):
         reply, source = generate_reply("Tell me about Python Fullstack")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertNotRegex(reply, r"[\u0B80-\u0BFF]")
         self.assertIn("Python", reply)
 
-    @override_settings(GEMINI_API_KEY="test-key", DEEPSEEK_API_KEY="", GROQ_API_KEY="")
+    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="ஆம், Vetri Bills GST billing-க்கு உதவும்.")
     def test_ai_prompt_includes_tamil_instruction(self, _mock_gemini):
         from .language import LANG_TA

@@ -1076,8 +1076,8 @@
   height: 42px;
   padding: 0;
   overflow: hidden;
-  background: #fff;
-  border-color: #e5e7eb;
+  background: #0b2c6b;
+  border-color: #3d9be9;
 }
 
 .avatar-photo {
@@ -3789,7 +3789,7 @@
 }
 
 .app-widget .enquiry-top-btn {
-  display: none;
+  display: inline-flex;
 }
 
 .site-notice {

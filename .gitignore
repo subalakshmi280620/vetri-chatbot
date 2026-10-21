@@ -1,0 +1,10 @@
+# Local backup files
+*.bak
+*.backup
+*.before_*
+backup-before-content-admin/
+
+# Local test output
+test-results.txt
+
+*.before-*

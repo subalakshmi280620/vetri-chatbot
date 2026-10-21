@@ -26,8 +26,16 @@ from .leads import (
 
 )
 
-from .models import Conversation, Enquiry, Message
-
+from .models import (
+    CompanyInformation,
+    Conversation,
+    Course,
+    Enquiry,
+    FAQ,
+    Message,
+    Product,
+    Service,
+)
 
 
 
@@ -386,4 +394,47 @@ admin.site.site_title = "Coach AI Admin"
 
 admin.site.index_title = "Dashboard"
 
+
+@admin.register(CompanyInformation)
+class CompanyInformationAdmin(admin.ModelAdmin):
+    list_display = ("company_name", "phone", "email", "is_active", "updated_at")
+    search_fields = ("company_name", "legal_name", "email", "phone")
+    list_filter = ("is_active",)
+    list_editable = ("is_active",)
+
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ("name", "price", "is_active", "sort_order", "updated_at")
+    search_fields = ("name", "description", "features")
+    list_filter = ("is_active",)
+    list_editable = ("is_active", "sort_order")
+    ordering = ("sort_order", "name")
+
+
+@admin.register(Service)
+class ServiceAdmin(admin.ModelAdmin):
+    list_display = ("name", "is_active", "sort_order", "updated_at")
+    search_fields = ("name", "description", "features")
+    list_filter = ("is_active",)
+    list_editable = ("is_active", "sort_order")
+    ordering = ("sort_order", "name")
+
+
+@admin.register(Course)
+class CourseAdmin(admin.ModelAdmin):
+    list_display = ("name", "duration", "is_active", "sort_order", "updated_at")
+    search_fields = ("name", "description", "eligibility")
+    list_filter = ("is_active",)
+    list_editable = ("is_active", "sort_order")
+    ordering = ("sort_order", "name")
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ("question", "category", "is_active", "sort_order", "updated_at")
+    search_fields = ("question", "answer", "category")
+    list_filter = ("category", "is_active")
+    list_editable = ("is_active", "sort_order")
+    ordering = ("sort_order", "question")
 

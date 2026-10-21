@@ -3,3 +3,11 @@ db.sqlite3
 __pycache__/
 *.pyc
 staticfiles/
+
+# Local backup files; do not commit
+*.bak
+*.backup
+*.before_*
+
+# Local test output
+test-results.txt
