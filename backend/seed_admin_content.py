@@ -1,9 +1,9 @@
-
+﻿
 from chatbot import knowledge as kb
 from chatbot.models import CompanyInformation, Product, Service, Course, FAQ
 
 # Company details from the existing verified knowledge.
-CompanyInformation.objects.update_or_create(
+CompanyInformation.objects.get_or_create(
     company_name=kb.ORG_NAME,
     defaults={
         "legal_name": kb.ORG_LEGAL,
@@ -35,7 +35,7 @@ for position, name in enumerate(kb.PRODUCTS):
         kb.PRODUCT_DETAILS.get(detail_key, name)
         if detail_key else name
     )
-    Product.objects.update_or_create(
+    Product.objects.get_or_create(
         name=name,
         defaults={
             "description": description,
@@ -47,7 +47,7 @@ for position, name in enumerate(kb.PRODUCTS):
 # Import services, using existing details where available.
 for position, name in enumerate(kb.SERVICES):
     description = kb.SERVICE_DETAILS.get(name.lower(), name)
-    Service.objects.update_or_create(
+    Service.objects.get_or_create(
         name=name,
         defaults={
             "description": description,
@@ -65,7 +65,7 @@ for position, name in enumerate(kb.COURSES):
     key = course_keys.get(name)
     details = kb.COURSE_DETAILS.get(key, "") if key else ""
 
-    Course.objects.update_or_create(
+    Course.objects.get_or_create(
         name=name,
         defaults={
             "description": details or f"{name} training programme.",
@@ -86,3 +86,4 @@ print("Products:", Product.objects.count())
 print("Services:", Service.objects.count())
 print("Courses:", Course.objects.count())
 print("FAQs:", FAQ.objects.count())
+
