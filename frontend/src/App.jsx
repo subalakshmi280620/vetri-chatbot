@@ -2159,17 +2159,18 @@ function App() {
 
       {!widgetOpen && (
         <div className="widget-root">
-        <button
-          type="button"
-          className="launcher"
-          onClick={() => setWidgetOpen(true)}
-          aria-label="Open Coach AI"
-          aria-haspopup="dialog"
-        >
-          <span className="launcher-pulse" aria-hidden="true" />
-          <RobotFace size={30} />
-          <span className="launcher-label">Coach AI</span>
-        </button>
+        
+<button
+  type="button"
+  className="launcher"
+  onClick={() => setWidgetOpen(true)}
+  aria-label="Open Coach AI"
+  aria-haspopup="dialog"
+>
+  <span className="launcher-pulse" aria-hidden="true" />
+  <RobotFace size={44} />
+</button>
+
         </div>
       )}
 

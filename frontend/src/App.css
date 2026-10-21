@@ -5176,3 +5176,27 @@
     gap: 10px;
   }
 }
+
+/* Floating chatbot: larger icon, less empty space */
+.launcher {
+  width: 64px;
+  min-width: 64px;
+  height: 64px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.launcher > .launcher-pulse {
+  inset: -4px;
+}
+
+@media (max-width: 600px) {
+  .launcher {
+    width: 60px;
+    min-width: 60px;
+    height: 60px;
+    padding: 0;
+  }
+}
