@@ -232,7 +232,7 @@ def handle_eligibility(user_message: str, history=None, language: str = "en") ->
 
     last_bot = _last_bot(history).lower()
     waiting = _is_waiting_for_eligibility_details(last_bot)
-    if not is_eligibility_intent(text) and not waiting:
+    if not is_eligibility_intent(text) and not waiting and not (is_self_check(text) and _qualification_from_text(text) and match_course_id(text)):
         return None
 
     explicit_course_id = match_course_id(text)

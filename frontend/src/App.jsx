@@ -361,12 +361,6 @@ const SECTION_LABELS = [
   'Step 4:',
 ]
 
-const SOURCE_LABELS = {
-  ai: 'AI answer',
-  verified_kb: 'Verified VIS answer',
-  eligibility: 'Eligibility check',
-  unverified: 'Limited information',
-}
 
 const LOGO_SRC = '/vetriit-logo.webp'
 
@@ -566,7 +560,6 @@ function MessageBubble({
   role,
   text,
   attachments = [],
-  source,
   feedback,
   messageId,
   onFeedback,
@@ -598,11 +591,6 @@ function MessageBubble({
         {isBot && (
           <div className="bubble-meta">
             <span className="bubble-label">Coach AI</span>
-            {source && SOURCE_LABELS[source] && (
-              <span className={`source-badge source-${source}`}>
-                {SOURCE_LABELS[source]}
-              </span>
-            )}
           </div>
         )}
         {attachments.length > 0 && (
@@ -2256,8 +2244,7 @@ function App() {
                     role={msg.role}
                     text={msg.text}
                     attachments={msg.attachments || []}
-                    source={msg.source}
-                    feedback={msg.feedback}
+                              feedback={msg.feedback}
                     messageId={msg.messageId}
                     onFeedback={submitFeedback}
                     showActions={msg.role === 'bot' && index === lastBotIndex && !loading}
