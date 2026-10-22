@@ -140,7 +140,7 @@ def _evaluate_eligibility(course_id: str, course_name: str, qualification: str) 
 
     if qualification_meets_degree_requirement(qualification):
         return (
-            f"Good news — with your {qualification}, you meet the requirement for "
+            f"Good news â€” with your {qualification}, you meet the requirement for "
             f"{course_name} ({rule.lower()}). "
             "Would you like to know about fees or how to apply?"
         )
@@ -188,11 +188,11 @@ def _eligibility_reply_in_language(english_reply: str, language: str) -> str:
         return english_reply
     if "you meet the requirement" in english_reply.lower():
         return english_reply.replace(
-            "Good news — with your",
-            "நல்ல செய்தி — உங்கள்",
+            "Good news â€” with your",
+            "à®¨à®²à¯à®² à®šà¯†à®¯à¯à®¤à®¿ â€” à®‰à®™à¯à®•à®³à¯",
         ).replace(
             "Would you like to know about fees or how to apply?",
-            "fees அல்லது apply பற்றி தெரிய வேண்டுமா?",
+            "fees à®…à®²à¯à®²à®¤à¯ apply à®ªà®±à¯à®±à®¿ à®¤à¯†à®°à®¿à®¯ à®µà¯‡à®£à¯à®Ÿà¯à®®à®¾?",
         )
     if "may not meet that yet" in english_reply.lower():
         return english_reply.replace(
@@ -200,26 +200,26 @@ def _eligibility_reply_in_language(english_reply: str, language: str) -> str:
             "",
         ).replace(
             ", a completed degree is required",
-            " — முடித்த degree தேவை",
+            " â€” à®®à¯à®Ÿà®¿à®¤à¯à®¤ degree à®¤à¯‡à®µà¯ˆ",
         ).replace(
             "Based on what you shared",
-            "நீங்கள் பகிர்ந்தது",
+            "à®¨à¯€à®™à¯à®•à®³à¯ à®ªà®•à®¿à®°à¯à®¨à¯à®¤à®¤à¯",
         )
     if "Which course are you interested in" in english_reply:
         return (
-            "நன்றி! எந்த course-ல் interest? Python Fullstack, Java Fullstack, UI/UX, "
-            "Software Testing மற்றும் பல உள்ளன."
+            "à®¨à®©à¯à®±à®¿! à®Žà®¨à¯à®¤ course-à®²à¯ interest? Python Fullstack, Java Fullstack, UI/UX, "
+            "Software Testing à®®à®±à¯à®±à¯à®®à¯ à®ªà®² à®‰à®³à¯à®³à®©."
         )
     if "What's your qualification" in english_reply:
         return english_reply.replace(
             "What's your qualification?",
-            "உங்கள் qualification என்ன? (எ.கா. B.Tech, B.Sc, BCA, B.Com, MBA, MCA)",
+            "à®‰à®™à¯à®•à®³à¯ qualification à®Žà®©à¯à®©? (à®Ž.à®•à®¾. B.Tech, B.Sc, BCA, B.Com, MBA, MCA)",
         )
     if "don't have enough verified info" in english_reply.lower():
         return (
             english_reply.replace(
                 "Thanks for sharing",
-                "பகிர்ந்ததற்கு நன்றி",
+                "à®ªà®•à®¿à®°à¯à®¨à¯à®¤à®¤à®±à¯à®•à¯ à®¨à®©à¯à®±à®¿",
             )
         )
     return english_reply
@@ -262,6 +262,15 @@ def handle_eligibility(user_message: str, history=None, language: str = "en") ->
         return _eligibility_reply_in_language(general_eligibility_reply(), language)
 
     if not course_id:
+        if qualification and not qualification_meets_degree_requirement(qualification) and not waiting:
+            reply = (
+                f"A completed degree is required for our courses "
+                f"({ELIGIBILITY_REQUIREMENT.lower()}). "
+                f"Based on what you shared ({qualification}), you may not meet "
+                f"that requirement yet. {CONTACT_LINE}"
+            )
+            return _eligibility_reply_in_language(reply, language)
+
         course_sample = ", ".join(COURSES[:4]) + ", and more"
         return _eligibility_reply_in_language(
             (
@@ -270,6 +279,7 @@ def handle_eligibility(user_message: str, history=None, language: str = "en") ->
             ),
             language,
         )
+
 
     if not qualification:
         return _eligibility_reply_in_language(

@@ -301,9 +301,63 @@ UNVERIFIED = (
 )
 
 
+
 def qualification_meets_degree_requirement(qualification: str) -> bool:
-    lowered = qualification.lower()
-    return any(indicator in lowered for indicator in DEGREE_INDICATORS)
+    import re
+
+    lowered = qualification.lower().strip()
+    if not lowered:
+        return False
+
+    # Negative statements must take priority over positive words.
+    not_completed_patterns = (
+        r"\bnot completed\b",
+        r"\bhaven't completed\b",
+        r"\bhave not completed\b",
+        r"\bhasn't completed\b",
+        r"\bhas not completed\b",
+        r"\bnot yet completed\b",
+        r"\bstill studying\b",
+        r"\bstudying\b",
+        r"\bpursuing\b",
+        r"\bcurrently doing\b",
+        r"\bdoing my degree\b",
+        r"\bdegree incomplete\b",
+        r"\bwithout completing\b",
+        r"\bdidn't complete\b",
+        r"\bdid not complete\b",
+        r"\bnot graduated\b",
+        r"\bnot graduate\b",
+        r"\byet to graduate\b",
+        r"\bnot my degree\b",
+        r"\bdegree not completed\b",
+        r"\bdegree is not complete\b",
+        r"\bdegree isn't complete\b",
+        r"\bdegree isn't completed\b",
+    )
+
+    if any(re.search(pattern, lowered) for pattern in not_completed_patterns):
+        return False
+
+    completion_patterns = (
+        r"\bcompleted\b",
+        r"\bgraduated\b",
+        r"\bdegree holder\b",
+        r"\bdegree completed\b",
+        r"\bpassed\b",
+        r"\bfinished my degree\b",
+        r"\bfinished my graduation\b",
+        r"\bgraduate\b",
+        r"^\s*(?:b\.?tech|b\.?e|b\.?sc|bca|b\.?com|bcom|mba|mca|m\.?tech|mtech|ba|ma|phd)\s*$",
+    )
+
+    if not any(re.search(pattern, lowered) for pattern in completion_patterns):
+        return False
+
+    return any(
+        indicator in lowered for indicator in DEGREE_INDICATORS
+    )
+
 
 
 def duration_reply(course_name: str = "") -> str:
