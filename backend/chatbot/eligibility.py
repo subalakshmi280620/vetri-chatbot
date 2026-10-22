@@ -140,7 +140,7 @@ def _evaluate_eligibility(course_id: str, course_name: str, qualification: str) 
 
     if qualification_meets_degree_requirement(qualification):
         return (
-            f"Good news â€” with your {qualification}, you meet the requirement for "
+            "Good news! You meet the requirement for "
             f"{course_name} ({rule.lower()}). "
             "Would you like to know about fees or how to apply?"
         )
