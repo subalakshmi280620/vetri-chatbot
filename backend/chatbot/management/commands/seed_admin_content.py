@@ -57,6 +57,54 @@ class Command(BaseCommand):
             )
             if created:
                 self.stdout.write(f"Created product: {name}")
+                
+        website_products = [
+            {
+                "name": "Small Retail Shop Website",
+                "description": "Website development for a small retail shop.",
+                "price": "3000.00",
+                "price_note": "₹3,000",
+                "sort_order": 100,
+            },
+            {
+                "name": "E-commerce Website",
+                "description": "E-commerce website development.",
+                "price": "9999.00",
+                "price_note": "₹9,999",
+                "sort_order": 101,
+            },
+        ]
+
+        for item in website_products:
+            product_name = item["name"]
+            price = item["price"]
+            price_note = item["price_note"]
+            sort_order = item["sort_order"]
+            description = item["description"]
+
+            product, created = Product.objects.get_or_create(
+                name=product_name,
+                defaults={
+                    "description": description,
+                    "price": price,
+                    "price_note": price_note,
+                    "is_active": True,
+                    "sort_order": sort_order,
+                },
+            )
+
+            if not created and product.price is None:
+                product.price = price
+                product.price_note = price_note
+                product.save(
+                    update_fields=["price", "price_note", "updated_at"]
+                )
+
+            if created:
+                self.stdout.write(
+                    f"Created product: {product_name} ({price_note})"
+                )
+
 
         for position, name in enumerate(kb.SERVICES):
             description = kb.SERVICE_DETAILS.get(name.lower(), name)
