@@ -112,8 +112,9 @@ def is_non_eligibility_faq(text: str) -> bool:
 
 
 def is_self_check(text: str) -> bool:
-    lowered = text.lower()
-    return any(
+    lowered = text.lower().strip()
+
+    if any(
         phrase in lowered
         for phrase in (
             "am i eligible",
@@ -126,6 +127,28 @@ def is_self_check(text: str) -> bool:
             "i am a",
             "i'm a",
         )
+    ):
+        return True
+
+    personal_education_phrases = (
+        "i have completed",
+        "i have finished",
+        "i have passed",
+        "i finished",
+        "i passed",
+        "i graduated",
+        "i am studying",
+        "i'm studying",
+        "i am pursuing",
+        "i'm pursuing",
+        "i haven't completed",
+        "i have not completed",
+        "i am still studying",
+        "i'm still studying",
+    )
+
+    return bool(_qualification_from_text(text)) and any(
+        phrase in lowered for phrase in personal_education_phrases
     )
 
 
@@ -232,7 +255,14 @@ def handle_eligibility(user_message: str, history=None, language: str = "en") ->
 
     last_bot = _last_bot(history).lower()
     waiting = _is_waiting_for_eligibility_details(last_bot)
-    if not is_eligibility_intent(text) and not waiting and not (is_self_check(text) and _qualification_from_text(text) and match_course_id(text)):
+    if (
+        not is_eligibility_intent(text)
+        and not waiting
+        and not (
+            is_self_check(text)
+            and _qualification_from_text(text)
+        )
+    ):
         return None
 
     explicit_course_id = match_course_id(text)
