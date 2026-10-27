@@ -1,0 +1,74 @@
+[
+{
+  "model": "chatbot.faq",
+  "pk": 1,
+  "fields": {
+    "category": "Test",
+    "question": "FAQ save test - quotation",
+    "answer": "Use the Enquiry button and select Quotation.",
+    "is_active": true,
+    "sort_order": 99,
+    "updated_at": "2026-10-27T11:18:05.836Z"
+  }
+},
+{
+  "model": "chatbot.faq",
+  "pk": 2,
+  "fields": {
+    "category": "Pricing",
+    "question": "How much does a small retail shop website cost?",
+    "answer": "A small retail shop website costs 3,000 + GST.",
+    "is_active": true,
+    "sort_order": 1,
+    "updated_at": "2026-10-27T11:18:56.141Z"
+  }
+},
+{
+  "model": "chatbot.faq",
+  "pk": 3,
+  "fields": {
+    "category": "Pricing",
+    "question": "How much does an e-commerce website cost?",
+    "answer": "An e-commerce website costs 9,999 + GST.",
+    "is_active": true,
+    "sort_order": 2,
+    "updated_at": "2026-10-27T11:18:56.151Z"
+  }
+},
+{
+  "model": "chatbot.faq",
+  "pk": 4,
+  "fields": {
+    "category": "Pricing",
+    "question": "Do you offer low-budget websites?",
+    "answer": "We can discuss your budget. The listed options are a small retail shop website at 3,000 + GST and an e-commerce website at 9,999 + GST. For other budgets, submit your requirements through Enquiry - Quotation so the VIS team can confirm feasibility.",
+    "is_active": true,
+    "sort_order": 3,
+    "updated_at": "2026-10-27T11:18:56.159Z"
+  }
+},
+{
+  "model": "chatbot.faq",
+  "pk": 5,
+  "fields": {
+    "category": "Enquiry",
+    "question": "How can I request a quotation?",
+    "answer": "Click the Enquiry button in the chat, select Quotation, and share your requirements with the VIS team.",
+    "is_active": true,
+    "sort_order": 4,
+    "updated_at": "2026-10-27T11:18:56.168Z"
+  }
+},
+{
+  "model": "chatbot.faq",
+  "pk": 6,
+  "fields": {
+    "category": "Enquiry",
+    "question": "How can I book a consultation?",
+    "answer": "Click the Enquiry button in the chat, select Consultation, and share your details with the VIS team.",
+    "is_active": true,
+    "sort_order": 5,
+    "updated_at": "2026-10-27T11:18:56.176Z"
+  }
+}
+]
