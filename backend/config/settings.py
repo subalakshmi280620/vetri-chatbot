@@ -50,6 +50,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 
 DEBUG = _env_bool("DEBUG", True)
+REQUIRE_LOGIN_FOR_PUBLIC_SITE = _env_bool("REQUIRE_LOGIN_FOR_PUBLIC_SITE", not DEBUG)
 _secret_from_env = os.environ.get("DJANGO_SECRET_KEY", "").strip()
 
 if DEBUG:
@@ -277,6 +278,8 @@ CORS_ALLOWED_ORIGINS = [
 ]
 # Explicit allow-list only — no wildcard regex origins.
 CORS_ALLOW_ALL_ORIGINS = False
+from corsheaders.defaults import default_headers
+CORS_ALLOW_HEADERS = (*default_headers, "x-visitor-auth")
 
 if DEBUG:
     # Local development: HTTP is fine; do not force HTTPS redirects.

@@ -19,10 +19,9 @@ CONTACT_LINE = (
 )
 
 ENQUIRY_FORM_HINT = (
-    "The chat has an Enquiry button (top of the chat panel). Users can submit "
-    "course enrolment, quotation, consultation, product demo, sales, or general "
-    "requests there with name, email, phone, and their requirement — no need to "
-    "email or call first."
+    "The chat has an Enquiry button at the top of the chat panel. Users can submit "
+    "quotation, consultation, product demo, sales, or general business requests "
+    "there with their name, email, phone, and requirements."
 )
 
 HERO_BADGE = "PREMIUM IT SOLUTIONS — TAMIL NADU, INDIA"
@@ -695,11 +694,8 @@ Example (why choose us):
 
 Ground rules:
 - Use verified VIS information below, retrieved excerpts, and grounding facts.
-- Answer products, services, courses, company info, mission, AI solutions, and how-to questions directly.
-- Course duration: {COURSE_DURATION}. Every course includes a {COURSE_INTERNSHIP} internship. Course eligibility: {ELIGIBILITY_REQUIREMENT}.
-- Explain a course first. Only when the user wants to join, ask them to enroll in this chat. Do not ask them to sign in. There is no website login.
-- Official website prices only: ecommerce website {ECOMMERCE_WEBSITE_PRICE}; small retail shop website {RETAIL_SHOP_WEBSITE_PRICE}. Do NOT invent any other ₹ amount.
-- For eligibility: a completed degree (UG/PG) is required; check the user's qualification honestly.
+-  Answer questions about VIS products, services, company information, mission, AI solutions, and supported business processes directly.
+- Official website prices only: ecommerce website {ECOMMERCE_WEBSITE_PRICE}; small retail shop website {RETAIL_SHOP_WEBSITE_PRICE}. Do NOT invent any other ₹ amount
 - Contact details when relevant: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}, {CONTACT_WEBSITE}.
 - Say "contact the team" ONLY when: user explicitly wants phone/email, or topic is completely outside VIS.
 - For quotation, consultation, or product demo: explain what it is, then direct users to the
@@ -713,7 +709,6 @@ Organization: {TAGLINE}
 Contact: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}, {CONTACT_WEBSITE}.
 Products: {", ".join(PRODUCTS)}.
 Services: {", ".join(SERVICES)}.
-Training courses: {", ".join(COURSES)}.
 AI approach: DATA → CONTEXT → MODEL → ACTION → IMPACT.
 Portfolio: Retail POS System, Healthcare Portal, Food Delivery App, E-commerce Platform.
 """
@@ -1074,6 +1069,44 @@ def _is_course_context(text: str) -> bool:
     ))
 
 
+def is_public_course_query(message: str) -> bool:
+    """Public course catalogue/enrolment is disabled; keep legacy records private."""
+    text = (message or "").strip().lower()
+    if not text:
+        return False
+    # Do not classify the Vetri Training Management System product as a course.
+    if match_product_id(text):
+        return False
+    # Match explicit public-course intent only. Generic words such as "duration",
+    # "degree", "eligible", or "apply" can occur in unrelated business questions.
+   
+    course_terms = (
+        "course", "courses", "curse", "curses",
+        "course list", "list of courses", "courses available",
+        "what courses", "which courses", "course catalogue", "course catalog",
+        "training programme", "training program",
+        "training programmes", "training programs", "fullstack", "full stack",
+        "prompt engineering course", "software testing course", "data analytics course",
+        "mobile app development course", "aws & devops course", "data science course",
+        "digital marketing course", "course eligibility", "course eligible",
+        "course internship", "internship for course", "course fee", "course fees",
+        "course duration", "enroll in a course", "enroll for a course",
+        "enrol in a course", "enrol for a course", "course admission",
+        "apply for training", "training fee", "training fees",
+    )
+
+    return any(term in text for term in course_terms)
+
+
+def public_courses_disabled_reply(language: str = "en") -> str:
+    """Neutral response without exposing legacy course details."""
+    from .language import LANG_TA, normalize_language
+    if normalize_language(language) == LANG_TA:
+        return "மன்னிக்கவும், பாடநெறி விவரங்கள் தற்போது இந்த இணையதளத்தில் கிடைக்கவில்லை. நிறுவனத்தைத் தொடர்புகொள்ள Enquiry படிவத்தைப் பயன்படுத்தவும்."
+    return ("Course information, fees, and public enrolment are currently unavailable; course details and fee information are not available on this website. "
+            "Please use the Enquiry form to contact the VIS team for current information.")
+
+
 def _matches_apply_intent(text: str) -> bool:
     return any(k in text for k in (
         "how to apply", "how do i apply", "how can i apply", "application process",
@@ -1084,21 +1117,50 @@ def _matches_apply_intent(text: str) -> bool:
 
 
 def _matches_website_price_intent(text: str) -> str | None:
-    """Return ecommerce or retail when the user asks about those website offers."""
-    ecommerce = any(k in text for k in (
+    """Match natural-language website budget questions, including paraphrases.
+
+    Returns a specific known offer when the user names it, a general low-cost
+    intent when they ask broadly, or None when website pricing is not the topic.
+    """
+    normalized = " ".join(text.lower().replace("’", "'").split())
+    ecommerce = any(k in normalized for k in (
         "ecommerce", "e-commerce", "e commerce", "online store", "online shop",
+        "online selling website", "website to sell online", "sell products online",
     ))
-    retail = any(k in text for k in (
+    retail = any(k in normalized for k in (
         "retail shop", "small shop", "small retail", "kirana", "retail website",
+        "shop website", "store website", "business shop website",
     ))
-    asks_site = any(k in text for k in ("website", "web site", "site"))
-    asks_price = any(k in text for k in ("price", "cost", "how much", "offer", "package", "9999", "3000"))
+    asks_site = any(k in normalized for k in (
+        "website", "web site", "webpage", "web page", "site", "online store", "online shop",
+    ))
+    # Treat a stated budget (e.g. ₹100, 2000 rupees, under 4000) as a
+    # website-pricing question too. The amount is a customer budget, NOT a
+    # verified VIS package price, so the reply must not promise that price.
+    mentions_budget_amount = bool(re.search(
+        r"(?:₹\s*|rs\.?\s*|inr\s*)?\b\d{2,6}(?:,\d{3})?\b\s*(?:rupees?|rs\.?|inr)?",
+        normalized,
+    )) and any(k in normalized for k in (
+        "website", "web site", "webpage", "web page", "site", "online store", "online shop",
+    ))
+    asks_price = any(k in normalized for k in (
+        "price", "pricing", "cost", "how much", "how many rupees", "budget", "affordable",
+        "cheap", "cheaper", "low cost", "low-cost", "lowest cost", "inexpensive",
+        "economical", "package", "packages", "rate", "offer", "starting at", "starting price",
+        "evlo", "evalo", "evalavu", "vilai", "selavu", "kammi", "low budget",
+        "budget friendly", "budget-friendly", "9999", "3000",
+    )) or mentions_budget_amount
+    custom_budget_amount = mentions_budget_amount and not any(
+        price in normalized for price in ("3000", "3,000", "9999", "9,999")
+    )
+    if custom_budget_amount:
+        return "general"
     if ecommerce and (asks_site or asks_price):
         return "ecommerce"
-    if retail and (asks_site or asks_price or "3000" in text):
+    if retail and (asks_site or asks_price or "3000" in normalized):
         return "retail"
-    if asks_site and asks_price and "shop" in text:
-        return "retail"
+    if asks_site and asks_price:
+        return "general"
     return None
 
 
@@ -1409,6 +1471,27 @@ def get_grounding_facts(message: str) -> str:
     """Verified facts for AI grounding — not user-facing templates."""
     text = message.strip().lower()
     parts: list[str] = []
+    if is_public_course_query(message):
+        return "Public course catalogue and enrolment are disabled. Do not provide course names, duration, eligibility, internship, fees, or enrolment instructions. Direct the user to the Enquiry form for current information."
+    # ADMIN_FIRST_PRODUCT_GROUNDING_FIX
+    # Use active Admin records before legacy static product/price answers.
+    from .admin_knowledge_helper import get_admin_products_text
+
+    website_offer = _matches_website_price_intent(text)
+    if website_offer:
+        admin_websites = get_admin_products_text(message, website_only=True)
+        if admin_websites:
+            return (
+                "Current website options from active Admin records:\n"
+                + admin_websites
+                + "\nConfirm final scope and applicable GST through Enquiry ? Quotation."
+            )
+
+    if _matches_products_intent(text) and not _is_course_context(text):
+        admin_products = get_admin_products_text(message)
+        if admin_products:
+            return "Current products from active Admin records:\n" + admin_products
+
     # Prefer active Admin course details over static course facts.
     from .admin_course_helper import get_admin_course
 
@@ -1518,6 +1601,79 @@ def get_conversational_fallback(
     text = message.strip().lower()
     detailed = normalize_reply_style(reply_style) == REPLY_STYLE_DETAILED
 
+    if is_public_course_query(message):
+        return public_courses_disabled_reply(language)
+
+    # A short fee follow-up may not repeat the word "course". If the conversation
+    # is already about course eligibility/training, keep the public-course guard on.
+    from .query_intents import matches_fee_intent as _matches_fee_intent
+    if (
+        not match_product_id(message)
+        and _matches_fee_intent(text)
+        and history
+        and any(
+            item.get("role") == "user"
+            and _is_course_context((item.get("text") or "").lower())
+            for item in history
+        )
+    ):
+        return public_courses_disabled_reply(language)
+
+    
+    # ADMIN_WEBSITE_PRODUCTS_FIRST
+    # Use active Admin records to confirm website options exist,
+    # and official verified constants to format the prices.
+    website_offer = _matches_website_price_intent(text)
+    if website_offer:
+        from .admin_knowledge_helper import get_admin_products_text
+
+        admin_websites = get_admin_products_text(message, website_only=True)
+        if admin_websites:
+            if website_offer == "ecommerce":
+                return (
+                    f"VIS offers an e-commerce website package at "
+                    f"{ECOMMERCE_WEBSITE_PRICE}. "
+                    "For a formal quote, use the Enquiry form and choose "
+                    "Quotation to share your website requirements."
+                )
+            if website_offer == "retail":
+                return (
+                    f"For a small retail shop, VIS offers a website at "
+                    f"{RETAIL_SHOP_WEBSITE_PRICE}. "
+                    "For a formal quote, use the Enquiry form and choose "
+                    "Quotation to share your website requirements."
+                )
+            return (
+                "Yes, we can discuss a website solution around your budget. "
+                f"The currently listed packages are a small retail shop website at {RETAIL_SHOP_WEBSITE_PRICE} "
+                f"and an e-commerce website at {ECOMMERCE_WEBSITE_PRICE}. "
+                "These are the verified fixed prices; we do not have confirmed fixed-price packages for every other budget. "
+                "For a smaller or custom budget, share your target amount, pages, and features through Enquiry → Quotation, "
+                "and the VIS team can confirm what is feasible."
+            )
+
+
+    # Legacy fallback retained temporarily until the Admin-backed tests pass.
+    website_offer = _matches_website_price_intent(text)
+    if website_offer == "ecommerce":
+        return (
+            f"VIS offers an ecommerce website package at {ECOMMERCE_WEBSITE_PRICE}. "
+            "For a formal quote, tap Enquiry → Quotation and share your website requirements."
+        )
+    if website_offer == "retail":
+        return (
+            f"For a small retail shop, VIS offers a website at {RETAIL_SHOP_WEBSITE_PRICE}. "
+            "For a formal quote, tap Enquiry → Quotation and share your website requirements."
+        )
+    if website_offer == "general":
+        return (
+            "Yes, we can discuss a website solution around your budget. The currently listed packages are "
+            f"₹3,000 + GST for a small retail shop website and ₹9,999 + GST for an e-commerce website. "
+            "These are the verified fixed prices; we do not have confirmed fixed-price packages for every other budget. "
+            "If your budget is ₹100, ₹2,000, ₹4,000, or another amount, share it along with the pages and features you need "
+            "through Enquiry → Quotation. The VIS team can confirm what is feasible—those amounts are not guaranteed package prices."
+        )
+
     if normalize_language(language) == LANG_TA:
         tamil = build_tamil_fallback(message, reply_style)
         if tamil:
@@ -1603,9 +1759,16 @@ def get_conversational_fallback(
     if website_offer == "retail":
         return (
             f"For a small retail shop, VIS offers a website at {RETAIL_SHOP_WEBSITE_PRICE}. "
-            "For a formal quote, tap Enquiry ? Quotation and share your website requirements."
+            "For a formal quote, tap Enquiry → Quotation and share your website requirements."
         )
-
+    if website_offer == "general":
+        return (
+            "Yes, we can discuss a website solution around your budget. The currently listed packages are "
+            f"₹3,000 + GST for a small retail shop website and ₹9,999 + GST for an e-commerce website. "
+            "These are the verified fixed prices; we do not have confirmed fixed-price packages for every other budget. "
+            "If your budget is ₹100, ₹2,000, ₹4,000, or another amount, share it along with the pages and features you need "
+            "through Enquiry → Quotation. The VIS team can confirm what is feasible—those amounts are not guaranteed package prices."
+        )
 
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return (
@@ -1892,10 +2055,12 @@ def detect_suggested_enquiry_type(message: str, history=None) -> str | None:
         return "consultation"
     if _matches_demo_intent(text):
         return "demo"
-    # Enroll is the next step for courses and for linking with the team.
-    # There is no website sign-in.
-    if _matches_apply_intent(text) or _matches_website_price_intent(text):
-        return "enroll"
+    # Website price requests are sales/quotation intent, never course enrolment.
+    if _matches_website_price_intent(text):
+        return "quotation"
+    # Public course enrolment is disabled; do not suggest an enrolment form.
+    if _matches_apply_intent(text) or "enroll" in text or "enrol" in text:
+        return None
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return "quotation"
     if _matches_sales_intent(text):
@@ -1908,5 +2073,7 @@ def get_structured_reply(message: str) -> str | None:
 
 
 def get_reply(message: str) -> str:
+    if is_public_course_query(message):
+        return public_courses_disabled_reply()
     reply = _route_faq(message)
     return reply if reply else UNVERIFIED

@@ -29,12 +29,13 @@ from .leads import (
 from .models import (
     CompanyInformation,
     Conversation,
-    Course,
     Enquiry,
     FAQ,
     Message,
     Product,
     Service,
+    VisitorEvent,
+    SiteAccountToken,
 )
 
 
@@ -421,14 +422,6 @@ class ServiceAdmin(admin.ModelAdmin):
     ordering = ("sort_order", "name")
 
 
-@admin.register(Course)
-class CourseAdmin(admin.ModelAdmin):
-    list_display = ("name", "duration", "is_active", "sort_order", "updated_at")
-    search_fields = ("name", "description", "eligibility")
-    list_filter = ("is_active",)
-    list_editable = ("is_active", "sort_order")
-    ordering = ("sort_order", "name")
-
 
 @admin.register(FAQ)
 class FAQAdmin(admin.ModelAdmin):
@@ -438,3 +431,19 @@ class FAQAdmin(admin.ModelAdmin):
     list_editable = ("is_active", "sort_order")
     ordering = ("sort_order", "question")
 
+
+
+@admin.register(VisitorEvent)
+class VisitorEventAdmin(admin.ModelAdmin):
+    list_display = ("path", "visitor_id", "visited_at")
+    list_filter = ("visited_at", "path")
+    search_fields = ("path", "visitor_id")
+    readonly_fields = ("visitor_id", "path", "visited_at")
+
+
+@admin.register(SiteAccountToken)
+class SiteAccountTokenAdmin(admin.ModelAdmin):
+    list_display = ("user", "created_at", "last_used_at")
+    search_fields = ("user__username", "user__email")
+    readonly_fields = ("user", "created_at", "last_used_at")
+    exclude = ("token",)

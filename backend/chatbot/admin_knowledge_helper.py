@@ -16,19 +16,24 @@ def _contains_name(message, name):
     if not query or not target:
         return False
 
-    # Prefer complete names, including multi-word product/service names.
+    # Match a complete product or service name.
     return target in query
 
-
-def _record_text(name, description="", features=""):
+def _record_text(name, description="", features="", price=None, price_note=""):
     parts = [f"{name}: {description.strip()}"]
     if features and features.strip():
         parts.append(f"Features: {features.strip()}")
+    if price is not None:
+        formatted_price = f"{price:,.0f}" if price == price.to_integral_value() else f"{price:,.2f}"
+        parts.append(f"Price: ₹{formatted_price}")
+    if price_note and price_note.strip():
+        parts.append(f"Pricing note: {price_note.strip()}")
     return "\n".join(parts)
 
 
+
 def get_admin_product(message):
-    """Return current active product details without internal price fields."""
+    """Return current active product details, including any Admin-managed price."""
     from .models import Product
 
     try:
@@ -38,13 +43,51 @@ def get_admin_product(message):
         for product in products:
             if _contains_name(message, product.name):
                 return _record_text(
-                    product.name, product.description, product.features
+                    product.name,
+                    product.description,
+                    product.features,
+                    product.price,
+                    product.price_note,
                 )
     except DatabaseError:
         return None
 
     return None
 
+
+
+def get_admin_products_text(message="", website_only=False):
+    """Return active Admin products for broad product or website questions."""
+    from .models import Product
+
+    website_terms = ("website", "web site", "web development", "ecommerce",
+                     "e-commerce", "retail shop", "shop website", "site")
+    try:
+        products = Product.objects.filter(is_active=True).order_by(
+            "sort_order", "name"
+        )
+        rows = []
+        for product in products:
+            searchable = " ".join((
+                product.name or "",
+                product.description or "",
+                product.features or "",
+            )).lower()
+
+            if website_only and not any(term in searchable for term in website_terms):
+                continue
+
+            rows.append(_record_text(
+                product.name,
+                product.description,
+                product.features,
+                product.price,
+                product.price_note,
+            ))
+
+        return "\n".join(rows) if rows else None
+    except DatabaseError:
+        return None
 
 def get_admin_service(message):
     """Return current active service details."""

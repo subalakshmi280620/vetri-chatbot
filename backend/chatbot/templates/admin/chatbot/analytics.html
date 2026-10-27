@@ -5,6 +5,23 @@
   <h1>Coach AI Analytics</h1>
   <p class="page-intro">Usage summary for the Vetri IT Systems chatbot — conversations, enquiries, feedback, and trends.</p>
 
+  <h2>Website visitor analytics</h2>
+  <p class="page-intro">Page views and distinct browser visitors are tracked separately. Visitor IDs are random browser tokens, not personal identity.</p>
+  <div class="analytics-stats">
+    <div class="analytics-stat-card stat-success"><strong>Total page visits</strong><div class="stat-value">{{ visitor_stats.total_visits }}</div></div>
+    <div class="analytics-stat-card"><strong>Unique visitors</strong><div class="stat-value">{{ visitor_stats.unique_visitors }}</div></div>
+    <div class="analytics-stat-card"><strong>Visits today</strong><div class="stat-value">{{ visitor_stats.visits_today }}</div></div>
+    <div class="analytics-stat-card"><strong>Unique visitors today</strong><div class="stat-value">{{ visitor_stats.unique_visitors_today }}</div></div>
+    <div class="analytics-stat-card"><strong>Registered accounts with sessions</strong><div class="stat-value">{{ visitor_stats.registered_users }}</div></div>
+    <div class="analytics-stat-card"><strong>Active login tokens</strong><div class="stat-value">{{ visitor_stats.login_sessions }}</div></div>
+  </div>
+  <div class="analytics-section">
+    <h2>Most visited pages</h2>
+    <ul class="analytics-list">
+      {% for item in visitor_stats.top_pages %}<li><span>{{ item.path }}</span><span class="count">{{ item.count }}</span></li>{% empty %}<li><span>No website visits recorded yet.</span></li>{% endfor %}
+    </ul>
+  </div>
+
   <div class="analytics-stats">
     <div class="analytics-stat-card">
       <strong>Conversations</strong>

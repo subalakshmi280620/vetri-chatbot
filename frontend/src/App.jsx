@@ -12,7 +12,7 @@ function resolveApiBase() {
 
   if (typeof window !== 'undefined') {
     const host = window.location.hostname
-    if (host.includes('onrender.com') || host.includes('vetriitsystems.com')) {
+    if (host.includes('onrender.com') || host.includes('vetriit.com')) {
       return PRODUCTION_API_URL
     }
   }
@@ -23,6 +23,7 @@ function resolveApiBase() {
 // Set via VITE_API_URL (.env locally, Render env vars at build time for production).
 const API_BASE = resolveApiBase()
 const API_URL = `${API_BASE}/api/chatbot/chat/`
+const PUBLIC_CONTENT_URL = `${API_BASE}/api/chatbot/public-content/`
 const HISTORY_URL = `${API_BASE}/api/chatbot/conversations/`
 const FEEDBACK_URL = `${API_BASE}/api/chatbot/messages/feedback/`
 const ENQUIRY_URL = `${API_BASE}/api/chatbot/enquiries/`
@@ -64,6 +65,8 @@ async function buildAttachmentFromFile(file) {
 const HEALTH_URL = `${API_BASE}/health/`
 const EMBED_SEARCH = new URLSearchParams(window.location.search)
 const IS_EMBED = EMBED_SEARCH.get('embed') === '1'
+const SITE_ROUTES = { '/': 'home', '/about': 'about', '/products': 'products', '/services': 'services', '/portfolio': 'portfolio', '/contact': 'contact', '/enquiry': 'enquiry', '/login': 'login' }
+const CURRENT_PAGE = SITE_ROUTES[window.location.pathname.replace(/\/$/, '') || '/'] || 'home'
 const EMBED_HOST_WIDGET = EMBED_SEARCH.get('open') === '1'
 const EMBED_PAUSED = false
 const CLIENT_TOKEN_KEY = 'visClientToken'
@@ -92,6 +95,40 @@ function removeStoredItem(key) {
   window.localStorage.removeItem(key)
 }
 
+const AUTH_TOKEN_KEY = 'visSiteAuthToken'
+function apiFetch(url, options = {}) {
+  const headers = new Headers(options.headers || {})
+  const token = window.localStorage.getItem(AUTH_TOKEN_KEY)
+  if (token) headers.set('X-Visitor-Auth', token)
+  if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  return fetch(url, { ...options, headers })
+}
+
+function AuthGate({ onAuthenticated }) {
+  const [mode, setMode] = useState('login')
+  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  async function submit(event) {
+    event.preventDefault()
+    setBusy(true); setError('')
+    try {
+      const response = await fetch(`${API_BASE}/api/chatbot/auth/${mode === 'register' ? 'register' : 'login'}/`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Unable to sign in.')
+      window.localStorage.setItem(AUTH_TOKEN_KEY, data.token)
+      onAuthenticated(data.token)
+    } catch (err) { setError(err.message || 'Could not connect to the backend. Start Django and try again.') }
+    finally { setBusy(false) }
+  }
+  return <main className="auth-gate"><section className="auth-card"><div className="auth-brand"><span className="auth-mark">V</span><div><strong>Vetri IT Systems</strong><small>Vetri AI Coach</small></div></div><p className="section-kicker">SECURE WEBSITE ACCESS</p><h1>{mode === 'register' ? 'Create your visitor account' : 'Welcome back'}</h1><p className="auth-description">Please {mode === 'register' ? 'register to continue' : 'log in to continue'} to the website and Coach AI assistant.</p><form onSubmit={submit} className="auth-form"><label>Username<input required minLength={3} autoComplete="username" value={username} onChange={e=>setUsername(e.target.value)} /></label>{mode === 'register' && <label>Email address<input type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} /></label>}<label>Password<input type="password" required minLength={8} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} value={password} onChange={e=>setPassword(e.target.value)} /></label>{error && <p className="auth-error" role="alert">{error}</p>}<button className="btn-primary auth-submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Log in'}</button></form><p className="auth-switch">{mode === 'register' ? 'Already have an account?' : 'New visitor?'} <button type="button" onClick={()=>{setMode(mode === 'register' ? 'login' : 'register');setError('')}}>{mode === 'register' ? 'Log in' : 'Create an account'}</button></p><small className="auth-privacy">Website usage is measured using a random browser visitor ID and page views.</small></section></main>
+}
+
 function getClientToken() {
   let token = getStoredItem(CLIENT_TOKEN_KEY)
   if (!token) {
@@ -113,7 +150,6 @@ const ENQUIRY_TITLES = {
   quotation: 'Get Quotation',
   consultation: 'Book a Consultation',
   demo: 'Request a Product Demo',
-  enroll: 'Enroll now',
   sales: 'Contact Sales Team',
   general: 'Submit Enquiry',
 }
@@ -122,7 +158,6 @@ const ENQUIRY_CTA_LABELS = {
   quotation: 'Get quotation',
   consultation: 'Book consultation',
   demo: 'Request demo',
-  enroll: 'Enroll now',
   sales: 'Contact sales',
 }
 
@@ -131,7 +166,6 @@ const ENQUIRY_TYPE_TABS = [
   { type: 'consultation', label: 'Consultation' },
   { type: 'demo', label: 'Product Demo' },
   { type: 'sales', label: 'Sales' },
-  { type: 'enroll', label: 'Enroll' },
   { type: 'general', label: 'General' },
 ]
 
@@ -142,7 +176,6 @@ const CHATBOT_ENQUIRY_TABS = [
   { type: 'demo', label: 'Product Demo' },
   { type: 'sales', label: 'Sales' },
   { type: 'general', label: 'General Enquiry' },
-  { type: 'enroll', label: 'Enroll' },
 ]
 
 const ENQUIRY_SUBTEXT = {
@@ -152,8 +185,7 @@ const ENQUIRY_SUBTEXT = {
     'Speak directly with a VIS solution consultant — no call centres, no scripts.',
   demo:
     'See VIS enterprise products with live workflow previews. Tell us which product to explore.',
-  enroll:
-    'Share your details here to join a course. Our team will contact you about the programme. No website sign-in.',
+
   sales: 'Our sales team will help with product selection and enterprise requirements.',
   general: 'Tell us what you need. Our VIS team will contact you by email or phone.',
 }
@@ -180,30 +212,13 @@ const QUOTATION_INTEREST_OPTIONS = [
   'Digital Marketing',
   'SEO',
   'Cloud Services',
-  'Training Course',
   'Other',
 ]
-
-const COURSE_LIST = [
-  'Python Fullstack',
-  'Java Fullstack',
-  'Prompt Engineering',
-  'UI/UX',
-  'Software Testing',
-  'Data Analytics',
-  'Mobile App Development',
-  'AWS & DevOps',
-  'Data Science',
-  'Digital Marketing',
-]
-
-const ENROLL_INTEREST_OPTIONS = COURSE_LIST
 
 const CONSULTATION_INTEREST_OPTIONS = [
   'Product selection advice',
   'Custom software / web / mobile',
   'AI & automation strategy',
-  'Training & courses',
   'Digital marketing / SEO',
   'Not sure — need guidance',
   'Other',
@@ -243,17 +258,6 @@ const ENQUIRY_FORM_CONFIG = {
       'Which workflows should we show? Your industry, team size, and preferred demo time help us prepare.',
     submitLabel: 'Request Demo',
   },
-  enroll: {
-    companyLabel: 'College or company',
-    companyPlaceholder: 'Optional',
-    interestLabel: 'What do you want to join? *',
-    interestRequired: true,
-    interestOptions: ENROLL_INTEREST_OPTIONS,
-    messageLabel: 'Your details *',
-    messagePlaceholder:
-      'Your qualification, preferred start time, and anything the team should know.',
-    submitLabel: 'Enroll now',
-  },
   sales: {
     companyLabel: 'Company / organisation',
     companyPlaceholder: 'Your company name',
@@ -286,8 +290,6 @@ const INTEREST_ALIASES = [
   ['hr management', 'HR Management Tool'],
   ['website', 'Website Development'],
   ['mobile app', 'Mobile App Development'],
-  ['python', 'Training Course'],
-  ['course', 'Training Course'],
 ]
 
 const EMPTY_ENQUIRY_FORM = {
@@ -320,7 +322,6 @@ function buildEnquiryPrefill(type, lastUserText) {
   if (type === 'quotation') return `Quotation request: ${trimmed}`
   if (type === 'consultation') return `Consultation about: ${trimmed}`
   if (type === 'demo') return `Demo request: ${trimmed}`
-  if (type === 'enroll') return `Enrollment request: ${trimmed}`
   return trimmed
 }
 
@@ -330,16 +331,6 @@ function isEnquiryFormEmpty(form) {
 
 const SECTION_LABELS = [
   'Welcome to',
-  'Course Overview',
-  'Course Duration',
-  'General Eligibility',
-  'Eligibility Requirements',
-  'Eligibility Check',
-  'Eligibility Assessment',
-  'Available Courses',
-  'Admission Eligibility',
-  'How to Apply',
-  'Course Fee Information',
   'Contact',
   'About',
   'Our Products',
@@ -804,14 +795,12 @@ function EnquiryModal({
 function SiteNav({ onEnquiry }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const navItems = [
-    ['Home', '#home'],
-    ['About', '#about'],
-    ['Services', '#services'],
-    ['Products', '#products'],
-    ['Courses', '#courses'],
-    ['Portfolios', '#portfolios'],
-    ['Why VIS', '#why-vis'],
-    ['Contact', '#contact'],
+    ['Home', '/'],
+    ['About Us', '/about'],
+    ['Services', '/services'],
+    ['Products', '/products'],
+    ['Portfolio', '/portfolio'],
+    ['Contact', '/contact'],
   ]
 
   function closeMenu() {
@@ -823,7 +812,7 @@ function SiteNav({ onEnquiry }) {
       <nav className="site-nav-inner" aria-label="Main navigation" onKeyDown={(event) => {
         if (event.key === 'Escape') closeMenu()
       }}>
-        <a href="#home" className="site-brand" onClick={closeMenu} aria-label="Vetri IT Systems home">
+        <a href="/" className="site-brand" onClick={closeMenu} aria-label="Vetri IT Systems home">
           <VisLogo size={48} className="site-logo-mark" />
           <span className="site-brand-copy">
             <span className="site-name">Vetri IT Systems</span>
@@ -871,7 +860,6 @@ function SiteFooter({ onEnquiry }) {
           <a href="#about">About</a>
           <a href="#services">Services</a>
           <a href="#products">Products</a>
-          <a href="#courses">Courses</a>
           <a href="#ai-solutions">AI solutions</a>
           <a href="#why-vis">Why VIS</a>
           <a href="#contact">Contact</a>
@@ -1115,8 +1103,36 @@ function MarketingSite({
   enquirySubmitting,
   enquiryError,
 }) {
+  const [adminContent, setAdminContent] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    apiFetch(PUBLIC_CONTENT_URL)
+      .then((response) => {
+        if (!response.ok) throw new Error('Public content unavailable')
+        return response.json()
+      })
+      .then((content) => {
+        if (!cancelled && content && Array.isArray(content.products) && Array.isArray(content.services)) {
+          setAdminContent(content)
+        }
+      })
+      .catch(() => {
+        // Keep the existing public page usable if the API is temporarily unavailable.
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  const companyInfo = adminContent?.company || null
+  const visibleProducts = adminContent
+    ? adminContent.products.map((item) => [item.name, item.price ? `₹${item.price}` : (item.price_note || 'Product'), item.description])
+    : PRODUCT_LIST
+  const visibleServices = adminContent
+    ? adminContent.services.map((item) => [item.name, item.description])
+    : SERVICE_LIST
+
   return (
-    <main className="marketing-site">
+    <main className={`marketing-site page-route-${CURRENT_PAGE}`}>
       <section className="hero-section" id="home">
         <div className="hero-grid-glow" aria-hidden="true" />
         <div className="hero-inner">
@@ -1151,11 +1167,11 @@ function MarketingSite({
       <section className="metrics-strip" aria-label="Vetri IT Systems at a glance">
         <div className="metrics-inner section-container">
           {[
-            ['150+', 'Projects delivered'],
-            ['8+', 'Years of experience'],
-            ['50+', 'Business clients'],
-            ['15+', 'Team members'],
-            [String(PRODUCT_LIST.length), 'Enterprise products'],
+            ['50+', 'Digital solutions delivered'],
+            ['99.4%', 'On-time project delivery'],
+            ['30+', 'Senior engineers & designers'],
+            ['5+', 'Countries served'],
+            [String(visibleProducts.length), 'Enterprise products'],
           ].map(([value, label]) => (
             <div className="metric-item" key={label}>
               <strong>{value}</strong>
@@ -1171,7 +1187,7 @@ function MarketingSite({
             <p className="section-kicker"><span>01</span> ABOUT VETRI IT SYSTEMS</p>
             <h2>Technology built around <span>your business.</span></h2>
             <p className="section-lede">Technology should solve real business problems — not create more complexity.</p>
-            <p>We work with businesses to understand their goals, identify the right technology approach and build solutions that are practical, scalable and ready for the future. From custom software and digital applications to AI-powered solutions, we combine technical expertise with a business-first approach.</p>
+            <p>{companyInfo?.description || "We work with businesses to understand their goals, identify the right technology approach and build solutions that are practical, scalable and ready for the future. From custom software and digital applications to AI-powered solutions, we combine technical expertise with a business-first approach."}</p>
             <button type="button" className="text-action" onClick={() => onEnquiry('consultation')}>Talk through your next step <ArrowIcon /></button>
           </div>
           <div className="about-side">
@@ -1199,12 +1215,12 @@ function MarketingSite({
             <article className="mission-card vision-card">
               <span className="mission-orb"><SparkIcon /></span><span className="mission-label">OUR VISION</span>
               <h3>An AI-powered business for everyone.</h3>
-              <p>To become the trusted AI and digital transformation partner for growing enterprises — where every process is automated, every decision is data-backed, and every team is amplified by AI.</p>
+              <p>{companyInfo?.vision || "To become a globally recognized engineering and digital solutions company by championing innovative thinking and delivering high-standard services and enterprise-grade software solutions."}</p>
             </article>
             <article className="mission-card">
               <span className="mission-orb"><span className="orb-target">◎</span></span><span className="mission-label">OUR MISSION</span>
               <h3>Make enterprise technology effortless.</h3>
-              <p>To deliver dependable, intelligent software that removes manual work, gives leaders real-time clarity, and lets businesses of every size compete with the very best.</p>
+              <p>{companyInfo?.mission || "To provide customer-centric, result-oriented, cost-competitive, innovative and functional IT and software engineering solutions that empower sustainable digital growth and measurable impact."}</p>
             </article>
           </div>
         </div>
@@ -1218,7 +1234,7 @@ function MarketingSite({
             <p>Purpose-built software for the operational details that keep a business moving.</p>
           </div>
           <div className="product-grid">
-            {PRODUCT_LIST.map(([name, category, description], index) => (
+            {visibleProducts.map(([name, category, description], index) => (
               <article className="product-card" id={productAnchorId(name)} key={name}>
                 <div className="product-card-top"><span className="product-index">0{index + 1}</span><span className="product-symbol">{name.slice(0, 1)}</span></div>
                 <p className="product-category">{category}</p>
@@ -1239,7 +1255,7 @@ function MarketingSite({
             <div className="services-head-aside"><p>One accountable partner across design, engineering, AI, cloud and growth — so your roadmap never stalls between vendors.</p><button type="button" className="text-action" onClick={() => onEnquiry('consultation')}>Explore a project together <ArrowIcon /></button></div>
           </div>
           <div className="service-list">
-            {SERVICE_LIST.map(([name, description], index) => (
+            {visibleServices.map(([name, description], index) => (
               <article className="service-item" key={name}>
                 <span className="service-index">{String(index + 1).padStart(2, '0')}</span>
                 <h3>{name}</h3>
@@ -1273,33 +1289,25 @@ function MarketingSite({
         </div>
       </section>
 
-      <section className="courses-section section-pad" id="courses">
-        <div className="section-container course-layout">
-          <div className="course-intro">
-            <p className="section-kicker"><span>06</span> VIS ACADEMY</p>
-            <h2>Build skills for <span>what comes next.</span></h2>
-            <p className="section-lede">Practical training programmes designed to help learners move forward with confidence.</p>
-            <div className="course-facts">
-              <div><strong>180 days</strong><span>Course duration</span></div>
-              <div><strong>3 months</strong><span>Internship included</span></div>
-              <div><strong>Any degree</strong><span>Eligibility requirement</span></div>
+      {Array.isArray(adminContent?.faqs) && adminContent.faqs.length > 0 && (
+        <section className="faq-section section-pad" id="faqs">
+          <div className="section-container faq-section-inner">
+            <div className="section-heading section-heading-centered">
+              <p className="section-kicker"><span>08</span> FREQUENTLY ASKED QUESTIONS</p>
+              <h2>Clear answers. <span>Practical next steps.</span></h2>
+              <p>Answers maintained by the Vetri IT Systems team.</p>
             </div>
-            <button type="button" className="btn-primary" onClick={() => onEnquiry('enroll')}>Ask about enrolment <ArrowIcon /></button>
-            <small className="course-note">Course fees are shared by the team. No fixed fee is listed here.</small>
-          </div>
-          <div className="course-panel">
-            <div className="course-panel-head"><span>AVAILABLE PROGRAMMES</span><span>10 TRACKS</span></div>
-            <div className="course-list">
-              {COURSE_LIST.map((course, index) => (
-                <button type="button" key={course} onClick={() => onEnquiry('enroll', course)}>
-                  <span className="course-row-index">{String(index + 1).padStart(2, '0')}</span><span>{course}</span><ArrowIcon />
-                </button>
+            <div className="faq-public-list">
+              {adminContent.faqs.map((faq, index) => (
+                <details className="faq-public-item" key={`${faq.question}-${index}`}>
+                  <summary>{faq.question}</summary>
+                  <p>{faq.answer}</p>
+                </details>
               ))}
             </div>
-            <div className="course-panel-foot">Explore your options with the VIS team.</div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="portfolio-section section-pad" id="portfolios">
         <div className="section-container">
@@ -1341,6 +1349,16 @@ function MarketingSite({
         </div>
       </section>
 
+      <section className="enquiry-page-section section-pad" id="enquiry-page">
+        <div className="section-container enquiry-page-inner">
+          <p className="section-kicker"><span>07</span> ENQUIRY</p>
+          <h2>Tell us what your business needs.</h2>
+          <p className="section-lede">Share your requirement with the Vetri IT Systems team. We will help you find the right next step.</p>
+          <button type="button" className="btn-primary" onClick={() => onEnquiry('general')}>Start an enquiry <ArrowIcon /></button>
+          <a className="btn-quiet" href={`https://wa.me/${(companyInfo?.phone || "+91 84387 81327").replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer">Chat on WhatsApp</a>
+        </div>
+      </section>
+
       <section className="contact-section section-pad" id="contact">
         <div className="section-container">
           <div className="contact-heading"><p className="section-kicker"><span>09</span> GET IN TOUCH</p><h2>Let’s scope your next <span>transformation.</span></h2><p>Tell us what you’re trying to achieve. The VIS team will help you find a practical next step.</p></div>
@@ -1363,16 +1381,16 @@ function MarketingSite({
               <span className="contact-details-kicker">DIRECT CONTACT</span>
               <h3>Talk to our team.</h3>
               <p>Speak directly with a solution consultant — no call centres, no scripts.</p>
-              <a href="tel:+918438154827"><span className="contact-icon">T</span><span><small>CALL US</small><strong>+91 84381 54827</strong></span><ArrowIcon /></a>
-              <a href="mailto:support@vetri-it.com"><span className="contact-icon">@</span><span><small>EMAIL</small><strong>support@vetri-it.com</strong></span><ArrowIcon /></a>
-              <a href="https://vetriitsystems.com" target="_blank" rel="noreferrer"><span className="contact-icon">W</span><span><small>WEBSITE</small><strong>vetriitsystems.com</strong></span><ArrowIcon /></a>
+              <a href={`tel:${(companyInfo?.phone || "+91 84387 81327").replace(/[^+\d]/g, "")}`}><span className="contact-icon">T</span><span><small>CALL US</small><strong>{companyInfo?.phone || "+91 84387 81327"}</strong></span><ArrowIcon /></a>
+              <a href={`mailto:${companyInfo?.email || "business@vetriit.com"}`}><span className="contact-icon">@</span><span><small>EMAIL</small><strong>{companyInfo?.email || "business@vetriit.com"}</strong></span><ArrowIcon /></a>
+              <a href={companyInfo?.website || "https://vetriitsystems.com"} target="_blank" rel="noreferrer"><span className="contact-icon">W</span><span><small>WEBSITE</small><strong>{(companyInfo?.website || "https://vetriitsystems.com").replace(/^https?:\/\//, "")}</strong></span><ArrowIcon /></a>
               <div className="contact-address">
                 <span className="contact-icon">V</span>
-                <span><small>VISIT</small><strong>Vetri Academy, Aerial Complex,<br />Behind Bus Stand, Surandai</strong></span>
+                <span><small>VISIT</small><strong>{companyInfo?.address || "VTS & VIS, Shanthi Complex, Surandai Old Market, Near Surandai Bus Stand, Surandai-627859, Tenkasi District"}</strong></span>
               </div>
               <a
                 className="contact-map-card"
-                href="https://www.google.com/maps/search/?api=1&query=Vetri+Academy%2C+Aerial+Complex%2C+Behind+Bus+Stand%2C+Surandai"
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(companyInfo?.address || "VTS & VIS, Shanthi Complex, Surandai Old Market, Near Surandai Bus Stand, Surandai-627859, Tenkasi District")}`}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Open directions to Vetri Academy in Google Maps"
@@ -1548,6 +1566,7 @@ function HistorySidebar({
 }
 
 function App() {
+  const [authToken, setAuthToken] = useState(() => window.localStorage.getItem(AUTH_TOKEN_KEY) || '')
   const [messages, setMessages] = useState([])
   const [conversationId, setConversationId] = useState('')
   const [input, setInput] = useState('')
@@ -1576,7 +1595,7 @@ function App() {
 
   const loadHistoryList = useCallback(async () => {
     try {
-      const res = await fetch(`${HISTORY_URL}?client_token=${encodeURIComponent(getClientToken())}`)
+      const res = await apiFetch(`${HISTORY_URL}?client_token=${encodeURIComponent(getClientToken())}`)
       if (!res.ok) {
         return []
       }
@@ -1602,6 +1621,14 @@ function App() {
   }, [loadHistoryList])
 
   useEffect(() => {
+    if (!IS_EMBED) {
+      fetch(`${API_BASE}/api/chatbot/analytics/visit/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: window.location.pathname, visitor_id: getClientToken() }),
+        keepalive: true,
+      }).catch(() => {})
+    }
     document.documentElement.classList.toggle('embed', IS_EMBED)
     document.body.classList.toggle('embed', IS_EMBED)
     document.documentElement.classList.toggle('embed-host', IS_EMBED && EMBED_HOST_WIDGET)
@@ -1686,7 +1713,7 @@ function App() {
 
   async function openConversation(id) {
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `${HISTORY_URL}${id}/?client_token=${encodeURIComponent(getClientToken())}`
       )
       const data = await res.json()
@@ -1727,7 +1754,7 @@ function App() {
 
   async function submitFeedback(messageId, rating) {
     try {
-      const res = await fetch(FEEDBACK_URL, {
+      const res = await apiFetch(FEEDBACK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1752,7 +1779,7 @@ function App() {
 
     try {
       const wasActive = id === conversationId
-      const res = await fetch(
+      const res = await apiFetch(
         `${HISTORY_URL}${id}/?client_token=${encodeURIComponent(getClientToken())}`,
         { method: 'DELETE' }
       )
@@ -1848,7 +1875,7 @@ function App() {
     setEnquirySubmitting(true)
 
     try {
-      const res = await fetch(ENQUIRY_URL, {
+      const res = await apiFetch(ENQUIRY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2016,7 +2043,7 @@ function App() {
     abortRef.current = controller
 
     try {
-      const res = await fetch(API_URL, {
+      const res = await apiFetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2100,6 +2127,8 @@ function App() {
     -1
   )
 
+  if (!IS_EMBED && !authToken) return <AuthGate onAuthenticated={setAuthToken} />
+
   if (IS_EMBED && EMBED_PAUSED) {
     return (
       <div className="widget-root widget-root-host" style={{ padding: 24 }}>
@@ -2117,7 +2146,7 @@ function App() {
       className={
         IS_EMBED
           ? `widget-root${EMBED_HOST_WIDGET ? ' widget-root-host' : ''}`
-          : 'page'
+          : `page page-route-${CURRENT_PAGE}`
       }
     >
       {!IS_EMBED && (
@@ -2135,6 +2164,52 @@ function App() {
             enquiryError={enquiryError}
           />
           <SiteFooter onEnquiry={openEnquiry} />
+          
+<button
+  className="site-logout"
+  type="button"
+  onClick={async () => {
+    try {
+      await fetch(`${API_BASE}/api/chatbot/auth/logout/`, {
+        method: 'POST',
+        headers: { 'X-Visitor-Auth': authToken },
+      })
+    } catch (error) {
+      console.error('Logout request failed:', error)
+    }
+    window.localStorage.removeItem(AUTH_TOKEN_KEY)
+    setAuthToken('')
+  }}
+>
+  Log out
+</button>
+
+          
+          <div className="floating-contact-actions" aria-label="Contact Vetri IT Systems">
+            <a
+  className="floating-contact whatsapp-contact"
+  href="https://wa.me/918438154827"
+  target="_blank"
+  rel="noreferrer"
+  aria-label="Chat with Vetri IT Systems on WhatsApp"
+  title="WhatsApp"
+>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.9L0 24l6.5-1.7a11.8 11.8 0 0 0 5.6 1.4h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.2-1.2-6.2-3.5-8.4ZM12.1 21.7c-1.8 0-3.5-.5-5-1.4l-.4-.2-3.8 1 1-3.7-.2-.4a9.8 9.8 0 1 1 8.4 4.7Zm5.4-7.3c-.3-.2-1.7-.8-2-.9-.3-.1-.5-.2-.7.2-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.4-.5.3-.5c.1-.2 0-.4 0-.5-.1-.2-.7-1.6-1-2.1-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.7 1.1 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.3 1.2.5 1.6.6.7.3 1.2.1 1.8.1.6-.1 1.7-.7 1.9-1.4.2-.7.1-1.3.1-1.4-.1-.1-.3-.2-.6-.4Z" />
+              </svg>
+            </a>
+            <a
+  className="floating-contact call-contact"
+  href="tel:+918438154827"
+  aria-label="Call Vetri IT Systems"
+  title="Call Vetri IT Systems"
+>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6.6 10.8a15.4 15.4 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.2 11.2 11.2 0 0 0 3.5.6 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17.9 17.9 0 0 1 3 3.1a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1A11.2 11.2 0 0 0 9 6.6a1 1 0 0 1-.2 1Z" />
+              </svg>
+            </a>
+          </div>
+
         </>
       )}
       {siteNotice && !IS_EMBED && (
@@ -2438,3 +2513,6 @@ function App() {
 }
 
 export default App
+
+
+

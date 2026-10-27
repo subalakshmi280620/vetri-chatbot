@@ -1,7 +1,12 @@
 import logging
 import uuid
+import re
 
 from django.conf import settings
+from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.db import DatabaseError
 from django.db.models import Count, Max, Q
 from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
@@ -22,10 +27,13 @@ from .knowledge import (
     get_conversational_fallback,
     get_contextual_follow_up_reply,
     get_grounding_facts,
+    is_public_course_query,
+    public_courses_disabled_reply,
     get_system_prompt,
     is_contextual_follow_up,
     is_greeting,
     match_course_id,
+    match_product_id,
     infer_reply_style,
     normalize_reply_style,
     resolve_follow_up_query,
@@ -34,7 +42,8 @@ from .language import LANG_TA, detect_language, normalize_language
 from .tamil_replies import get_tamil_ai_unavailable
 from .verified_facts import enforce_verified_facts, get_verified_facts_prompt
 from .email_notifications import dispatch_enquiry_notification
-from .models import Conversation, Enquiry, Message
+from .models import CompanyInformation, Conversation, Enquiry, FAQ, Message, Product, Service, VisitorEvent, SiteAccountToken
+from .admin_knowledge_helper import get_admin_product
 from .rag import format_context, retrieve
 from .suggestions import get_follow_up_suggestions
 
@@ -56,9 +65,9 @@ def build_prompt(
     style = normalize_reply_style(reply_style)
     query = resolve_follow_up_query(user_message, history)
     length_hint = (
-        "1–2 short sentences"
+        "1â€“2 short sentences"
         if style == "brief"
-        else "2–4 short lines"
+        else "2â€“4 short lines"
     )
     parts = [get_system_prompt(style), get_verified_facts_prompt(style, language)]
     context = format_context(retrieve(query, limit=settings.GEMINI_RAG_LIMIT))
@@ -67,7 +76,7 @@ def build_prompt(
     grounding = get_grounding_facts(query)
     if grounding:
         parts.append(
-            "Facts for this reply (do not copy verbatim — rewrite in your own warm, "
+            "Facts for this reply (do not copy verbatim â€” rewrite in your own warm, "
             f"conversational words; complete sentences; {length_hint}):\n"
             f"{grounding}"
         )
@@ -83,11 +92,11 @@ def build_compact_prompt(
     """Smaller prompt for a last-chance Gemini retry after rate-limit errors."""
     style = normalize_reply_style(reply_style)
     query = resolve_follow_up_query(user_message, history)
-    sentence_hint = "1–2 complete sentences" if style == "brief" else "2–4 complete sentences"
+    sentence_hint = "1â€“2 complete sentences" if style == "brief" else "2â€“4 complete sentences"
     parts = [
         (
             f"You are Coach AI for Vetri IT Systems (VIS). Reply warmly in {sentence_hint}. "
-            "Use only verified facts below — never invent pricing."
+            "Use only verified facts below â€” never invent pricing."
         ),
         get_verified_facts_prompt(style, language),
     ]
@@ -134,7 +143,7 @@ def _try_deepseek_reply(user_message: str, prompt: str, history=None) -> str | N
         )
         return reply
     except Exception as exc:
-        # Log safe detail (HTTP code/message) — never log API keys.
+        # Log safe detail (HTTP code/message) â€” never log API keys.
         detail = str(exc).replace(settings.DEEPSEEK_API_KEY, "***")[:240]
         logger.warning(
             "AI provider error: deepseek fallback %s",
@@ -181,13 +190,13 @@ def _try_ai_reply(
             return reply
         except GeminiAPIError as exc:
             logger.warning(
-                "AI provider error: gemini model=%s detail=%s — trying fallbacks",
+                "AI provider error: gemini model=%s detail=%s â€” trying fallbacks",
                 exc.model or "unknown",
                 str(exc)[:300],
             )
         except Exception as exc:
             logger.warning(
-                "AI provider error: gemini %s — trying fallbacks",
+                "AI provider error: gemini %s â€” trying fallbacks",
                 type(exc).__name__,
             )
 
@@ -218,7 +227,7 @@ def _kb_fallback_reply(
         if normalize_language(language) == LANG_TA:
             return get_tamil_ai_unavailable(), SOURCE_UNVERIFIED
         return AI_FULLY_UNAVAILABLE_MESSAGE, SOURCE_UNVERIFIED
-    # Specific verified answer — read naturally; UI source badge shows verified_kb.
+    # Specific verified answer â€” read naturally; UI source badge shows verified_kb.
     return fallback, SOURCE_VERIFIED_KB
 
 
@@ -234,6 +243,33 @@ def generate_reply(
     style = normalize_reply_style(reply_style or infer_reply_style(user_message, history))
     lang = normalize_language(language or detect_language(user_message, history))
 
+    # Stop legacy/static/admin course data before it reaches AI, RAG, or eligibility handlers.
+    history_text = " ".join(
+        str(item.get("text") or "") for item in (history or [])
+        if item.get("role") == "user"
+    )
+    explicit_product_question = bool(match_product_id(user_message))
+    prior_course_context = is_public_course_query(history_text)
+    follow_up_about_course = (
+        prior_course_context
+        and not explicit_product_question
+        and (
+            is_contextual_follow_up(user_message)
+            or any(
+                term in (user_message or "").lower()
+                for term in (
+                    "eligibility", "eligible", "degree", "fee", "fees", "cost", "price",
+                    "apply", "admission", "internship", "duration", "join", "enroll", "enrol",
+                )
+            )
+        )
+    )
+    course_context = is_public_course_query(user_message) or follow_up_about_course
+    if user_message and course_context and not (
+        attachments and (attachments.images or attachments.document_text)
+    ):
+        return apply_reply_style(public_courses_disabled_reply(lang), style), SOURCE_VERIFIED_KB
+
     if user_message and is_greeting(user_message) and not (attachments and (attachments.images or attachments.document_text)):
         return apply_reply_style(get_greeting_reply(lang), style), SOURCE_AI
 
@@ -246,13 +282,33 @@ def generate_reply(
         if contextual:
             return apply_reply_style(contextual, style), SOURCE_VERIFIED_KB
 
+    # Answer website-budget questions before the broad eligibility detector.
+    # Return the short, user-facing reply rather than raw Admin grounding records.
+    from .knowledge import _matches_website_price_intent
+
+    website_price_intent = _matches_website_price_intent(user_message)
+    if website_price_intent and not (
+        attachments and (attachments.images or attachments.document_text)
+    ):
+        website_reply = get_conversational_fallback(
+            user_message, style, lang, history=history
+        )
+        if GENERIC_FALLBACK_MARKER not in website_reply:
+            return apply_reply_style(website_reply, style), SOURCE_VERIFIED_KB
+
     if user_message and not (
         attachments and (attachments.images or attachments.document_text)
     ) and not is_non_eligibility_faq(user_message):
         eligibility = handle_eligibility(user_message, history, lang)
         if eligibility:
             return apply_reply_style(eligibility, style), SOURCE_ELIGIBILITY
-
+    # Prefer matching active Admin products before course-name matching.
+    if user_message and not (
+        attachments and (attachments.images or attachments.document_text)
+    ):
+        admin_product = get_admin_product(user_message)
+        if admin_product:
+            return apply_reply_style(admin_product, style), SOURCE_VERIFIED_KB
     # Specific course-name questions use verified course facts first.
     if (
         user_message
@@ -339,9 +395,136 @@ def serialize_message(message: Message) -> dict:
     }
 
 
+def require_site_account(request):
+    """Enforce public-site login in production while keeping legacy test suites isolated."""
+    if not getattr(settings, "REQUIRE_LOGIN_FOR_PUBLIC_SITE", not settings.DEBUG):
+        return None
+    raw_token = request.headers.get("X-Visitor-Auth", "").strip()
+    try:
+        token = uuid.UUID(raw_token)
+        session = SiteAccountToken.objects.select_related("user").get(token=token, user__is_active=True)
+        session.save(update_fields=["last_used_at"])
+        request.site_user = session.user
+        return None
+    except (ValueError, TypeError, SiteAccountToken.DoesNotExist):
+        return Response({"error": "Please log in to use the Vetri IT Systems website."}, status=401)
+
+
+@api_view(["GET"])
+def auth_status(request):
+    return Response({"login_required": bool(getattr(settings, "REQUIRE_LOGIN_FOR_PUBLIC_SITE", not settings.DEBUG))})
+
+
+@api_view(["POST"])
+def auth_register(request):
+    User = get_user_model()
+    username = str(request.data.get("username", "")).strip().lower()
+    email = str(request.data.get("email", "")).strip().lower()
+    password = str(request.data.get("password", ""))
+    if not re.fullmatch(r"[a-z0-9_.-]{3,40}", username):
+        return Response({"error": "Username must be 3–40 characters using letters, numbers, dot, underscore, or hyphen."}, status=400)
+    if not email or "@" not in email:
+        return Response({"error": "Enter a valid email address."}, status=400)
+    if User.objects.filter(username=username).exists():
+        return Response({"error": "That username is already registered. Please log in."}, status=400)
+    user = User(username=username, email=email)
+    try:
+        validate_password(password, user=user)
+    except ValidationError as exc:
+        return Response({"error": " ".join(exc.messages)}, status=400)
+    user.set_password(password)
+    user.save()
+    token = SiteAccountToken.objects.create(user=user)
+    return Response({"token": str(token.token), "username": user.username}, status=201)
+
+
+@api_view(["POST"])
+def auth_login(request):
+    username = str(request.data.get("username", "")).strip().lower()
+    password = str(request.data.get("password", ""))
+    user = authenticate(request, username=username, password=password)
+    if user is None or not user.is_active:
+        return Response({"error": "Username or password is incorrect."}, status=400)
+    token = SiteAccountToken.objects.create(user=user)
+    return Response({"token": str(token.token), "username": user.username})
+
+
+@api_view(["POST"])
+def auth_logout(request):
+    raw_token = request.headers.get("X-Visitor-Auth", "").strip()
+    try:
+        SiteAccountToken.objects.filter(token=uuid.UUID(raw_token)).delete()
+    except (ValueError, TypeError):
+        pass
+    return Response({"ok": True})
+
+
+@api_view(["GET"])
+def public_content(request):
+    auth_error = require_site_account(request)
+    if auth_error is not None:
+        return auth_error
+    """Expose active Admin-managed public content for the marketing website."""
+    try:
+        company = CompanyInformation.objects.filter(is_active=True).order_by("-updated_at").first()
+        products = Product.objects.filter(is_active=True).order_by("sort_order", "name")
+        services = Service.objects.filter(is_active=True).order_by("sort_order", "name")
+        faqs = FAQ.objects.filter(is_active=True).order_by("sort_order", "question")
+    except DatabaseError:
+        return Response({"error": "Public content is temporarily unavailable."}, status=503)
+
+    company_data = None
+    if company:
+        company_data = {
+            "company_name": company.company_name,
+            "legal_name": company.legal_name,
+            "tagline": company.tagline,
+            "description": company.description,
+            "mission": company.mission,
+            "vision": company.vision,
+            "phone": company.phone,
+            "alternate_phone": company.alternate_phone,
+            "email": company.email,
+            "address": company.address,
+            "website": company.website,
+            "business_hours": company.business_hours,
+            "facebook_url": company.facebook_url,
+            "instagram_url": company.instagram_url,
+            "linkedin_url": company.linkedin_url,
+            "youtube_url": company.youtube_url,
+            "map_url": company.map_url,
+        }
+
+    return Response({
+        "company": company_data,
+        "products": [{
+            "name": item.name,
+            "description": item.description,
+            "features": item.features,
+            "price": str(item.price) if item.price is not None else None,
+            "price_note": item.price_note,
+            "updated_at": item.updated_at.isoformat(),
+        } for item in products],
+        "services": [{
+            "name": item.name,
+            "description": item.description,
+            "features": item.features,
+            "updated_at": item.updated_at.isoformat(),
+        } for item in services],
+        "faqs": [{
+            "category": item.category,
+            "question": item.question,
+            "answer": item.answer,
+        } for item in faqs],
+    })
+
+
 @api_view(["POST"])
 @throttle_classes([ChatRateThrottle])
 def chat(request):
+    auth_error = require_site_account(request)
+    if auth_error is not None:
+        return auth_error
     message = request.data.get("message", "")
     raw_attachments = request.data.get("attachments") or []
 
@@ -445,6 +628,9 @@ def chat(request):
 
 @api_view(["GET"])
 def conversation_list(request):
+    auth_error = require_site_account(request)
+    if auth_error is not None:
+        return auth_error
     client_token = get_client_token_from_request(request)
     if not client_token:
         return Response({"error": "client_token is required."}, status=400)
@@ -495,6 +681,9 @@ def conversation_list(request):
 
 @api_view(["GET", "DELETE"])
 def conversation_detail(request, conversation_id):
+    auth_error = require_site_account(request)
+    if auth_error is not None:
+        return auth_error
     client_token = get_client_token_from_request(request)
     if not client_token:
         return Response({"error": "client_token is required."}, status=400)
@@ -523,6 +712,9 @@ def conversation_detail(request, conversation_id):
 
 @api_view(["POST"])
 def message_feedback(request):
+    auth_error = require_site_account(request)
+    if auth_error is not None:
+        return auth_error
     client_token = get_client_token_from_request(request)
     if not client_token:
         return Response({"error": "client_token is required."}, status=400)
@@ -553,25 +745,25 @@ def message_feedback(request):
 
 ENQUIRY_CONFIRMATIONS = {
     Enquiry.TYPE_QUOTATION: (
-        "Enquiry Submitted — Get Quotation\n\n"
+        "Enquiry Submitted â€” Get Quotation\n\n"
         "Thank you. Our team will review your requirement and share a tailored "
         "proposal with scope, timeline, and indicative pricing.\n\n"
         "We will contact you at the email or phone you provided."
     ),
     Enquiry.TYPE_CONSULTATION: (
-        "Enquiry Submitted — Book a Consultation\n\n"
+        "Enquiry Submitted â€” Book a Consultation\n\n"
         "Thank you. A VIS solution consultant will reach out to discuss your "
         "goals and recommend the right next steps.\n\n"
         "We will contact you at the email or phone you provided."
     ),
     Enquiry.TYPE_DEMO: (
-        "Enquiry Submitted — Product Demo\n\n"
+        "Enquiry Submitted â€” Product Demo\n\n"
         "Thank you. Our team will arrange a guided demo for the product or "
         "service you selected.\n\n"
         "We will contact you at the email or phone you provided."
     ),
     Enquiry.TYPE_SALES: (
-        "Enquiry Submitted — Sales Team\n\n"
+        "Enquiry Submitted â€” Sales Team\n\n"
         "Thank you. Our sales team will contact you about your requirement."
     ),
     Enquiry.TYPE_ENROLL: (
@@ -596,6 +788,9 @@ def _normalize_enquiry_type(value: str) -> str:
 @api_view(["POST"])
 @throttle_classes([ChatRateThrottle])
 def submit_enquiry(request):
+    auth_error = require_site_account(request)
+    if auth_error is not None:
+        return auth_error
     client_token = get_client_token_from_request(request)
     if not client_token:
         return Response({"error": "client_token is required."}, status=400)
@@ -607,6 +802,13 @@ def submit_enquiry(request):
     interest = str(request.data.get("interest", "")).strip()
     message = str(request.data.get("message", "")).strip()
     enquiry_type = _normalize_enquiry_type(request.data.get("enquiry_type"))
+
+    # Public course enrolment is disabled. Preserve historical records and Admin.
+    if enquiry_type == Enquiry.TYPE_ENROLL:
+        return Response(
+            {"error": "Course enrolment enquiries are not available through the public website."},
+            status=400,
+        )
 
     if not full_name:
         return Response({"error": "full_name is required."}, status=400)
@@ -670,3 +872,24 @@ def submit_enquiry(request):
         "confirmation": confirmation,
         "email_queued": True,
     })
+
+
+
+
+
+
+
+
+@api_view(["POST"])
+def track_visit(request):
+    """Record a page view using the random visitor token created by the frontend."""
+    raw_visitor_id = str(request.data.get("visitor_id", "")).strip()
+    path = str(request.data.get("path", "/")).strip()[:255] or "/"
+    try:
+        visitor_id = uuid.UUID(raw_visitor_id)
+    except (ValueError, TypeError, AttributeError):
+        return Response({"error": "A valid visitor_id is required."}, status=400)
+    if not path.startswith("/") or path.startswith("//"):
+        return Response({"error": "Invalid page path."}, status=400)
+    VisitorEvent.objects.create(visitor_id=visitor_id, path=path)
+    return Response({"ok": True}, status=201)

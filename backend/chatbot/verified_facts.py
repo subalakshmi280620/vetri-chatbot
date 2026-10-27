@@ -34,20 +34,17 @@ NEVER_INVENT = (
 )
 
 # Topics that must match the knowledge base exactly.
+# Topics that must match the knowledge base exactly.
 MUST_BE_EXACT = (
     f"Company name: {ORG_NAME}",
     f"Phone: {CONTACT_PHONE}",
     f"Email: {CONTACT_EMAIL}",
     f"Address: {CONTACT_ADDRESS}",
     f"Website: {CONTACT_WEBSITE}",
-    f"Course duration: {COURSE_DURATION}",
-    f"Internship with every course: {COURSE_INTERNSHIP}",
     f"Ecommerce website package: {ECOMMERCE_WEBSITE_PRICE}",
     f"Small retail shop website: {RETAIL_SHOP_WEBSITE_PRICE}",
-    f"Course eligibility: {ELIGIBILITY_REQUIREMENT}",
     f"Products: {', '.join(PRODUCTS)}",
     f"Services: {', '.join(SERVICES)}",
-    f"Training courses: {', '.join(COURSES)}",
     (
         "Company stats: "
         f"{COMPANY_STATS['projects']} projects, {COMPANY_STATS['years']} years, "

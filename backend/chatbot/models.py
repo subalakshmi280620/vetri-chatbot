@@ -247,3 +247,28 @@ class FAQ(models.Model):
 
     def __str__(self):
         return self.question
+
+
+class VisitorEvent(models.Model):
+    """Privacy-conscious page-view event; visitor_id is a random browser token, not a name."""
+    visitor_id = models.UUIDField(db_index=True)
+    path = models.CharField(max_length=255, db_index=True, default="/")
+    visited_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-visited_at"]
+        indexes = [models.Index(fields=["visited_at", "path"], name="chat_vis_date_path_idx")]
+
+    def __str__(self):
+        return f"{self.path} — {self.visited_at:%Y-%m-%d %H:%M}"
+
+
+class SiteAccountToken(models.Model):
+    """Opaque bearer token for a public-site account session."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="site_tokens")
+    token = models.UUIDField(default=uuid.uuid4, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Site session for {self.user.username}"

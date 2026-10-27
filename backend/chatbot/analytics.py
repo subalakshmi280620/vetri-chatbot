@@ -10,7 +10,8 @@ from django.db.models import Count
 from django.db.models.functions import TruncDate, TruncWeek
 from django.utils import timezone
 
-from .models import Conversation, Enquiry, Message
+from django.contrib.auth import get_user_model
+from .models import Conversation, Enquiry, Message, VisitorEvent, SiteAccountToken
 
 TOPIC_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Courses & training", (
@@ -195,7 +196,22 @@ def get_weekly_message_counts(weeks: int = 4) -> list[dict]:
 
 
 def build_analytics_context() -> dict:
+    from django.db.models import Count
+    from django.utils import timezone
+    from datetime import timedelta
+    today = timezone.localdate()
+    visits = VisitorEvent.objects.all()
+    today_visits = visits.filter(visited_at__date=today)
     return {
+        "visitor_stats": {
+            "total_visits": visits.count(),
+            "unique_visitors": visits.values("visitor_id").distinct().count(),
+            "visits_today": today_visits.count(),
+            "unique_visitors_today": today_visits.values("visitor_id").distinct().count(),
+            "registered_users": get_user_model().objects.filter(is_active=True).count(),
+            "login_sessions": SiteAccountToken.objects.count(),
+            "top_pages": list(visits.values("path").annotate(count=Count("id")).order_by("-count")[:8]),
+        },
         "stats": get_dashboard_stats(),
         "enquiry_breakdown": get_enquiry_breakdown(),
         "top_topics": get_topic_summary(),

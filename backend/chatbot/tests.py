@@ -53,6 +53,45 @@ class ChatApiTestCase(TestCase):
         )
 
 
+class PublicContentEndpointTests(TestCase):
+    def test_public_content_returns_active_admin_products_and_services(self):
+        from .models import CompanyInformation, Product, Service, FAQ
+
+        CompanyInformation.objects.create(
+            company_name="VIS Test", description="Admin-managed company description"
+        )
+        Product.objects.create(
+            name="Admin Test Product", description="Current product description",
+            features="Feature A", price="1250.00", price_note="Plus GST",
+        )
+        Service.objects.create(
+            name="Admin Test Service", description="Current service description"
+        )
+        FAQ.objects.create(question="How do I test this?", answer="Use the test data.")
+
+        response = self.client.get("/api/chatbot/public-content/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["company"]["company_name"], "VIS Test")
+        self.assertEqual(payload["products"][0]["name"], "Admin Test Product")
+        self.assertEqual(payload["products"][0]["price"], "1250.00")
+        self.assertEqual(payload["products"][0]["price_note"], "Plus GST")
+        self.assertEqual(payload["services"][0]["name"], "Admin Test Service")
+        self.assertEqual(payload["faqs"][0]["answer"], "Use the test data.")
+
+    def test_public_content_excludes_inactive_records(self):
+        from .models import Product, Service
+
+        Product.objects.create(name="Hidden Product", description="Hidden", is_active=False)
+        Service.objects.create(name="Hidden Service", description="Hidden", is_active=False)
+        response = self.client.get("/api/chatbot/public-content/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["products"], [])
+        self.assertEqual(response.json()["services"], [])
+
+
 class HealthEndpointTests(TestCase):
     def test_health_checks_database_connection(self):
         response = self.client.get("/health/")
@@ -143,13 +182,13 @@ class VerifiedFactsTests(TestCase):
         self.assertIn("support@vetri-it.com", prompt)
         self.assertIn("https://vetriitsystems.com", prompt)
         self.assertIn("Never invent", prompt)
-        self.assertIn("180 days", prompt)
+        self.assertNotIn("180 days", prompt)
 
     def test_polish_ai_reply_fixes_truncated_stats(self):
         from .verified_facts import polish_ai_reply
 
         polished = polish_ai_reply(
-            "You can trust VIS — over 8 years delivering 15"
+            "You can trust VIS â€” over 8 years delivering 15"
         )
         self.assertIn("150+ projects", polished)
         self.assertTrue(polished.endswith("."))
@@ -172,7 +211,7 @@ class VerifiedFactsTests(TestCase):
 
     def test_build_prompt_brief_mode_uses_short_length_hint(self):
         prompt = build_prompt("What products does VIS offer?", reply_style="brief")
-        self.assertIn("1–2 short sentences", prompt)
+        self.assertIn("1–2 tight sentences", prompt)
         self.assertIn("Use 1 to 2 short sentences with the key facts included.", prompt)
 
     def test_apply_reply_style_brief_keeps_three_sentences(self):
@@ -342,7 +381,7 @@ class ConversationPrivacyTests(ChatApiTestCase):
 class EligibilityReplyTests(TestCase):
     JAVA_HISTORY = [
         {"role": "user", "text": "Tell me about Java Fullstack"},
-        {"role": "bot", "text": "Course Overview — Java Fullstack"},
+        {"role": "bot", "text": "Course Overview â€” Java Fullstack"},
     ]
 
     def test_general_eligibility_ignores_prior_course_in_history(self):
@@ -414,7 +453,7 @@ class EligibilityReplyTests(TestCase):
         history = self._eligibility_conversation_history()
         self.assertIsNone(handle_eligibility("what are the fees?", history))
         reply, source = generate_reply("what are the fees?", history)
-        self.assertIn("fee", reply.lower())
+        self.assertIn("currently unavailable", reply.lower())
         self.assertNotIn("Outcome: ELIGIBLE", reply)
         self.assertEqual(source, SOURCE_VERIFIED_KB)
 
@@ -423,7 +462,7 @@ class EligibilityReplyTests(TestCase):
         history = self._eligibility_conversation_history()
         self.assertIsNone(handle_eligibility("How do I apply for a course?", history))
         reply, source = generate_reply("How do I apply for a course?", history)
-        self.assertIn("apply", reply.lower())
+        self.assertIn("currently unavailable", reply.lower())
         self.assertNotIn("Outcome: ELIGIBLE", reply)
         self.assertEqual(source, SOURCE_VERIFIED_KB)
 
@@ -440,7 +479,7 @@ class EligibilityReplyTests(TestCase):
         self.assertNotEqual(reply, first)
 
     @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
-    def test_varied_fee_phrasings_after_eligibility(self):
+    def test_varied_fee_phrasings_after_eligibility_keep_course_details_disabled(self):
         first = handle_eligibility("What is the eligibility?")
         history = [
             {"role": "user", "text": "What is the eligibility?"},
@@ -452,8 +491,11 @@ class EligibilityReplyTests(TestCase):
             "Course charges?",
         ):
             self.assertIsNone(handle_eligibility(question, history))
-            reply, _source = generate_reply(question, history)
-            self.assertIn("fee", reply.lower())
+            reply, source = generate_reply(question, history)
+            self.assertEqual(source, SOURCE_VERIFIED_KB)
+            self.assertIn("currently unavailable", reply.lower())
+            self.assertIn("not available on this website", reply.lower())
+            self.assertNotIn("180", reply)
 
     def test_qualification_not_parsed_from_bot_general_eligibility_text(self):
         first = handle_eligibility("What are the eligibility requirements?")
@@ -535,14 +577,15 @@ class KnowledgeReplyTests(TestCase):
     def test_generate_reply_general_eligibility_via_api_path(self):
         history = [
             {"role": "user", "text": "Tell me about Java Fullstack"},
-            {"role": "bot", "text": "Course Overview — Java Fullstack"},
+            {"role": "bot", "text": "Course Overview â€” Java Fullstack"},
         ]
 
         reply, source = generate_reply("What is the eligibility?", history)
 
-        self.assertIn("degree", reply.lower())
+        self.assertIn("currently unavailable", reply.lower())
         self.assertNotIn("Java Fullstack", reply)
-        self.assertEqual(source, SOURCE_ELIGIBILITY)
+        self.assertNotIn("degree", reply.lower())
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
 
 
     @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
@@ -613,7 +656,7 @@ class KnowledgeReplyTests(TestCase):
     def test_conversational_fallback_products_is_short(self):
         reply = get_conversational_fallback("What products does VIS offer?")
         self.assertIn("Vetri Bills", reply)
-        self.assertNotIn("Our Products —", reply)
+        self.assertNotIn("Our Products â€”", reply)
         self.assertLess(len(reply), 400)
 
     def test_conversational_fallback_answers_not_only_contact(self):
@@ -633,7 +676,7 @@ class KnowledgeReplyTests(TestCase):
         reply, source = generate_reply("What products does VIS offer?")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertIn("Vetri Bills", reply)
-        self.assertNotIn("Our Products —", reply)
+        self.assertNotIn("Our Products â€”", reply)
 
 
 class EnquiryApiTests(ChatApiTestCase):
@@ -702,14 +745,19 @@ class EnquiryApiTests(ChatApiTestCase):
                 },
                 client_token=client_token,
             )
+            if enquiry_type == "enroll":
+                self.assertEqual(response.status_code, 400, response.content)
+                self.assertIn("not available through the public website", response.json()["error"].lower())
+                continue
             self.assertEqual(response.status_code, 200, response.content)
             self.assertEqual(response.json()["enquiry_type"], enquiry_type)
 
         saved_leads = Enquiry.objects.filter(client_token=client_token)
-        self.assertEqual(saved_leads.count(), len(requests))
+        supported_requests = [item for item in requests if item[0] != "enroll"]
+        self.assertEqual(saved_leads.count(), len(supported_requests))
         self.assertEqual(
             set(saved_leads.values_list("enquiry_type", flat=True)),
-            {enquiry_type for enquiry_type, _interest in requests},
+            {enquiry_type for enquiry_type, _interest in supported_requests},
         )
         self.assertEqual(
             set(saved_leads.values_list("status", flat=True)),
@@ -724,8 +772,11 @@ class EnquiryApiTests(ChatApiTestCase):
         self.client.login(username="enquiry_dashboard_admin", password="test-pass-123")
         dashboard = self.client.get("/admin/chatbot-leads/")
         self.assertEqual(dashboard.status_code, 200)
-        for index in range(len(requests)):
+        # Public course enrolment is intentionally rejected, so its email must
+        # not appear in the saved-leads dashboard.
+        for index in (0, 1, 2, 3, 5):
             self.assertContains(dashboard, f"lead-request-{index}@example.com")
+        self.assertNotContains(dashboard, "lead-request-4@example.com")
 
     def test_enquiry_requires_email_and_message(self):
         response = self._post_enquiry({
@@ -765,7 +816,7 @@ class EnquiryApiTests(ChatApiTestCase):
         })
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("available courses", response.json()["error"].lower())
+        self.assertIn("not available through the public website", response.json()["error"].lower())
         self.assertEqual(Enquiry.objects.count(), 0)
 
     @override_settings(
@@ -832,7 +883,7 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         data = response.json()
         self.assertEqual(data["source"], SOURCE_VERIFIED_KB)
         self.assertNotIn("Which Courses Are Available", data["reply"])
-        self.assertNotIn("Course Overview —", data["reply"])
+        self.assertNotIn("Course Overview â€”", data["reply"])
         self.assertIn("message_id", data)
         self.assertGreaterEqual(len(data["suggestions"]), 1)
 
@@ -846,14 +897,16 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["source"], SOURCE_VERIFIED_KB)
-        self.assertNotIn("Our Products —", data["reply"])
+        self.assertNotIn("Our Products â€”", data["reply"])
 
     @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="We offer Python, Java, UI/UX, and more.")
-    def test_chat_uses_ai_when_configured(self, _mock_gemini):
+    def test_public_course_catalogue_stays_disabled_even_when_ai_is_configured(self, mock_gemini):
         response = self._post_chat("What courses do you have?")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["source"], "ai")
+        self.assertEqual(response.json()["source"], SOURCE_VERIFIED_KB)
+        self.assertIn("currently unavailable", response.json()["reply"].lower())
+        mock_gemini.assert_not_called()
 
     @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_chat_suggests_enquiry_for_quotation_intent(self):
@@ -908,11 +961,11 @@ class DemoQuestionCoverageTests(TestCase):
         ("How can I get a quotation?", ("quotation", "enquiry")),
         ("I want a product demo", ("demo",)),
         ("Book a consultation", ("consultation",)),
-        ("What courses are available?", ("python", "java")),
-        ("What is the course duration?", ("180",)),
+        ("What courses are available?", ("currently unavailable", "enquiry")),
+        ("What is the course duration?", ("currently unavailable", "enquiry")),
         (
-            "I have B.Com and want Python Fullstack — am I eligible?",
-            ("meet the requirement", "degree"),
+            "I have B.Com and want Python Fullstack â€” am I eligible?",
+            ("currently unavailable", "enquiry"),
         ),
         ("How can I contact you?", ("84381", "support@vetri-it.com")),
         ("How much does Vetri Bills cost?", ("quotation", "scope")),
@@ -941,7 +994,7 @@ class DemoQuestionCoverageTests(TestCase):
             )
             if question.strip().lower() == "hi":
                 self.assertEqual(source, "ai")
-            elif "eligible" in question.lower():
+            elif "eligible" in question.lower() and "python fullstack" not in question.lower():
                 self.assertEqual(source, SOURCE_ELIGIBILITY)
             else:
                 self.assertEqual(source, SOURCE_VERIFIED_KB)
@@ -1001,63 +1054,74 @@ class DemoQuestionCoverageTests(TestCase):
         retail = get_conversational_fallback("small retail shop website price")
         self.assertIn("₹9,999 + GST", ecommerce)
         self.assertIn("₹3,000 + GST", retail)
+
+        # Casual phrasing should resolve to the general low-cost website offer.
+        low_cost = get_conversational_fallback("are you have any low cost website")
+        self.assertIn("₹3,000 + GST", low_cost)
+        self.assertIn("₹9,999 + GST", low_cost)
+        self.assertNotIn("Current website options from active Admin records", low_cost)
+        self.assertNotIn("Pricing note:", low_cost)
+
+        # A customer-entered budget is handled as a quotation request, not
+        # misrepresented as an approved fixed-price package.
+        for question in (
+            "Do you make a website for ₹100?",
+            "Can I get a website for 2000 rupees?",
+            "Any low budget website under 4000?",
+        ):
+            budget_reply = get_conversational_fallback(question)
+            self.assertIn("Enquiry", budget_reply)
+            self.assertIn("not guaranteed package prices", budget_reply)
+            self.assertNotIn("Current website options from active Admin records", budget_reply)
+
         kept = enforce_verified_facts(
             "An ecommerce website is ₹9,999 + GST. A shop site is ₹3,000 + GST."
         )
         self.assertIn("₹9,999 + GST", kept)
         self.assertIn("₹3,000 + GST", kept)
 
-    def test_yes_continues_course_with_a_short_enroll_reply(self):
-        from .knowledge import reply_to_short_yes
-
-        history = [{
-            "role": "bot",
-            "text": "Python Fullstack includes a 3 month internship. Say enroll when you want to join.",
-        }]
-        reply, source = generate_reply("yes", history)
-        self.assertEqual(source, SOURCE_VERIFIED_KB)
-        self.assertLess(len(reply), 220)
-        self.assertNotIn("Testing Status", reply)
-        self.assertIn("Enroll", reply)
-        self.assertIn("Enroll", reply_to_short_yes(history))
-
-    def test_course_reply_mentions_internship_before_enroll(self):
-        reply = get_conversational_fallback("Tell me about Python Fullstack", "detailed")
-        self.assertIn("3 months", reply)
-        self.assertIn("enroll", reply.lower())
-        self.assertIn("do not need to sign in", reply.lower())
-
-    def test_course_brief_reply_packs_key_facts(self):
-        reply = get_conversational_fallback("Tell me about Python Fullstack", "brief")
-        self.assertIn("180", reply)
-        self.assertIn("internship", reply.lower())
-        self.assertIn("enroll", reply.lower())
-        self.assertIn("sign-in", reply.lower())
-
-    def test_default_reply_is_short_but_includes_key_course_facts(self):
-        reply, source = generate_reply("Tell me about Python Fullstack")
-        self.assertEqual(source, SOURCE_VERIFIED_KB)
-        self.assertLess(len(reply), 260)
-        self.assertIn("Python", reply)
-        self.assertIn("180", reply)
-        self.assertIn("internship", reply.lower())
-        self.assertIn("enroll", reply.lower())
-
-    def test_tell_me_more_returns_longer_course_reply(self):
+    def test_yes_after_course_context_keeps_public_enrolment_disabled(self):
         history = [
             {"role": "user", "text": "Tell me about Python Fullstack"},
-            {
-                "role": "bot",
-                "text": (
-                    "Python Fullstack: 180 days programme with a 3 months internship. "
-                    "You need a completed degree (UG/PG). Say enroll to join."
-                ),
-            },
+            {"role": "bot", "text": "Course information is currently unavailable here."},
         ]
-        short_reply, _ = generate_reply("Tell me about Python Fullstack")
-        long_reply, _ = generate_reply("tell me more", history)
-        self.assertGreater(len(long_reply), len(short_reply))
-        self.assertIn("do not need to sign in", long_reply.lower())
+        reply, source = generate_reply("yes", history)
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("currently unavailable", reply.lower())
+        self.assertNotIn("enroll", reply.lower())
+
+    def test_course_reply_keeps_public_course_details_disabled(self):
+        reply = get_conversational_fallback("Tell me about Python Fullstack", "detailed")
+        self.assertIn("currently unavailable", reply.lower())
+        self.assertNotIn("3 months", reply)
+        self.assertNotIn("internship", reply.lower())
+        self.assertNotIn("enroll", reply.lower())
+
+    def test_course_brief_reply_keeps_public_course_details_disabled(self):
+        reply = get_conversational_fallback("Tell me about Python Fullstack", "brief")
+        self.assertIn("currently unavailable", reply.lower())
+        self.assertNotIn("180", reply)
+        self.assertNotIn("internship", reply.lower())
+        self.assertNotIn("enroll", reply.lower())
+
+    def test_default_public_course_reply_does_not_expose_course_facts(self):
+        reply, source = generate_reply("Tell me about Python Fullstack")
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("currently unavailable", reply.lower())
+        self.assertNotIn("180", reply)
+        self.assertNotIn("internship", reply.lower())
+        self.assertNotIn("enroll to join", reply.lower())
+
+    def test_tell_me_more_does_not_reveal_disabled_course_details(self):
+        history = [
+            {"role": "user", "text": "Tell me about Python Fullstack"},
+            {"role": "bot", "text": "Course information is currently unavailable here."},
+        ]
+        long_reply, source = generate_reply("tell me more", history)
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("currently unavailable", long_reply.lower())
+        self.assertNotIn("180", long_reply)
+        self.assertNotIn("internship", long_reply.lower())
 
     def test_infer_reply_style_switches_automatically(self):
         history = [{"role": "bot", "text": "Python Fullstack is a 180-day programme."}]
@@ -1071,35 +1135,25 @@ class DemoQuestionCoverageTests(TestCase):
             )
         )
 
-    def test_tell_me_more_uses_previous_user_question(self):
-        from .knowledge import resolve_follow_up_query
-
+    def test_tell_me_more_follow_up_keeps_course_details_disabled(self):
         history = [
             {"role": "user", "text": "Tell me about Python Fullstack"},
-            {
-                "role": "bot",
-                "text": "Python Fullstack is a 180-day programme with a 3 month internship.",
-            },
+            {"role": "bot", "text": "Course information is currently unavailable here."},
         ]
-        expanded = resolve_follow_up_query("tell me more", history)
-        self.assertIn("Python Fullstack", expanded)
         reply, source = generate_reply("tell me more", history)
         self.assertEqual(source, SOURCE_VERIFIED_KB)
-        self.assertIn("Python", reply)
-        self.assertIn("180", reply)
+        self.assertIn("currently unavailable", reply.lower())
+        self.assertNotIn("180", reply)
 
-    def test_yes_without_action_offer_expands_to_course_details(self):
+    def test_yes_follow_up_does_not_reveal_disabled_course_details(self):
         history = [
             {"role": "user", "text": "What is Java Fullstack?"},
-            {
-                "role": "bot",
-                "text": "Java Fullstack covers Spring Boot, REST APIs, and frontend basics.",
-            },
+            {"role": "bot", "text": "Course information is currently unavailable here."},
         ]
         reply, source = generate_reply("yes", history)
         self.assertEqual(source, SOURCE_VERIFIED_KB)
-        self.assertIn("Java", reply)
-        self.assertIn("180", reply)
+        self.assertIn("currently unavailable", reply.lower())
+        self.assertNotIn("180", reply)
 
     def test_continuation_that_one_resolves_from_history(self):
         history = [
@@ -1224,7 +1278,7 @@ class GeminiRetryTests(TestCase):
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertNotIn("temporarily unavailable", reply)
         self.assertIn("Vetri Bills", reply)
-        self.assertNotIn("Our Products —", reply)
+        self.assertNotIn("Our Products â€”", reply)
 
     @override_settings(**_GEMINI_SETTINGS)
     @patch("chatbot.views.ask_gemini")
@@ -1583,10 +1637,13 @@ class LanguageSupportTests(TestCase):
     def test_detect_language_tamil_script(self):
         from .language import LANG_TA, detect_language
 
-        self.assertEqual(
-            detect_language("Python Fullstack பாடம் பற்றி சொல்லுங்கள்"),
-            LANG_TA,
+        tamil = (
+            "Python Fullstack "
+            "\u0baa\u0bbe\u0b9f\u0bae\u0bcd "
+            "\u0baa\u0bb1\u0bcd\u0bb1\u0bbf "
+            "\u0b9a\u0bca\u0bb2\u0bcd\u0bb2\u0bc1\u0b99\u0bcd\u0b95\u0bb3\u0bcd"
         )
+        self.assertEqual(detect_language(tamil), LANG_TA)
 
     def test_detect_language_tanglish(self):
         from .language import LANG_TA, detect_language
@@ -1606,30 +1663,40 @@ class LanguageSupportTests(TestCase):
         self.assertEqual(detect_language("tell me more", history), LANG_TA)
         self.assertEqual(detect_language("innum details", history), LANG_TA)
 
-    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
-    def test_tamil_course_question_returns_tamil_kb_reply(self):
-        reply, source = generate_reply("Python Fullstack பற்றி சொல்லுங்கள்")
+    @override_settings(GEMINI_API_KEY="", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
+    def test_tamil_course_question_returns_tamil_unavailable_reply(self):
+        from .language import LANG_TA
+
+        tamil_question = (
+            "Python Fullstack "
+            "\u0baa\u0bb1\u0bcd\u0bb1\u0bbf "
+            "\u0b9a\u0bca\u0bb2\u0bcd\u0bb2\u0bc1\u0b99\u0bcd\u0b95\u0bb3\u0bcd"
+        )
+        reply, source = generate_reply(tamil_question)
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertRegex(reply, r"[\u0B80-\u0BFF]")
-        self.assertIn("180", reply)
-        self.assertIn("internship", reply.lower())
+        self.assertNotIn("180", reply)
+        self.assertNotIn("internship", reply.lower())
 
-    @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
-    def test_tanglish_website_price_returns_tamil_with_gst(self):
+    @override_settings(GEMINI_API_KEY="", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
+    def test_tanglish_website_price_returns_verified_price_and_quotation_cta(self):
         reply, source = generate_reply("ecommerce website evlo")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
-        self.assertRegex(reply, r"[\u0B80-\u0BFF]|enroll")
-        self.assertIn("₹9,999 + GST", reply)
+        self.assertIn("\u20b99,999 + GST", reply)
+        self.assertIn("Quotation", reply)
+        self.assertNotIn("enroll", reply.lower())
+        self.assertNotIn("sign-in", reply.lower())
 
     @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
-    def test_english_question_stays_english_without_ai(self):
+    def test_english_course_question_stays_english_without_ai(self):
         reply, source = generate_reply("Tell me about Python Fullstack")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertNotRegex(reply, r"[\u0B80-\u0BFF]")
-        self.assertIn("Python", reply)
+        self.assertIn("currently unavailable", reply.lower())
+        self.assertNotIn("180", reply)
 
     @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
-    @patch("chatbot.views.ask_gemini", return_value="ஆம், Vetri Bills GST billing-க்கு உதவும்.")
+    @patch("chatbot.views.ask_gemini", return_value="\u0b86\u0bae\u0bcd, Vetri Bills GST billing.")
     def test_ai_prompt_includes_tamil_instruction(self, _mock_gemini):
         from .language import LANG_TA
 
@@ -1649,7 +1716,7 @@ class LanguageSupportTests(TestCase):
 
         prompt = build_prompt("Vetri Bills pathi", language=LANG_TA)
         self.assertIn("Tamil", prompt)
-        self.assertIn("தமிழ்", prompt)
+        self.assertIn("\u0ba4\u0bae\u0bbf\u0bb4\u0bcd", prompt)
 
 
 class BuildPromptVectorTests(TestCase):
@@ -1898,11 +1965,8 @@ class LeadsDashboardTests(TestCase):
             }),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(Enquiry.objects.filter(email="enrollee@example.com").count(), 1)
-        data = response.json()
-        self.assertNotIn("notes", data)
-        self.assertNotIn("assigned_to", data)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Enquiry.objects.filter(email="enrollee@example.com").count(), 0)
 
     def test_add_lead_note(self):
         from .leads import add_lead_note
@@ -2024,3 +2088,21 @@ class LeadsDashboardTests(TestCase):
         self.assertIn("/admin/login/", response.url)
         enquiry.refresh_from_db()
         self.assertIsNone(enquiry.assigned_to)
+
+
+
+class PublicCourseRemovalRegressionTests(TestCase):
+    def test_course_question_does_not_expose_legacy_course_facts(self):
+        from .knowledge import get_reply, get_grounding_facts
+
+        reply = get_reply("What courses are available?")
+        grounding = get_grounding_facts("Tell me about Python Fullstack course")
+        for forbidden in ("Python Fullstack", "180 days", "3-month internship", "enroll to join"):
+            self.assertNotIn(forbidden.lower(), reply.lower())
+            self.assertNotIn(forbidden.lower(), grounding.lower())
+
+    def test_vtms_remains_a_product_query(self):
+        from .knowledge import get_grounding_facts
+
+        facts = get_grounding_facts("Tell me about Vetri Training Management System")
+        self.assertNotIn("course duration", facts.lower())
