@@ -1629,6 +1629,11 @@ def get_conversational_fallback(
     product_id = match_product_id(text)
 
     if product_id:
+        if detailed:
+            detail = get_grounding_facts(message)
+            if detail and GENERIC_FALLBACK_MARKER not in detail:
+                return detail
+
         summary = SHORT_PRODUCT_SUMMARIES.get(product_id)
         if summary:
             return f"{summary} Want more detail on any feature?"
