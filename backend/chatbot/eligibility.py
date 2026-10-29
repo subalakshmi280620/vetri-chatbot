@@ -211,11 +211,11 @@ def _eligibility_reply_in_language(english_reply: str, language: str) -> str:
         return english_reply
     if "you meet the requirement" in english_reply.lower():
         return english_reply.replace(
-            "Good news â€” with your",
-            "à®¨à®²à¯à®² à®šà¯†à®¯à¯à®¤à®¿ â€” à®‰à®™à¯à®•à®³à¯",
+            "Good news — with your",
+            "நல்ல செய்தி — உங்கள்",
         ).replace(
             "Would you like to know about fees or how to apply?",
-            "fees à®…à®²à¯à®²à®¤à¯ apply à®ªà®±à¯à®±à®¿ à®¤à¯†à®°à®¿à®¯ à®µà¯‡à®£à¯à®Ÿà¯à®®à®¾?",
+            "கட்டணம் அல்லது எப்படி விண்ணப்பிப்பது என்பதைத் தெரிந்துகொள்ள விரும்புகிறீர்களா?",
         )
     if "may not meet that yet" in english_reply.lower():
         return english_reply.replace(
@@ -223,26 +223,26 @@ def _eligibility_reply_in_language(english_reply: str, language: str) -> str:
             "",
         ).replace(
             ", a completed degree is required",
-            " â€” à®®à¯à®Ÿà®¿à®¤à¯à®¤ degree à®¤à¯‡à®µà¯ˆ",
+            " — முடித்த பட்டப்படிப்பு அவசியம்",
         ).replace(
             "Based on what you shared",
-            "à®¨à¯€à®™à¯à®•à®³à¯ à®ªà®•à®¿à®°à¯à®¨à¯à®¤à®¤à¯",
+            "நீங்கள் பகிர்ந்த தகவலின்படி",
         )
     if "Which course are you interested in" in english_reply:
         return (
-            "à®¨à®©à¯à®±à®¿! à®Žà®¨à¯à®¤ course-à®²à¯ interest? Python Fullstack, Java Fullstack, UI/UX, "
-            "Software Testing à®®à®±à¯à®±à¯à®®à¯ à®ªà®² à®‰à®³à¯à®³à®©."
+            "நன்றி! எந்தப் பயிற்சிப் பாடத்தில் சேர விரும்புகிறீர்கள்? Python Fullstack, Java Fullstack, UI/UX, "
+            "Software Testing உள்ளிட்ட பாடங்கள் உள்ளன."
         )
     if "What's your qualification" in english_reply:
         return english_reply.replace(
             "What's your qualification?",
-            "à®‰à®™à¯à®•à®³à¯ qualification à®Žà®©à¯à®©? (à®Ž.à®•à®¾. B.Tech, B.Sc, BCA, B.Com, MBA, MCA)",
+            "உங்கள் கல்வித் தகுதி என்ன? (எ.கா., B.Tech, B.Sc, BCA, B.Com, MBA, MCA)",
         )
     if "don't have enough verified info" in english_reply.lower():
         return (
             english_reply.replace(
                 "Thanks for sharing",
-                "à®ªà®•à®¿à®°à¯à®¨à¯à®¤à®¤à®±à¯à®•à¯ à®¨à®©à¯à®±à®¿",
+                "பகிர்ந்த தகவலுக்கு நன்றி",
             )
         )
     return english_reply

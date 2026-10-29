@@ -3,6 +3,12 @@ import heroArtwork from './assets/hero.png'
 import './App.css'
 
 const PRODUCTION_API_URL = 'https://vetri-chatbot-1.onrender.com'
+const DEFAULT_CONTACT_PHONE = '+91 84381 54827'
+const DEFAULT_CONTACT_EMAIL = 'business@vetriit.com'
+const DEFAULT_FOOTER_EMAIL = 'support@vetri-it.com'
+const DEFAULT_CONTACT_WEBSITE = 'https://vetriitsystems.com'
+const DEFAULT_CONTACT_ADDRESS =
+  'VTS & VIS, Shanthi Complex, Surandai Old Market, Near Surandai Bus Stand, Surandai-627859, Tenkasi District'
 
 function resolveApiBase() {
   const fromEnv = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
@@ -65,7 +71,17 @@ async function buildAttachmentFromFile(file) {
 const HEALTH_URL = `${API_BASE}/health/`
 const EMBED_SEARCH = new URLSearchParams(window.location.search)
 const IS_EMBED = EMBED_SEARCH.get('embed') === '1'
-const SITE_ROUTES = { '/': 'home', '/about': 'about', '/products': 'products', '/services': 'services', '/portfolio': 'portfolio', '/contact': 'contact', '/enquiry': 'enquiry', '/login': 'login' }
+const SITE_ROUTES = {
+  '/': 'home',
+  '/about': 'about',
+  '/products': 'products',
+  '/services': 'services',
+  '/portfolio': 'portfolio',
+  '/why-vis': 'why-vis',
+  '/contact': 'contact',
+  '/enquiry': 'enquiry',
+  '/login': 'login',
+}
 const CURRENT_PAGE = SITE_ROUTES[window.location.pathname.replace(/\/$/, '') || '/'] || 'home'
 const EMBED_HOST_WIDGET = EMBED_SEARCH.get('open') === '1'
 const EMBED_PAUSED = false
@@ -668,6 +684,7 @@ function FollowUpChips({ items, disabled, onSelect }) {
 function EnquiryModal({
   open,
   enquiryType,
+  adminContent,
   form,
   onChange,
   onTypeChange,
@@ -682,7 +699,7 @@ function EnquiryModal({
   const activeType = tabs.some((tab) => tab.type === enquiryType)
     ? enquiryType
     : 'quotation'
-  const fieldConfig = ENQUIRY_FORM_CONFIG[activeType] || ENQUIRY_FORM_CONFIG.quotation
+  const fieldConfig = getEnquiryFieldConfig(activeType, adminContent)
 
   return (
     <div className="enquiry-overlay" onClick={onClose}>
@@ -792,14 +809,23 @@ function EnquiryModal({
   )
 }
 
-function SiteNav({ onEnquiry }) {
+function getCompanyValue(companyInfo, configured, field, fallback = '') {
+  if (configured) {
+    return typeof companyInfo?.[field] === 'string' ? companyInfo[field].trim() : ''
+  }
+  return companyInfo?.[field]?.trim() || fallback
+}
+
+function SiteNav({ onEnquiry, authToken, onLogout, companyInfo, companyConfigured }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const companyName = getCompanyValue(companyInfo, companyConfigured, 'company_name', 'Vetri IT Systems')
   const navItems = [
     ['Home', '/'],
     ['About Us', '/about'],
     ['Services', '/services'],
     ['Products', '/products'],
     ['Portfolio', '/portfolio'],
+    ['Why VIS', '/why-vis'],
     ['Contact', '/contact'],
   ]
 
@@ -812,11 +838,11 @@ function SiteNav({ onEnquiry }) {
       <nav className="site-nav-inner" aria-label="Main navigation" onKeyDown={(event) => {
         if (event.key === 'Escape') closeMenu()
       }}>
-        <a href="/" className="site-brand" onClick={closeMenu} aria-label="Vetri IT Systems home">
+        <a href="/" className="site-brand" onClick={closeMenu} aria-label={`${companyName} home`}>
           <VisLogo size={48} className="site-logo-mark" />
           <span className="site-brand-copy">
-            <span className="site-name">Vetri IT Systems</span>
-            <span className="site-sub">Technology with purpose</span>
+            <span className="site-name">{companyName}</span>
+            <span className="site-sub">{getCompanyValue(companyInfo, companyConfigured, 'tagline', 'Technology with purpose')}</span>
           </span>
         </a>
         <button
@@ -835,22 +861,44 @@ function SiteNav({ onEnquiry }) {
             <a key={href} href={href} onClick={closeMenu}>{label}</a>
           ))}
         </div>
-        <button className="site-cta" type="button" onClick={() => onEnquiry('quotation')}>
-          Get a quotation <ArrowIcon />
-        </button>
+        <div className="site-nav-actions">
+          <button className="site-cta" type="button" onClick={() => onEnquiry('quotation')}>
+            Get a quotation <ArrowIcon />
+          </button>
+          {authToken && (
+            <button
+              className="site-logout"
+              type="button"
+              onClick={onLogout}
+              aria-label="Log out of Vetri IT Systems"
+            >
+              Log out
+            </button>
+          )}
+        </div>
       </nav>
     </header>
   )
 }
 
-function SiteFooter({ onEnquiry }) {
+function SiteFooter({ onEnquiry, adminContent }) {
+  const companyInfo = adminContent?.company
+  const companyConfigured = adminContent?.company_configured === true
+  const companyName = getCompanyValue(companyInfo, companyConfigured, 'company_name', 'Vetri IT Systems')
+  const legalName = getCompanyValue(companyInfo, companyConfigured, 'legal_name', 'Vetri IT Systems Pvt Ltd')
+  const products = getVisibleProducts(adminContent)
+  const services = getVisibleServices(adminContent)
+  const phone = getCompanyValue(companyInfo, companyConfigured, 'phone', DEFAULT_CONTACT_PHONE)
+  const email = getCompanyValue(companyInfo, companyConfigured, 'email', DEFAULT_FOOTER_EMAIL)
+  const website = getCompanyValue(companyInfo, companyConfigured, 'website', DEFAULT_CONTACT_WEBSITE)
+
   return (
     <footer className="site-footer">
       <div className="site-footer-grid">
         <div className="footer-col footer-brand-col">
           <div className="footer-brand">
             <VisLogo size={46} />
-            <strong>Vetri IT Systems</strong>
+            <strong>{companyName}</strong>
           </div>
           <p>Enterprise software, applied AI and digital transformation for businesses that intend to lead their category.</p>
         </div>
@@ -861,41 +909,30 @@ function SiteFooter({ onEnquiry }) {
           <a href="#services">Services</a>
           <a href="#products">Products</a>
           <a href="#ai-solutions">AI solutions</a>
-          <a href="#why-vis">Why VIS</a>
+          <a href="/why-vis">Why VIS</a>
           <a href="#contact">Contact</a>
         </div>
         <div className="footer-col">
           <strong>Our Products</strong>
-          {[
-            'Vetri Bills',
-            'Vetri Files',
-            'Vetri Project Management',
-            'Coach AI',
-            'Vetri AI Assistant',
-            'Vetri CRM',
-            'Vetri Training Management System',
-            'HR Management Tool',
-          ].map((name) => (
+          {products.map(({ name }) => (
             <a key={name} href={`#${productAnchorId(name)}`}>{name}</a>
           ))}
         </div>
         <div className="footer-col">
           <strong>Services & contact</strong>
-          <a href="#services">Website development</a>
-          <a href="#services">Mobile app development</a>
-          <a href="#services">AI solutions</a>
-          <a href="#services">Digital marketing & SEO</a>
-          <a href="#services">Cloud services</a>
-          <a href="tel:+918438154827" className="footer-link">+91 84381 54827</a>
-          <a href="mailto:support@vetri-it.com" className="footer-link">support@vetri-it.com</a>
-          <a href="https://vetriitsystems.com" target="_blank" rel="noreferrer">vetriitsystems.com</a>
+          {services.slice(0, 5).map(({ name }) => (
+            <a key={name} href="#services">{name}</a>
+          ))}
+          {phone && <a href={`tel:${phone.replace(/[^+\d]/g, '')}`} className="footer-link">{phone}</a>}
+          {email && <a href={`mailto:${email}`} className="footer-link">{email}</a>}
+          {website && <a href={website} target="_blank" rel="noreferrer">{website.replace(/^https?:\/\//, '')}</a>}
           <button className="footer-contact-btn" type="button" onClick={() => onEnquiry('general')}>
             Start an enquiry <ArrowIcon />
           </button>
         </div>
       </div>
       <div className="site-footer-copy">
-        <span>© {new Date().getFullYear()} Vetri IT Systems Pvt Ltd</span>
+        <span>© {new Date().getFullYear()} {legalName}</span>
         <span>Built around your business.</span>
       </div>
     </footer>
@@ -905,6 +942,7 @@ function SiteFooter({ onEnquiry }) {
 
 function ContactEnquiryForm({
   enquiryType,
+  adminContent,
   form,
   onChange,
   onTypeChange,
@@ -915,7 +953,7 @@ function ContactEnquiryForm({
   const activeType = ENQUIRY_TYPE_TABS.some((tab) => tab.type === enquiryType)
     ? enquiryType
     : 'general'
-  const fieldConfig = ENQUIRY_FORM_CONFIG[activeType] || ENQUIRY_FORM_CONFIG.general
+  const fieldConfig = getEnquiryFieldConfig(activeType, adminContent)
 
   return (
     <form className="contact-inline-form" onSubmit={onSubmit}>
@@ -1043,6 +1081,103 @@ const PRODUCT_LIST = [
   ['HR Management Tool', 'People-first HRMS', 'Employee records, attendance, payroll, leave and performance reviews.'],
 ]
 
+function getVisibleProducts(adminContent) {
+  const adminProducts = Array.isArray(adminContent?.products)
+    ? adminContent.products.filter((item) => typeof item.name === 'string' && item.name.trim())
+    : []
+
+  if (!adminProducts.length && adminContent?.products_configured !== true) {
+    return PRODUCT_LIST.map(([name, category, description]) => ({
+      name,
+      category,
+      description,
+      features: '',
+      price: null,
+      priceNote: '',
+    }))
+  }
+
+  return adminProducts.map((item) => {
+    const existingProduct = PRODUCT_LIST.find(([name]) => name === item.name)
+    return {
+      name: item.name,
+      category: existingProduct?.[1] || '',
+      description: typeof item.description === 'string'
+        ? item.description
+        : existingProduct?.[2] || '',
+      features: item.features || '',
+      price: item.price,
+      priceNote: item.price_note || '',
+    }
+  })
+}
+
+function getVisibleServices(adminContent) {
+  const adminServices = Array.isArray(adminContent?.services)
+    ? adminContent.services.filter((item) => typeof item.name === 'string' && item.name.trim())
+    : []
+
+  if (!adminServices.length && adminContent?.services_configured !== true) {
+    return SERVICE_LIST.map(([name, description]) => ({ name, description, features: '' }))
+  }
+
+  return adminServices.map((item) => ({
+    name: item.name,
+    description: item.description || '',
+    features: item.features || '',
+  }))
+}
+
+function getEnquiryFieldConfig(type, adminContent) {
+  const baseConfig = ENQUIRY_FORM_CONFIG[type] || ENQUIRY_FORM_CONFIG.general
+  const products = (adminContent?.products || []).map((item) => item.name).filter(Boolean)
+  const services = (adminContent?.services || []).map((item) => item.name).filter(Boolean)
+  const productsConfigured = adminContent?.products_configured === true
+  const catalogConfigured = productsConfigured || adminContent?.services_configured === true
+
+  if (!products.length && !services.length && !catalogConfigured) return baseConfig
+
+  if (type === 'demo') {
+    return {
+      ...baseConfig,
+      interestRequired: products.length > 0 || !productsConfigured,
+      interestOptions: products.length
+        ? products
+        : productsConfigured
+          ? []
+          : baseConfig.interestOptions,
+    }
+  }
+
+  if (!products.length && !services.length) {
+    return {
+      ...baseConfig,
+      interestOptions: type === 'quotation'
+        ? ['Other']
+        : CONSULTATION_INTEREST_OPTIONS,
+    }
+  }
+
+  let interestOptions = baseConfig.interestOptions
+  if (type === 'quotation') {
+    interestOptions = [...products, ...services, 'Other']
+  } else if (type === 'sales' || type === 'general') {
+    interestOptions = [...products, ...services, ...CONSULTATION_INTEREST_OPTIONS]
+  }
+
+  return { ...baseConfig, interestOptions: [...new Set(interestOptions)] }
+}
+
+function getProductPriceLabel(price, priceNote) {
+  const amount = price === null || price === undefined || price === ''
+    ? ''
+    : Number.isFinite(Number(price))
+      ? `₹${Number(price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+      : String(price).trim()
+
+  return [amount, priceNote].filter(Boolean).join(' · ')
+}
+
 const PORTFOLIO_LIST = [
   {
     name: 'Retail POS System',
@@ -1095,6 +1230,7 @@ function SparkIcon() {
 function MarketingSite({
   onEnquiry,
   onChat,
+  adminContent,
   enquiryType,
   enquiryForm,
   onEnquiryFieldChange,
@@ -1103,42 +1239,38 @@ function MarketingSite({
   enquirySubmitting,
   enquiryError,
 }) {
-  const [adminContent, setAdminContent] = useState(null)
-
-  useEffect(() => {
-    let cancelled = false
-    apiFetch(PUBLIC_CONTENT_URL)
-      .then((response) => {
-        if (!response.ok) throw new Error('Public content unavailable')
-        return response.json()
-      })
-      .then((content) => {
-        if (!cancelled && content && Array.isArray(content.products) && Array.isArray(content.services)) {
-          setAdminContent(content)
-        }
-      })
-      .catch(() => {
-        // Keep the existing public page usable if the API is temporarily unavailable.
-      })
-    return () => { cancelled = true }
-  }, [])
-
   const companyInfo = adminContent?.company || null
-  const visibleProducts = adminContent
-    ? adminContent.products.map((item) => [item.name, item.price ? `₹${item.price}` : (item.price_note || 'Product'), item.description])
-    : PRODUCT_LIST
-  const visibleServices = adminContent
-    ? adminContent.services.map((item) => [item.name, item.description])
-    : SERVICE_LIST
+  const companyConfigured = adminContent?.company_configured === true
+  const visibleProducts = getVisibleProducts(adminContent)
+  const visibleServices = getVisibleServices(adminContent)
+  const contactPhone = getCompanyValue(companyInfo, companyConfigured, 'phone', DEFAULT_CONTACT_PHONE)
+  const contactEmail = getCompanyValue(companyInfo, companyConfigured, 'email', DEFAULT_CONTACT_EMAIL)
+  const contactWebsite = getCompanyValue(companyInfo, companyConfigured, 'website', DEFAULT_CONTACT_WEBSITE)
+  const contactAddress = getCompanyValue(companyInfo, companyConfigured, 'address', DEFAULT_CONTACT_ADDRESS)
+  const contactMapUrl = getCompanyValue(
+    companyInfo,
+    companyConfigured,
+    'map_url',
+    contactAddress
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactAddress)}`
+      : '',
+  )
 
   return (
     <main className={`marketing-site page-route-${CURRENT_PAGE}`}>
       <section className="hero-section" id="home">
         <div className="hero-grid-glow" aria-hidden="true" />
+        <svg className="hero-wave-art" viewBox="0 0 1600 330" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M-30 184 C110 86 205 275 348 221 S584 63 738 165 956 278 1107 185 1323 100 1630 211" stroke="#1bdcff" />
+          <path d="M-30 221 C130 293 255 114 405 170 S627 279 793 190 1001 83 1161 154 1417 269 1630 133" stroke="#ac35ff" />
+          <path d="M-30 145 C134 228 269 274 411 191 S618 92 787 190 1007 280 1168 190 1395 93 1630 188" stroke="#2275ff" />
+          <path d="M-30 264 C145 191 251 85 403 163 S632 306 800 217 1010 100 1187 174 1416 278 1630 168" stroke="#32efbf" />
+          <path d="M-30 190 C142 90 284 302 454 210 S677 78 847 181 1048 285 1211 182 1436 104 1630 218" stroke="#cf33ff" />
+        </svg>
         <div className="hero-inner">
           <div className="hero-copy">
             <div className="hero-eyebrow"><span className="eyebrow-dot" /> AI-FIRST ENTERPRISE TECHNOLOGY <span className="eyebrow-rule" /> TAMIL NADU, INDIA</div>
-            <h1>Transforming businesses with <span>AI-powered digital solutions.</span></h1>
+            <h1>Transforming businesses with AI-powered <span>digital solutions.</span></h1>
             <p className="hero-lede">We build practical technology solutions that help businesses simplify operations, improve customer experiences and grow with confidence.</p>
             <p className="hero-detail">From custom software and web applications to mobile solutions, Agentic AI and Generative AI, Vetri IT Systems brings technology, business thinking and execution together under one team.</p>
             <div className="hero-actions">
@@ -1187,7 +1319,7 @@ function MarketingSite({
             <p className="section-kicker"><span>01</span> ABOUT VETRI IT SYSTEMS</p>
             <h2>Technology built around <span>your business.</span></h2>
             <p className="section-lede">Technology should solve real business problems — not create more complexity.</p>
-            <p>{companyInfo?.description || "We work with businesses to understand their goals, identify the right technology approach and build solutions that are practical, scalable and ready for the future. From custom software and digital applications to AI-powered solutions, we combine technical expertise with a business-first approach."}</p>
+            <p>{getCompanyValue(companyInfo, companyConfigured, 'description', "We work with businesses to understand their goals, identify the right technology approach and build solutions that are practical, scalable and ready for the future. From custom software and digital applications to AI-powered solutions, we combine technical expertise with a business-first approach.")}</p>
             <button type="button" className="text-action" onClick={() => onEnquiry('consultation')}>Talk through your next step <ArrowIcon /></button>
           </div>
           <div className="about-side">
@@ -1209,18 +1341,18 @@ function MarketingSite({
         <div className="section-container">
           <div className="mission-heading">
             <p className="section-kicker"><span>02</span> MISSION & VISION</p>
-            <h2>What drives every line<br />of code we ship.</h2>
+            <h2>What drives every line<br />of <span>code</span> we ship.</h2>
           </div>
           <div className="mission-cards">
             <article className="mission-card vision-card">
               <span className="mission-orb"><SparkIcon /></span><span className="mission-label">OUR VISION</span>
               <h3>An AI-powered business for everyone.</h3>
-              <p>{companyInfo?.vision || "To become a globally recognized engineering and digital solutions company by championing innovative thinking and delivering high-standard services and enterprise-grade software solutions."}</p>
+              <p>{getCompanyValue(companyInfo, companyConfigured, 'vision', "To become a globally recognized engineering and digital solutions company by championing innovative thinking and delivering high-standard services and enterprise-grade software solutions.")}</p>
             </article>
             <article className="mission-card">
               <span className="mission-orb"><span className="orb-target">◎</span></span><span className="mission-label">OUR MISSION</span>
               <h3>Make enterprise technology effortless.</h3>
-              <p>{companyInfo?.mission || "To provide customer-centric, result-oriented, cost-competitive, innovative and functional IT and software engineering solutions that empower sustainable digital growth and measurable impact."}</p>
+              <p>{getCompanyValue(companyInfo, companyConfigured, 'mission', "To provide customer-centric, result-oriented, cost-competitive, innovative and functional IT and software engineering solutions that empower sustainable digital growth and measurable impact.")}</p>
             </article>
           </div>
         </div>
@@ -1234,15 +1366,26 @@ function MarketingSite({
             <p>Purpose-built software for the operational details that keep a business moving.</p>
           </div>
           <div className="product-grid">
-            {visibleProducts.map(([name, category, description], index) => (
-              <article className="product-card" id={productAnchorId(name)} key={name}>
-                <div className="product-card-top"><span className="product-index">0{index + 1}</span><span className="product-symbol">{name.slice(0, 1)}</span></div>
-                <p className="product-category">{category}</p>
-                <h3>{name}</h3>
-                <p className="product-description">{description}</p>
-                <button type="button" className="card-link" onClick={() => onEnquiry('demo', name)}>Request a demo <ArrowIcon /></button>
-              </article>
-            ))}
+            {visibleProducts.map((product, index) => {
+          const { name, category, description, features, price, priceNote } = product
+          const priceLabel = getProductPriceLabel(price, priceNote)
+          return (
+            <article className="product-card" id={productAnchorId(name)} key={name}>
+              <div className="product-card-top"><span className="product-index">0{index + 1}</span><span className="product-symbol">{name.slice(0, 1)}</span></div>
+              {category && <p className="product-category">{category}</p>}
+              <h3>{name}</h3>
+              {description && <p className="product-description">{description}</p>}
+              {features && (
+                <p className="product-features">
+                  <strong>Features</strong>
+                  <span>{features}</span>
+                </p>
+              )}
+              {priceLabel && <p className="product-price">{priceLabel}</p>}
+              <button type="button" className="card-link" onClick={() => onEnquiry('demo', name)}>Request a demo <ArrowIcon /></button>
+            </article>
+          )
+            })}
           </div>
           <div className="product-footnote"><span>ONE PRODUCT FAMILY</span><span className="line-fill" /><span>BUILT TO WORK TOGETHER</span></div>
         </div>
@@ -1255,11 +1398,14 @@ function MarketingSite({
             <div className="services-head-aside"><p>One accountable partner across design, engineering, AI, cloud and growth — so your roadmap never stalls between vendors.</p><button type="button" className="text-action" onClick={() => onEnquiry('consultation')}>Explore a project together <ArrowIcon /></button></div>
           </div>
           <div className="service-list">
-            {visibleServices.map(([name, description], index) => (
+            {visibleServices.map(({ name, description, features }, index) => (
               <article className="service-item" key={name}>
                 <span className="service-index">{String(index + 1).padStart(2, '0')}</span>
                 <h3>{name}</h3>
-                <p>{description}</p>
+                <div className="service-description">
+                  <p>{description}</p>
+                  {features && <p className="service-features">{features}</p>}
+                </div>
                 <button type="button" aria-label={`Enquire about ${name}`} onClick={() => onEnquiry('quotation', name)}><ArrowIcon /></button>
               </article>
             ))}
@@ -1355,7 +1501,7 @@ function MarketingSite({
           <h2>Tell us what your business needs.</h2>
           <p className="section-lede">Share your requirement with the Vetri IT Systems team. We will help you find the right next step.</p>
           <button type="button" className="btn-primary" onClick={() => onEnquiry('general')}>Start an enquiry <ArrowIcon /></button>
-          <a className="btn-quiet" href={`https://wa.me/${(companyInfo?.phone || "+91 84387 81327").replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer">Chat on WhatsApp</a>
+          <a className="btn-quiet" href={`https://wa.me/${contactPhone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">Chat on WhatsApp</a>
         </div>
       </section>
 
@@ -1369,6 +1515,7 @@ function MarketingSite({
               <p>Share your goals with our team — whether you’re exploring a product, a custom build, or training.</p>
               <ContactEnquiryForm
                 enquiryType={enquiryType}
+                adminContent={adminContent}
                 form={enquiryForm}
                 onChange={onEnquiryFieldChange}
                 onTypeChange={onEnquiryTypeChange}
@@ -1381,16 +1528,16 @@ function MarketingSite({
               <span className="contact-details-kicker">DIRECT CONTACT</span>
               <h3>Talk to our team.</h3>
               <p>Speak directly with a solution consultant — no call centres, no scripts.</p>
-              <a href={`tel:${(companyInfo?.phone || "+91 84387 81327").replace(/[^+\d]/g, "")}`}><span className="contact-icon">T</span><span><small>CALL US</small><strong>{companyInfo?.phone || "+91 84387 81327"}</strong></span><ArrowIcon /></a>
-              <a href={`mailto:${companyInfo?.email || "business@vetriit.com"}`}><span className="contact-icon">@</span><span><small>EMAIL</small><strong>{companyInfo?.email || "business@vetriit.com"}</strong></span><ArrowIcon /></a>
-              <a href={companyInfo?.website || "https://vetriitsystems.com"} target="_blank" rel="noreferrer"><span className="contact-icon">W</span><span><small>WEBSITE</small><strong>{(companyInfo?.website || "https://vetriitsystems.com").replace(/^https?:\/\//, "")}</strong></span><ArrowIcon /></a>
-              <div className="contact-address">
+              {contactPhone && <a href={`tel:${contactPhone.replace(/[^+\d]/g, '')}`}><span className="contact-icon">T</span><span><small>CALL US</small><strong>{contactPhone}</strong></span><ArrowIcon /></a>}
+              {contactEmail && <a href={`mailto:${contactEmail}`}><span className="contact-icon">@</span><span><small>EMAIL</small><strong>{contactEmail}</strong></span><ArrowIcon /></a>}
+              {contactWebsite && <a href={contactWebsite} target="_blank" rel="noreferrer"><span className="contact-icon">W</span><span><small>WEBSITE</small><strong>{contactWebsite.replace(/^https?:\/\//, "")}</strong></span><ArrowIcon /></a>}
+              {contactAddress && <div className="contact-address">
                 <span className="contact-icon">V</span>
-                <span><small>VISIT</small><strong>{companyInfo?.address || "VTS & VIS, Shanthi Complex, Surandai Old Market, Near Surandai Bus Stand, Surandai-627859, Tenkasi District"}</strong></span>
-              </div>
-              <a
+                <span><small>VISIT</small><strong>{contactAddress}</strong></span>
+              </div>}
+              {contactMapUrl && <a
                 className="contact-map-card"
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(companyInfo?.address || "VTS & VIS, Shanthi Complex, Surandai Old Market, Near Surandai Bus Stand, Surandai-627859, Tenkasi District")}`}
+                href={contactMapUrl}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Open directions to Vetri Academy in Google Maps"
@@ -1406,10 +1553,10 @@ function MarketingSite({
                   <span className="map-place map-place-three" />
                 </span>
                 <span className="contact-map-caption">
-                  <span><strong>Vetri Academy</strong><small>Surandai · Open directions</small></span>
+                  <span><strong>{getCompanyValue(companyInfo, companyConfigured, 'company_name', 'Vetri Academy')}</strong><small>{contactAddress || 'Open directions'}</small></span>
                   <ArrowIcon />
                 </span>
-              </a>
+              </a>}
               <button type="button" className="chat-invite" onClick={onChat}><span className="chat-invite-indicator" /><span>Prefer a quick answer?</span><strong>Ask Coach AI <ArrowIcon /></strong></button>
             </aside>
           </div>
@@ -1567,6 +1714,7 @@ function HistorySidebar({
 
 function App() {
   const [authToken, setAuthToken] = useState(() => window.localStorage.getItem(AUTH_TOKEN_KEY) || '')
+  const [adminContent, setAdminContent] = useState(null)
   const [messages, setMessages] = useState([])
   const [conversationId, setConversationId] = useState('')
   const [input, setInput] = useState('')
@@ -1592,6 +1740,44 @@ function App() {
   const speechRef = useRef(null)
   const enquirySubmitLockRef = useRef(false)
   const voiceSupported = Boolean(SPEECH_RECOGNITION)
+
+  useEffect(() => {
+    if (!authToken || IS_EMBED) {
+      return undefined
+    }
+
+    let active = true
+    const refreshAdminContent = async () => {
+      try {
+        const response = await apiFetch(PUBLIC_CONTENT_URL)
+        if (!response.ok) {
+          throw new Error(`Public content request failed (${response.status}).`)
+        }
+        const content = await response.json()
+        if (
+          !content
+          || !Array.isArray(content.products)
+          || !Array.isArray(content.services)
+          || !Array.isArray(content.faqs)
+        ) {
+          throw new Error('Public content response has an unexpected format.')
+        }
+        if (active) setAdminContent(content)
+      } catch (error) {
+        if (active) console.error('Unable to refresh Admin-managed website content:', error)
+      }
+    }
+
+    refreshAdminContent()
+    const intervalId = window.setInterval(refreshAdminContent, 60_000)
+    window.addEventListener('focus', refreshAdminContent)
+
+    return () => {
+      active = false
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', refreshAdminContent)
+    }
+  }, [authToken])
 
   const loadHistoryList = useCallback(async () => {
     try {
@@ -1819,7 +2005,7 @@ function App() {
   }
 
   function handleEnquiryTypeChange(type) {
-    const config = ENQUIRY_FORM_CONFIG[type]
+    const config = getEnquiryFieldConfig(type, adminContent)
     setEnquiryType(type)
     setEnquiryError('')
     if (!config) return
@@ -1831,7 +2017,7 @@ function App() {
 
   function openEnquiry(type = 'general', desiredInterest = '') {
     const activeType = ENQUIRY_TYPE_TABS.some((tab) => tab.type === type) ? type : 'quotation'
-    const config = ENQUIRY_FORM_CONFIG[activeType]
+    const config = getEnquiryFieldConfig(activeType, adminContent)
     setEnquiryType(activeType)
     setEnquiryError('')
 
@@ -2126,6 +2312,13 @@ function App() {
     (index, msg, current) => (msg.role === 'bot' ? current : index),
     -1
   )
+  const companyConfigured = adminContent?.company_configured === true
+  const contactPhone = getCompanyValue(
+    adminContent?.company,
+    companyConfigured,
+    'phone',
+    DEFAULT_CONTACT_PHONE,
+  )
 
   if (!IS_EMBED && !authToken) return <AuthGate onAuthenticated={setAuthToken} />
 
@@ -2151,10 +2344,29 @@ function App() {
     >
       {!IS_EMBED && (
         <>
-          <SiteNav onEnquiry={openEnquiry} />
+          <SiteNav
+            onEnquiry={openEnquiry}
+            authToken={authToken}
+            companyInfo={adminContent?.company}
+            companyConfigured={companyConfigured}
+            onLogout={async () => {
+              try {
+                await fetch(`${API_BASE}/api/chatbot/auth/logout/`, {
+                  method: 'POST',
+                  headers: { 'X-Visitor-Auth': authToken },
+                })
+              } catch (error) {
+                console.error('Logout request failed:', error)
+              }
+              window.localStorage.removeItem(AUTH_TOKEN_KEY)
+              setAdminContent(null)
+              setAuthToken('')
+            }}
+          />
           <MarketingSite
             onEnquiry={openEnquiry}
             onChat={() => setWidgetOpen(true)}
+            adminContent={adminContent}
             enquiryType={enquiryType}
             enquiryForm={enquiryForm}
             onEnquiryFieldChange={updateEnquiryField}
@@ -2163,52 +2375,43 @@ function App() {
             enquirySubmitting={enquirySubmitting}
             enquiryError={enquiryError}
           />
-          <SiteFooter onEnquiry={openEnquiry} />
-          
-<button
-  className="site-logout"
-  type="button"
-  onClick={async () => {
-    try {
-      await fetch(`${API_BASE}/api/chatbot/auth/logout/`, {
-        method: 'POST',
-        headers: { 'X-Visitor-Auth': authToken },
-      })
-    } catch (error) {
-      console.error('Logout request failed:', error)
-    }
-    window.localStorage.removeItem(AUTH_TOKEN_KEY)
-    setAuthToken('')
-  }}
->
-  Log out
-</button>
-
-          
-          <div className="floating-contact-actions" aria-label="Contact Vetri IT Systems">
-            <a
-  className="floating-contact whatsapp-contact"
-  href="https://wa.me/918438154827"
-  target="_blank"
-  rel="noreferrer"
-  aria-label="Chat with Vetri IT Systems on WhatsApp"
-  title="WhatsApp"
->
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.9L0 24l6.5-1.7a11.8 11.8 0 0 0 5.6 1.4h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.2-1.2-6.2-3.5-8.4ZM12.1 21.7c-1.8 0-3.5-.5-5-1.4l-.4-.2-3.8 1 1-3.7-.2-.4a9.8 9.8 0 1 1 8.4 4.7Zm5.4-7.3c-.3-.2-1.7-.8-2-.9-.3-.1-.5-.2-.7.2-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.4-.5.3-.5c.1-.2 0-.4 0-.5-.1-.2-.7-1.6-1-2.1-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.7 1.1 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.3 1.2.5 1.6.6.7.3 1.2.1 1.8.1.6-.1 1.7-.7 1.9-1.4.2-.7.1-1.3.1-1.4-.1-.1-.3-.2-.6-.4Z" />
-              </svg>
-            </a>
-            <a
-  className="floating-contact call-contact"
-  href="tel:+918438154827"
-  aria-label="Call Vetri IT Systems"
-  title="Call Vetri IT Systems"
->
+          <SiteFooter onEnquiry={openEnquiry} adminContent={adminContent} />
+          {!widgetOpen && (
+          <div className="floating-actions-row">
+            <button
+              type="button"
+              className="launcher"
+              onClick={() => setWidgetOpen(true)}
+              aria-label="Open Coach AI"
+              aria-haspopup="dialog"
+            >
+              <span className="launcher-pulse" aria-hidden="true" />
+              <RobotFace size={44} />
+            </button>
+            {contactPhone && <a
+              className="floating-contact call-contact"
+              href={`tel:${contactPhone.replace(/[^+\d]/g, '')}`}
+              aria-label="Call Vetri IT Systems"
+              title="Call Vetri IT Systems"
+            >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6.6 10.8a15.4 15.4 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.2 11.2 11.2 0 0 0 3.5.6 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17.9 17.9 0 0 1 3 3.1a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1A11.2 11.2 0 0 0 9 6.6a1 1 0 0 1-.2 1Z" />
               </svg>
-            </a>
+            </a>}
+            {contactPhone && <a
+              className="floating-contact whatsapp-contact"
+              href={`https://wa.me/${contactPhone.replace(/\D/g, '')}`}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Chat with Vetri IT Systems on WhatsApp"
+              title="WhatsApp"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.9L0 24l6.5-1.7a11.8 11.8 0 0 0 5.6 1.4h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.2-1.2-6.2-3.5-8.4ZM12.1 21.7c-1.8 0-3.5-.5-5-1.4l-.4-.2-3.8 1 1-3.7-.2-.4a9.8 9.8 0 1 1 8.4 4.7Zm5.4-7.3c-.3-.2-1.7-.8-2-.9-.3-.1-.5-.2-.7.2-.2.3-.8.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.4-.5.3-.5c.1-.2 0-.4 0-.5-.1-.2-.7-1.6-1-2.1-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.7 1.1 2.9c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.3 1.2.5 1.6.6.7.3 1.2.1 1.8.1.6-.1 1.7-.7 1.9-1.4.2-.7.1-1.3.1-1.4-.1-.1-.3-.2-.6-.4Z" />
+              </svg>
+            </a>}
           </div>
+          )}
 
         </>
       )}
@@ -2220,7 +2423,7 @@ function App() {
         </div>
       )}
 
-      {!widgetOpen && (
+      {IS_EMBED && !widgetOpen && (
         <div className="widget-root">
         
 <button
@@ -2499,6 +2702,7 @@ function App() {
       <EnquiryModal
         open={enquiryOpen}
         enquiryType={enquiryType}
+        adminContent={adminContent}
         form={enquiryForm}
         onChange={updateEnquiryField}
         onTypeChange={handleEnquiryTypeChange}
@@ -2513,6 +2717,3 @@ function App() {
 }
 
 export default App
-
-
-

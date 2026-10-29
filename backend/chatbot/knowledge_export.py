@@ -71,14 +71,6 @@ def export_knowledge_chunks() -> list[dict]:
         + "\nExplain the course first. Enroll in chat when the user wants to join. "
         "No website sign-in.",
     )
-    add(
-        "knowledge.py",
-        "website_packages",
-        f"Ecommerce website package: {kb.ECOMMERCE_WEBSITE_PRICE}. "
-        f"Small retail shop website: {kb.RETAIL_SHOP_WEBSITE_PRICE}. "
-        "These are the only fixed website prices. Other work needs a quotation.",
-    )
-
     for course_id, detail in kb.COURSE_DETAILS.items():
         add("knowledge.py", f"course:{course_id}", detail)
 

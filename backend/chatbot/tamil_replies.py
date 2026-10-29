@@ -7,13 +7,11 @@ from .knowledge import (
     CONTACT_PHONE,
     COURSE_DURATION,
     COURSE_INTERNSHIP,
-    ECOMMERCE_WEBSITE_PRICE,
     ELIGIBILITY_REQUIREMENT,
     GENERIC_FALLBACK_MARKER,
     ORG_NAME,
     PORTFOLIO_PROJECTS,
     REPLY_STYLE_BRIEF,
-    RETAIL_SHOP_WEBSITE_PRICE,
     SHORT_PRODUCT_SUMMARIES,
     _is_course_context,
     _matches_about_intent,
@@ -27,7 +25,6 @@ from .knowledge import (
     _matches_sales_intent,
     _matches_services_intent,
     _matches_vision_mission_intent,
-    _matches_website_price_intent,
     _matches_why_vis_intent,
     is_greeting,
     match_course_id,
@@ -104,18 +101,6 @@ def build_tamil_fallback(message: str, reply_style: str = REPLY_STYLE_BRIEF) -> 
 
     if is_greeting(text):
         return TAMIL_GREETING_REPLY
-
-    website_offer = _matches_website_price_intent(text)
-    if website_offer == "ecommerce":
-        return (
-            f"VIS ecommerce website package {ECOMMERCE_WEBSITE_PRICE}. "
-            "தொடங்க வேண்டுமென்றால் enroll என்று சொல்லி details பகிருங்கள் — sign-in தேவையில்லை."
-        )
-    if website_offer == "retail":
-        return (
-            f"சிறிய retail shop website {RETAIL_SHOP_WEBSITE_PRICE}. "
-            "enroll என்று சொல்லி details பகிருங்கள் — குழு தொடர்பு கொள்ளும்."
-        )
 
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return (

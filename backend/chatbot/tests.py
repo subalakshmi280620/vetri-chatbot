@@ -74,6 +74,10 @@ class PublicContentEndpointTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["company"]["company_name"], "VIS Test")
+        self.assertTrue(payload["company_configured"])
+        self.assertTrue(payload["products_configured"])
+        self.assertTrue(payload["services_configured"])
+        self.assertTrue(payload["faqs_configured"])
         self.assertEqual(payload["products"][0]["name"], "Admin Test Product")
         self.assertEqual(payload["products"][0]["price"], "1250.00")
         self.assertEqual(payload["products"][0]["price_note"], "Plus GST")
@@ -81,15 +85,277 @@ class PublicContentEndpointTests(TestCase):
         self.assertEqual(payload["faqs"][0]["answer"], "Use the test data.")
 
     def test_public_content_excludes_inactive_records(self):
-        from .models import Product, Service
+        from .models import CompanyInformation, Product, Service
 
+        CompanyInformation.objects.create(company_name="Inactive company", is_active=False)
         Product.objects.create(name="Hidden Product", description="Hidden", is_active=False)
         Service.objects.create(name="Hidden Service", description="Hidden", is_active=False)
         response = self.client.get("/api/chatbot/public-content/")
 
         self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["company"])
+        self.assertTrue(response.json()["company_configured"])
         self.assertEqual(response.json()["products"], [])
         self.assertEqual(response.json()["services"], [])
+        self.assertTrue(response.json()["products_configured"])
+        self.assertTrue(response.json()["services_configured"])
+
+    def test_public_content_marks_never_configured_catalogs(self):
+        response = self.client.get("/api/chatbot/public-content/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["company_configured"])
+        self.assertFalse(response.json()["products_configured"])
+        self.assertFalse(response.json()["services_configured"])
+        self.assertFalse(response.json()["faqs_configured"])
+
+
+class AdminGroundedReplyTests(TestCase):
+    def test_short_greetings_and_thanks_skip_ai(self):
+        with patch(
+            "chatbot.views._try_ai_reply",
+            return_value="A long response with unrelated product and service details.",
+        ) as ai:
+            greeting, _ = generate_reply("Hello!")
+            thanks, _ = generate_reply("Thank you so much!")
+
+        self.assertEqual(greeting, SHORT_GREETING_REPLY)
+        self.assertEqual(thanks, "You're welcome!")
+        ai.assert_not_called()
+
+    def test_greeting_with_a_question_is_not_treated_as_a_greeting_only(self):
+        from .knowledge import is_greeting
+
+        self.assertTrue(is_greeting("Hi there!"))
+        self.assertFalse(is_greeting("Hi, what products do you offer?"))
+
+    def test_named_product_answer_stays_on_that_product(self):
+        from .models import Product
+
+        Product.objects.create(
+            name="Admin Focus Product",
+            description="A current Admin-managed inventory tool.",
+            features="Stock tracking and sales summaries.",
+            price="2500.00",
+        )
+
+        with patch(
+            "chatbot.views._try_ai_reply",
+            return_value="Unrelated course and service content.",
+        ) as ai:
+            reply, source = generate_reply("What does Admin Focus Product do?")
+
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("Admin Focus Product", reply)
+        self.assertIn("inventory tool", reply)
+        self.assertIn("Stock tracking and sales summaries.", reply)
+        self.assertNotIn("₹", reply)
+        self.assertNotIn("course", reply.lower())
+        self.assertNotIn("service", reply.lower())
+        ai.assert_not_called()
+
+    def test_course_information_stays_unavailable_even_with_admin_records(self):
+        from .models import Course
+
+        Course.objects.create(
+            name="Admin Only Course",
+            description="Must not be exposed through the public chatbot.",
+        )
+
+        for question in (
+            "Which courses are available?",
+            "Tell me about Admin Only Course",
+            "What is the cheapest fullstack?",
+        ):
+            reply, source = generate_reply(question)
+            self.assertEqual(source, SOURCE_VERIFIED_KB)
+            self.assertIn("currently unavailable", reply.lower())
+            self.assertNotIn("Admin Only Course", reply)
+
+    def test_cheapest_and_budget_replies_use_active_admin_prices(self):
+        from .models import Product
+
+        Product.objects.create(
+            name="Admin Basic Product",
+            description="A verified lower-cost product.",
+            price="3000.00",
+            price_note="Plus GST",
+        )
+        Product.objects.create(
+            name="Admin Premium Product",
+            description="A verified higher-cost product.",
+            price="7000.00",
+        )
+
+        cheapest, cheapest_source = generate_reply("What is your cheapest product?")
+        within_budget, budget_source = generate_reply(
+            "Which product can I get under ₹5,000?"
+        )
+
+        self.assertEqual(cheapest_source, SOURCE_VERIFIED_KB)
+        self.assertIn("Admin Basic Product", cheapest)
+        self.assertIn("₹3,000", cheapest)
+        self.assertEqual(budget_source, SOURCE_VERIFIED_KB)
+        self.assertIn("Admin Basic Product", within_budget)
+        self.assertNotIn("Admin Premium Product", within_budget)
+
+    def test_product_price_edits_and_deactivation_are_reflected_immediately(self):
+        from .models import Product
+
+        product = Product.objects.create(
+            name="Admin Dynamic Product",
+            description="Current Admin product details.",
+            price="4200.00",
+        )
+
+        with patch("chatbot.views._try_ai_reply", return_value="Unverified price.") as ai:
+            original, _ = generate_reply("How much is Admin Dynamic Product?")
+            product.price = "7100.00"
+            product.save()
+            updated, _ = generate_reply("How much is Admin Dynamic Product?")
+            product.is_active = False
+            product.save()
+            inactive, _ = generate_reply("How much is Admin Dynamic Product?")
+
+        self.assertIn("₹4,200", original)
+        self.assertIn("₹7,100", updated)
+        self.assertNotIn("₹4,200", updated)
+        self.assertIn("active Admin product", inactive)
+        ai.assert_not_called()
+
+    def test_broad_product_reply_uses_current_active_admin_records_before_ai(self):
+        from .models import Product
+
+        Product.objects.create(
+            name="Admin Product",
+            description="Current Admin product details.",
+            features="Verified feature",
+            price="1250.00",
+            price_note="Plus GST",
+        )
+
+        with patch("chatbot.views._try_ai_reply", return_value="Unverified product claims.") as ai:
+            reply, source = generate_reply("What products does VIS offer?")
+
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("Admin Product", reply)
+        self.assertIn("Current Admin product details.", reply)
+        self.assertIn("Verified feature", reply)
+        self.assertIn("₹1,250", reply)
+        self.assertIn("Plus GST", reply)
+        self.assertNotIn("Unverified product claims.", reply)
+        ai.assert_not_called()
+
+    def test_broad_service_reply_uses_current_active_admin_records_before_ai(self):
+        from .models import Service
+
+        Service.objects.create(
+            name="Admin Service",
+            description="Current Admin service details.",
+            features="Verified service feature",
+        )
+
+        with patch("chatbot.views._try_ai_reply", return_value="Unverified service claims.") as ai:
+            reply, source = generate_reply("What services does VIS provide?")
+
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("Admin Service", reply)
+        self.assertIn("Current Admin service details.", reply)
+        self.assertIn("Verified service feature", reply)
+        self.assertNotIn("Unverified service claims.", reply)
+        ai.assert_not_called()
+
+    def test_service_pricing_is_not_invented_when_admin_has_no_price_field(self):
+        from .models import Service
+
+        Service.objects.create(
+            name="Admin Managed Service",
+            description="A verified custom service.",
+        )
+
+        reply, source = generate_reply("How much does Admin Managed Service cost?")
+
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("no confirmed price", reply.lower())
+        self.assertNotRegex(reply, r"₹\s*\d")
+
+    def test_matching_admin_faq_is_answered_before_ai(self):
+        from .models import FAQ
+
+        FAQ.objects.create(
+            question="How do I contact the VIS support team?",
+            answer="Use the verified support email.",
+        )
+
+        with patch("chatbot.views._try_ai_reply", return_value="Unverified contact details.") as ai:
+            reply, source = generate_reply("How do I contact the VIS support team?")
+
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertEqual(reply, "Use the verified support email.")
+        ai.assert_not_called()
+
+    def test_faq_updates_and_deactivation_are_reflected(self):
+        from .models import FAQ
+
+        faq = FAQ.objects.create(
+            question="How do I contact the VIS support team?",
+            answer="Old verified answer.",
+        )
+        self.assertIn(
+            "Old verified answer.",
+            generate_reply("How do I contact the VIS support team?")[0],
+        )
+
+        faq.answer = "Updated verified answer."
+        faq.save()
+        updated = generate_reply("How do I contact the VIS support team?")[0]
+        self.assertIn("Updated verified answer.", updated)
+        self.assertNotIn("Old verified answer.", updated)
+
+        faq.is_active = False
+        faq.save()
+        inactive = generate_reply("How do I contact the VIS support team?")[0]
+        self.assertIn("current active Admin", inactive)
+        self.assertNotIn("Updated verified answer.", inactive)
+
+    def test_company_contact_answer_uses_current_active_admin_record_before_ai(self):
+        from .models import CompanyInformation
+
+        CompanyInformation.objects.create(
+            company_name="VIS Test",
+            phone="+91 90000 00001",
+            email="admin@example.test",
+        )
+
+        with patch("chatbot.views._try_ai_reply", return_value="Unverified contact details.") as ai:
+            reply, source = generate_reply("How can I contact the VIS team?")
+
+        self.assertEqual(source, SOURCE_VERIFIED_KB)
+        self.assertIn("+91 90000 00001", reply)
+        self.assertIn("admin@example.test", reply)
+        self.assertNotIn("Unverified contact details.", reply)
+        ai.assert_not_called()
+
+
+class EligibilityReplyTextTests(TestCase):
+    def test_tamil_eligibility_replies_do_not_contain_mojibake(self):
+        from .eligibility import _eligibility_reply_in_language
+        from .language import LANG_TA
+
+        english_replies = [
+            "Good news — with your B.Tech, you meet the requirement. Would you like to know about fees or how to apply?",
+            "For Python Fullstack, a completed degree is required. Based on what you shared, you may not meet that yet.",
+            "Which course are you interested in?",
+            "What's your qualification?",
+            "Thanks for sharing, but I don't have enough verified info.",
+        ]
+
+        for english_reply in english_replies:
+            with self.subTest(reply=english_reply):
+                reply = _eligibility_reply_in_language(english_reply, LANG_TA)
+                self.assertRegex(reply, r"[\u0B80-\u0BFF]")
+                self.assertNotIn("à®", reply)
+                self.assertNotIn("â€", reply)
 
 
 class HealthEndpointTests(TestCase):
@@ -381,7 +647,7 @@ class ConversationPrivacyTests(ChatApiTestCase):
 class EligibilityReplyTests(TestCase):
     JAVA_HISTORY = [
         {"role": "user", "text": "Tell me about Java Fullstack"},
-        {"role": "bot", "text": "Course Overview â€” Java Fullstack"},
+        {"role": "bot", "text": "Course Overview — Java Fullstack"},
     ]
 
     def test_general_eligibility_ignores_prior_course_in_history(self):
@@ -577,7 +843,7 @@ class KnowledgeReplyTests(TestCase):
     def test_generate_reply_general_eligibility_via_api_path(self):
         history = [
             {"role": "user", "text": "Tell me about Java Fullstack"},
-            {"role": "bot", "text": "Course Overview â€” Java Fullstack"},
+            {"role": "bot", "text": "Course Overview — Java Fullstack"},
         ]
 
         reply, source = generate_reply("What is the eligibility?", history)
@@ -656,7 +922,7 @@ class KnowledgeReplyTests(TestCase):
     def test_conversational_fallback_products_is_short(self):
         reply = get_conversational_fallback("What products does VIS offer?")
         self.assertIn("Vetri Bills", reply)
-        self.assertNotIn("Our Products â€”", reply)
+        self.assertNotIn("Our Products —", reply)
         self.assertLess(len(reply), 400)
 
     def test_conversational_fallback_answers_not_only_contact(self):
@@ -676,7 +942,7 @@ class KnowledgeReplyTests(TestCase):
         reply, source = generate_reply("What products does VIS offer?")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertIn("Vetri Bills", reply)
-        self.assertNotIn("Our Products â€”", reply)
+        self.assertNotIn("Our Products —", reply)
 
 
 class EnquiryApiTests(ChatApiTestCase):
@@ -883,7 +1149,7 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         data = response.json()
         self.assertEqual(data["source"], SOURCE_VERIFIED_KB)
         self.assertNotIn("Which Courses Are Available", data["reply"])
-        self.assertNotIn("Course Overview â€”", data["reply"])
+        self.assertNotIn("Course Overview —", data["reply"])
         self.assertIn("message_id", data)
         self.assertGreaterEqual(len(data["suggestions"]), 1)
 
@@ -897,7 +1163,7 @@ class ChatAdvancedFeatureTests(ChatApiTestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["source"], SOURCE_VERIFIED_KB)
-        self.assertNotIn("Our Products â€”", data["reply"])
+        self.assertNotIn("Our Products —", data["reply"])
 
     @override_settings(GEMINI_API_KEY="test-key", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     @patch("chatbot.views.ask_gemini", return_value="We offer Python, Java, UI/UX, and more.")
@@ -964,7 +1230,7 @@ class DemoQuestionCoverageTests(TestCase):
         ("What courses are available?", ("currently unavailable", "enquiry")),
         ("What is the course duration?", ("currently unavailable", "enquiry")),
         (
-            "I have B.Com and want Python Fullstack â€” am I eligible?",
+            "I have B.Com and want Python Fullstack — am I eligible?",
             ("currently unavailable", "enquiry"),
         ),
         ("How can I contact you?", ("84381", "support@vetri-it.com")),
@@ -1050,35 +1316,58 @@ class DemoQuestionCoverageTests(TestCase):
             self.assertNotRegex(reply.lower(), r"rs\.?\s*\d")
 
     def test_official_website_prices_are_allowed(self):
+        from .models import Product
+
+        Product.objects.create(
+            name="Retail Shop Website",
+            description="A small retail shop website.",
+            price="3000.00",
+            price_note="Plus GST",
+        )
+        Product.objects.create(
+            name="E-commerce Website",
+            description="An e-commerce website and online store.",
+            price="9999.00",
+            price_note="Plus GST",
+        )
+
         ecommerce = get_conversational_fallback("How much is an ecommerce website?")
         retail = get_conversational_fallback("small retail shop website price")
-        self.assertIn("₹9,999 + GST", ecommerce)
-        self.assertIn("₹3,000 + GST", retail)
+        self.assertIn("₹9,999", ecommerce)
+        self.assertIn("Plus GST", ecommerce)
+        self.assertIn("₹3,000", retail)
+        self.assertIn("Plus GST", retail)
 
         # Casual phrasing should resolve to the general low-cost website offer.
         low_cost = get_conversational_fallback("are you have any low cost website")
-        self.assertIn("₹3,000 + GST", low_cost)
-        self.assertIn("₹9,999 + GST", low_cost)
+        self.assertIn("₹3,000", low_cost)
+        self.assertIn("₹9,999", low_cost)
+        self.assertIn("Plus GST", low_cost)
         self.assertNotIn("Current website options from active Admin records", low_cost)
-        self.assertNotIn("Pricing note:", low_cost)
+        self.assertIn("(Plus GST)", low_cost)
 
         # A customer-entered budget is handled as a quotation request, not
         # misrepresented as an approved fixed-price package.
-        for question in (
+        budget_questions = (
             "Do you make a website for ₹100?",
             "Can I get a website for 2000 rupees?",
             "Any low budget website under 4000?",
-        ):
-            budget_reply = get_conversational_fallback(question)
-            self.assertIn("Enquiry", budget_reply)
-            self.assertIn("not guaranteed package prices", budget_reply)
+        )
+        budget_replies = [
+            get_conversational_fallback(question) for question in budget_questions
+        ]
+        for budget_reply in budget_replies:
+            self.assertNotIn("not guaranteed package prices", budget_reply)
             self.assertNotIn("Current website options from active Admin records", budget_reply)
+        self.assertIn("at or below ₹100", budget_replies[0])
+        self.assertIn("at or below ₹2,000", budget_replies[1])
+        self.assertIn("Retail Shop Website", budget_replies[2])
 
-        kept = enforce_verified_facts(
+        sanitized = enforce_verified_facts(
             "An ecommerce website is ₹9,999 + GST. A shop site is ₹3,000 + GST."
         )
-        self.assertIn("₹9,999 + GST", kept)
-        self.assertIn("₹3,000 + GST", kept)
+        self.assertNotIn("₹9,999 + GST", sanitized)
+        self.assertNotIn("₹3,000 + GST", sanitized)
 
     def test_yes_after_course_context_keeps_public_enrolment_disabled(self):
         history = [
@@ -1156,6 +1445,14 @@ class DemoQuestionCoverageTests(TestCase):
         self.assertNotIn("180", reply)
 
     def test_continuation_that_one_resolves_from_history(self):
+        from .models import Product
+
+        Product.objects.create(
+            name="E-commerce Website",
+            description="An e-commerce website and online store.",
+            price="8999.00",
+            price_note="Updated Admin price",
+        )
         history = [
             {"role": "user", "text": "How much is an ecommerce website?"},
             {
@@ -1165,7 +1462,8 @@ class DemoQuestionCoverageTests(TestCase):
         ]
         reply, source = generate_reply("tell me more", history)
         self.assertEqual(source, SOURCE_VERIFIED_KB)
-        self.assertIn("₹9,999 + GST", reply)
+        self.assertIn("₹8,999", reply)
+        self.assertNotIn("₹9,999", reply)
 
 
 class GeminiRetryTests(TestCase):
@@ -1278,7 +1576,7 @@ class GeminiRetryTests(TestCase):
         self.assertEqual(source, SOURCE_VERIFIED_KB)
         self.assertNotIn("temporarily unavailable", reply)
         self.assertIn("Vetri Bills", reply)
-        self.assertNotIn("Our Products â€”", reply)
+        self.assertNotIn("Our Products —", reply)
 
     @override_settings(**_GEMINI_SETTINGS)
     @patch("chatbot.views.ask_gemini")
@@ -1680,10 +1978,17 @@ class LanguageSupportTests(TestCase):
 
     @override_settings(GEMINI_API_KEY="", GROQ_API_KEY="", DEEPSEEK_API_KEY="")
     def test_tanglish_website_price_returns_verified_price_and_quotation_cta(self):
+        from .models import Product
+
+        Product.objects.create(
+            name="E-commerce Website",
+            description="An e-commerce website and online store.",
+            price="8999.00",
+            price_note="Plus GST",
+        )
         reply, source = generate_reply("ecommerce website evlo")
         self.assertEqual(source, SOURCE_VERIFIED_KB)
-        self.assertIn("\u20b99,999 + GST", reply)
-        self.assertIn("Quotation", reply)
+        self.assertIn("\u20b98,999", reply)
         self.assertNotIn("enroll", reply.lower())
         self.assertNotIn("sign-in", reply.lower())
 

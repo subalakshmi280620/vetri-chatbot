@@ -43,11 +43,12 @@
 
   const style = document.createElement('style')
   style.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
     #coach-ai-widget-root {
       --vis-navy: #0c1e3d;
       --vis-green: #4ade80;
       --vis-green-text: #0c1e3d;
-      font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Poppins', Arial, Helvetica, sans-serif;
     }
     #coach-ai-widget-root .coach-ai-launcher {
       position: fixed;

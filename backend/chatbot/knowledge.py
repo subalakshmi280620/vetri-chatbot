@@ -132,9 +132,6 @@ COURSE_DURATION = "180 days"
 COURSE_INTERNSHIP = "3 months"
 ELIGIBILITY_REQUIREMENT = "Any degree completion"
 # Official website packages only. Do not invent other ₹ prices.
-ECOMMERCE_WEBSITE_PRICE = "₹9,999 + GST"
-RETAIL_SHOP_WEBSITE_PRICE = "₹3,000 + GST"
-
 DEGREE_INDICATORS = (
     "degree", "graduate", "graduation", "graduated", "bachelor", "master",
     "btech", "b.tech", "b.e", "bsc", "b.sc", "bca", "b.com", "bcom",
@@ -695,7 +692,7 @@ Example (why choose us):
 Ground rules:
 - Use verified VIS information below, retrieved excerpts, and grounding facts.
 -  Answer questions about VIS products, services, company information, mission, AI solutions, and supported business processes directly.
-- Official website prices only: ecommerce website {ECOMMERCE_WEBSITE_PRICE}; small retail shop website {RETAIL_SHOP_WEBSITE_PRICE}. Do NOT invent any other ₹ amount
+- Use current active Admin product price records for pricing. Prices can change; never use remembered amounts. If a matching active record has no price, say the price is not currently verified.
 - Contact details when relevant: {CONTACT_PHONE}, {CONTACT_EMAIL}, {CONTACT_ADDRESS}, {CONTACT_WEBSITE}.
 - Say "contact the team" ONLY when: user explicitly wants phone/email, or topic is completely outside VIS.
 - For quotation, consultation, or product demo: explain what it is, then direct users to the
@@ -1031,22 +1028,40 @@ def is_greeting(message: str) -> bool:
     compact = _compact(message)
     if re.fullmatch(r"(h+i+|hey+|hello+|hai+|helo+|hlo+|yo+|hai+)", compact):
         return True
-    text = message.strip().lower()
-    simple_greetings = (
+    words = "".join(ch.lower() if ch.isalnum() else " " for ch in message).split()
+    phrase = " ".join(words)
+    return phrase in {
+        "hi there",
+        "hello there",
+        "hey there",
         "good morning",
         "good afternoon",
         "good evening",
         "good day",
         "namaste",
         "vanakkam",
+    }
+
+
+def is_thank_you(message: str) -> bool:
+    normalized = " ".join(
+        "".join(ch.lower() if ch.isalnum() else " " for ch in message).split()
     )
-    if any(text == phrase or text.startswith(f"{phrase} ") for phrase in simple_greetings):
-        return True
-    words = "".join(ch.lower() if ch.isalnum() else " " for ch in message).split()
-    if not words or len(words) > 5:
-        return False
-    greet_words = {"hi", "hii", "hiii", "hello", "hey", "hai", "helo", "hlo", "yo"}
-    return words[0] in greet_words
+    return normalized in {
+        "thank you",
+        "thanks",
+        "thank you so much",
+        "thanks so much",
+        "thanks a lot",
+        "thank you very much",
+        "thank you for your help",
+        "thanks for your help",
+        "thanks for helping",
+        "thanks for that",
+        "thank you for that",
+        "thx",
+        "ty",
+    }
 
 
 def _matches_products_intent(text: str) -> bool:
@@ -1484,7 +1499,7 @@ def get_grounding_facts(message: str) -> str:
             return (
                 "Current website options from active Admin records:\n"
                 + admin_websites
-                + "\nConfirm final scope and applicable GST through Enquiry ? Quotation."
+                + "\nConfirm final scope and applicable GST through Enquiry → Quotation."
             )
 
     if _matches_products_intent(text) and not _is_course_context(text):
@@ -1583,6 +1598,68 @@ def get_grounding_facts(message: str) -> str:
     return "\n\n".join(parts).strip()
 
 
+def get_admin_content_reply(message: str) -> str | None:
+    """Return a reply only when it is supported by active Admin-managed content."""
+    text = (message or "").strip().lower()
+    if not text or _is_course_context(text):
+        return None
+
+    from .admin_knowledge_helper import (
+        get_admin_company_text,
+        get_admin_faq_answer,
+        get_admin_product,
+        get_admin_products_text,
+        get_admin_service,
+        get_admin_services_text,
+    )
+
+    admin_product = get_admin_product(message)
+    if admin_product:
+        return admin_product
+
+    if _matches_products_intent(text):
+        admin_products = get_admin_products_text(message)
+        if admin_products:
+            return "Here are the current VIS products:\n" + admin_products
+        from .models import Product
+
+        if Product.objects.exists():
+            return "Current product details are not available in active Admin records."
+
+    admin_service = get_admin_service(message)
+    if admin_service:
+        return admin_service
+
+    if _matches_services_intent(text):
+        admin_services = get_admin_services_text()
+        if admin_services:
+            return "Here are the current VIS services:\n" + admin_services
+        from .models import Service
+
+        if Service.objects.exists():
+            return "Current service details are not available in active Admin records."
+
+    if "?" in text or text.startswith(
+        ("how ", "what ", "where ", "when ", "who ", "can ", "is ", "are ")
+    ):
+        admin_faq = get_admin_faq_answer(message)
+        if admin_faq:
+            return admin_faq
+
+    if (
+        _matches_why_vis_intent(text)
+        or _matches_about_intent(text)
+        or _matches_vision_mission_intent(text)
+        or _matches_contact_intent(text)
+    ):
+        return get_admin_company_text(message)
+
+    if any(term in text for term in ("faq", "faqs", "frequently asked questions")):
+        return "I don't have a current active Admin answer for that FAQ request."
+
+    return None
+
+
 def get_conversational_fallback(
     message: str,
     reply_style: str = REPLY_STYLE_BRIEF,
@@ -1600,6 +1677,9 @@ def get_conversational_fallback(
 
     text = message.strip().lower()
     detailed = normalize_reply_style(reply_style) == REPLY_STYLE_DETAILED
+
+    if is_thank_you(message):
+        return "You're welcome!"
 
     if is_public_course_query(message):
         return public_courses_disabled_reply(language)
@@ -1620,59 +1700,17 @@ def get_conversational_fallback(
         return public_courses_disabled_reply(language)
 
     
-    # ADMIN_WEBSITE_PRODUCTS_FIRST
-    # Use active Admin records to confirm website options exist,
-    # and official verified constants to format the prices.
     website_offer = _matches_website_price_intent(text)
-    if website_offer:
-        from .admin_knowledge_helper import get_admin_products_text
+    from .admin_knowledge_helper import get_admin_pricing_reply
 
-        admin_websites = get_admin_products_text(message, website_only=True)
-        if admin_websites:
-            if website_offer == "ecommerce":
-                return (
-                    f"VIS offers an e-commerce website package at "
-                    f"{ECOMMERCE_WEBSITE_PRICE}. "
-                    "For a formal quote, use the Enquiry form and choose "
-                    "Quotation to share your website requirements."
-                )
-            if website_offer == "retail":
-                return (
-                    f"For a small retail shop, VIS offers a website at "
-                    f"{RETAIL_SHOP_WEBSITE_PRICE}. "
-                    "For a formal quote, use the Enquiry form and choose "
-                    "Quotation to share your website requirements."
-                )
-            return (
-                "Yes, we can discuss a website solution around your budget. "
-                f"The currently listed packages are a small retail shop website at {RETAIL_SHOP_WEBSITE_PRICE} "
-                f"and an e-commerce website at {ECOMMERCE_WEBSITE_PRICE}. "
-                "These are the verified fixed prices; we do not have confirmed fixed-price packages for every other budget. "
-                "For a smaller or custom budget, share your target amount, pages, and features through Enquiry → Quotation, "
-                "and the VIS team can confirm what is feasible."
-            )
+    price_reply = get_admin_pricing_reply(message, website_offer)
+    if price_reply:
+        return price_reply
 
-
-    # Legacy fallback retained temporarily until the Admin-backed tests pass.
-    website_offer = _matches_website_price_intent(text)
-    if website_offer == "ecommerce":
-        return (
-            f"VIS offers an ecommerce website package at {ECOMMERCE_WEBSITE_PRICE}. "
-            "For a formal quote, tap Enquiry → Quotation and share your website requirements."
-        )
-    if website_offer == "retail":
-        return (
-            f"For a small retail shop, VIS offers a website at {RETAIL_SHOP_WEBSITE_PRICE}. "
-            "For a formal quote, tap Enquiry → Quotation and share your website requirements."
-        )
-    if website_offer == "general":
-        return (
-            "Yes, we can discuss a website solution around your budget. The currently listed packages are "
-            f"₹3,000 + GST for a small retail shop website and ₹9,999 + GST for an e-commerce website. "
-            "These are the verified fixed prices; we do not have confirmed fixed-price packages for every other budget. "
-            "If your budget is ₹100, ₹2,000, ₹4,000, or another amount, share it along with the pages and features you need "
-            "through Enquiry → Quotation. The VIS team can confirm what is feasible—those amounts are not guaranteed package prices."
-        )
+    if normalize_language(language) != LANG_TA:
+        admin_reply = get_admin_content_reply(message)
+        if admin_reply:
+            return admin_reply
 
     if normalize_language(language) == LANG_TA:
         tamil = build_tamil_fallback(message, reply_style)
@@ -1751,24 +1789,11 @@ def get_conversational_fallback(
         return f"{course_name} runs for {COURSE_DURATION}."
 
     website_offer = _matches_website_price_intent(text)
-    if website_offer == "ecommerce":
-        return (
-            f"VIS offers an ecommerce website package at {ECOMMERCE_WEBSITE_PRICE}. "
-            "For a formal quote, tap Enquiry ? Quotation and share your website requirements."
-        )
-    if website_offer == "retail":
-        return (
-            f"For a small retail shop, VIS offers a website at {RETAIL_SHOP_WEBSITE_PRICE}. "
-            "For a formal quote, tap Enquiry → Quotation and share your website requirements."
-        )
-    if website_offer == "general":
-        return (
-            "Yes, we can discuss a website solution around your budget. The currently listed packages are "
-            f"₹3,000 + GST for a small retail shop website and ₹9,999 + GST for an e-commerce website. "
-            "These are the verified fixed prices; we do not have confirmed fixed-price packages for every other budget. "
-            "If your budget is ₹100, ₹2,000, ₹4,000, or another amount, share it along with the pages and features you need "
-            "through Enquiry → Quotation. The VIS team can confirm what is feasible—those amounts are not guaranteed package prices."
-        )
+    from .admin_knowledge_helper import get_admin_pricing_reply
+
+    price_reply = get_admin_pricing_reply(message, website_offer)
+    if price_reply:
+        return price_reply
 
     if _matches_quotation_intent(text) and not _is_course_context(text):
         return (

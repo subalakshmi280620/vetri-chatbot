@@ -1,26 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
-
 :root {
-  --vis-navy: #171b62;
-  --vis-navy-deep: #101545;
-  --vis-green: #25e46f;
-  --vis-green-hover: #12c960;
+  --vis-navy: #141967;
+  --vis-navy-deep: #0c1863;
+  --vis-green: #00ef4f;
+  --vis-green-hover: #00cf46;
   --vis-green-text: #0b1837;
-  --vis-blue: #4057c6;
-  --vis-gradient: linear-gradient(110deg, #27e673, #a6f4b7);
-  --bg: #f7f8fc;
-  --section: #f1f3fb;
+  --vis-blue: #3e50b5;
+  --vis-gradient: linear-gradient(110deg, #00ef4f, #0bab45);
+  --bg: #f8f9fd;
+  --section: #f5f6fb;
   --panel: #ffffff;
-  --text: #15172c;
-  --muted: #66708c;
-  --border: #dce1ee;
+  --text: #11131c;
+  --muted: #626b7e;
+  --border: #d9deef;
   --bot: #ffffff;
   --shadow: 0 8px 24px rgba(31, 38, 100, 0.08);
   --shadow-lg: 0 24px 80px rgba(10, 17, 69, 0.22);
   --radius: 12px;
   --radius-pill: 999px;
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+  --font-display: 'Poppins', Arial, Helvetica, sans-serif;
+  --font-body: 'Poppins', Arial, Helvetica, sans-serif;
   font-family: var(--font-body);
   color: var(--text);
   background: var(--bg);
@@ -45,7 +43,7 @@ body,
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   background: var(--bg);
   font-family: var(--font-body);
 }
@@ -71,7 +69,7 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 3px solid rgba(37, 228, 111, 0.7);
+  outline: 3px solid rgba(0, 239, 79, 0.7);
   outline-offset: 3px;
 }
 

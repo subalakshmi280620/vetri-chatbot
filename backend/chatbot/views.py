@@ -26,12 +26,15 @@ from .knowledge import (
     detect_suggested_enquiry_type,
     get_conversational_fallback,
     get_contextual_follow_up_reply,
+    get_admin_content_reply,
     get_grounding_facts,
     is_public_course_query,
     public_courses_disabled_reply,
     get_system_prompt,
     is_contextual_follow_up,
     is_greeting,
+    is_thank_you,
+    _matches_website_price_intent,
     match_course_id,
     match_product_id,
     infer_reply_style,
@@ -65,9 +68,9 @@ def build_prompt(
     style = normalize_reply_style(reply_style)
     query = resolve_follow_up_query(user_message, history)
     length_hint = (
-        "1â€“2 short sentences"
+        "1–2 short sentences"
         if style == "brief"
-        else "2â€“4 short lines"
+        else "2–4 short lines"
     )
     parts = [get_system_prompt(style), get_verified_facts_prompt(style, language)]
     context = format_context(retrieve(query, limit=settings.GEMINI_RAG_LIMIT))
@@ -76,7 +79,7 @@ def build_prompt(
     grounding = get_grounding_facts(query)
     if grounding:
         parts.append(
-            "Facts for this reply (do not copy verbatim â€” rewrite in your own warm, "
+            "Facts for this reply (do not copy verbatim — rewrite in your own warm, "
             f"conversational words; complete sentences; {length_hint}):\n"
             f"{grounding}"
         )
@@ -92,11 +95,11 @@ def build_compact_prompt(
     """Smaller prompt for a last-chance Gemini retry after rate-limit errors."""
     style = normalize_reply_style(reply_style)
     query = resolve_follow_up_query(user_message, history)
-    sentence_hint = "1â€“2 complete sentences" if style == "brief" else "2â€“4 complete sentences"
+    sentence_hint = "1–2 complete sentences" if style == "brief" else "2–4 complete sentences"
     parts = [
         (
             f"You are Coach AI for Vetri IT Systems (VIS). Reply warmly in {sentence_hint}. "
-            "Use only verified facts below â€” never invent pricing."
+            "Use only verified facts below — never invent pricing."
         ),
         get_verified_facts_prompt(style, language),
     ]
@@ -143,7 +146,7 @@ def _try_deepseek_reply(user_message: str, prompt: str, history=None) -> str | N
         )
         return reply
     except Exception as exc:
-        # Log safe detail (HTTP code/message) â€” never log API keys.
+        # Log safe detail (HTTP code/message) — never log API keys.
         detail = str(exc).replace(settings.DEEPSEEK_API_KEY, "***")[:240]
         logger.warning(
             "AI provider error: deepseek fallback %s",
@@ -190,13 +193,13 @@ def _try_ai_reply(
             return reply
         except GeminiAPIError as exc:
             logger.warning(
-                "AI provider error: gemini model=%s detail=%s â€” trying fallbacks",
+                "AI provider error: gemini model=%s detail=%s — trying fallbacks",
                 exc.model or "unknown",
                 str(exc)[:300],
             )
         except Exception as exc:
             logger.warning(
-                "AI provider error: gemini %s â€” trying fallbacks",
+                "AI provider error: gemini %s — trying fallbacks",
                 type(exc).__name__,
             )
 
@@ -227,7 +230,7 @@ def _kb_fallback_reply(
         if normalize_language(language) == LANG_TA:
             return get_tamil_ai_unavailable(), SOURCE_UNVERIFIED
         return AI_FULLY_UNAVAILABLE_MESSAGE, SOURCE_UNVERIFIED
-    # Specific verified answer â€” read naturally; UI source badge shows verified_kb.
+    # Specific verified answer — read naturally; UI source badge shows verified_kb.
     return fallback, SOURCE_VERIFIED_KB
 
 
@@ -243,49 +246,112 @@ def generate_reply(
     style = normalize_reply_style(reply_style or infer_reply_style(user_message, history))
     lang = normalize_language(language or detect_language(user_message, history))
 
-    # Stop legacy/static/admin course data before it reaches AI, RAG, or eligibility handlers.
-    history_text = " ".join(
-        str(item.get("text") or "") for item in (history or [])
-        if item.get("role") == "user"
+    no_attachments = not (
+        attachments and (attachments.images or attachments.document_text)
     )
-    explicit_product_question = bool(match_product_id(user_message))
-    prior_course_context = is_public_course_query(history_text)
-    follow_up_about_course = (
-        prior_course_context
-        and not explicit_product_question
-        and (
-            is_contextual_follow_up(user_message)
-            or any(
-                term in (user_message or "").lower()
-                for term in (
-                    "eligibility", "eligible", "degree", "fee", "fees", "cost", "price",
-                    "apply", "admission", "internship", "duration", "join", "enroll", "enrol",
+    if user_message and no_attachments and is_greeting(user_message):
+        return apply_reply_style(get_greeting_reply(lang), style), SOURCE_AI
+    if user_message and no_attachments and is_thank_you(user_message):
+        return "You're welcome!", SOURCE_AI
+
+    if user_message and no_attachments:
+        history_text = " ".join(
+            str(item.get("text") or "") for item in (history or [])
+            if item.get("role") == "user"
+        )
+        explicit_product_question = bool(match_product_id(user_message))
+        prior_course_context = is_public_course_query(history_text)
+        direct_course_question = (
+            is_public_course_query(user_message) and not explicit_product_question
+        )
+        follow_up_about_course = (
+            prior_course_context
+            and not explicit_product_question
+            and (
+                is_contextual_follow_up(user_message)
+                or any(
+                    term in (user_message or "").lower()
+                    for term in (
+                        "eligibility", "eligible", "degree", "fee", "fees", "cost", "price",
+                        "apply", "admission", "internship", "duration", "join", "enroll", "enrol",
+                    )
                 )
             )
         )
-    )
-    course_context = is_public_course_query(user_message) or follow_up_about_course
-    if user_message and course_context and not (
-        attachments and (attachments.images or attachments.document_text)
-    ):
-        return apply_reply_style(public_courses_disabled_reply(lang), style), SOURCE_VERIFIED_KB
+        if direct_course_question or follow_up_about_course:
+            return apply_reply_style(public_courses_disabled_reply(lang), style), SOURCE_VERIFIED_KB
 
-    if user_message and is_greeting(user_message) and not (attachments and (attachments.images or attachments.document_text)):
-        return apply_reply_style(get_greeting_reply(lang), style), SOURCE_AI
+    if user_message and no_attachments:
+        website_price_intent = _matches_website_price_intent(user_message)
+        from .admin_knowledge_helper import get_admin_pricing_reply
+
+        admin_price_reply = get_admin_pricing_reply(
+            user_message,
+            website_price_intent,
+        )
+        if admin_price_reply:
+            return apply_reply_style(admin_price_reply, style), SOURCE_VERIFIED_KB
+
+        from .admin_knowledge_helper import get_admin_product_reply
+
+        admin_product = get_admin_product_reply(user_message)
+        if admin_product:
+            return apply_reply_style(admin_product, style), SOURCE_VERIFIED_KB
+
+    if user_message and no_attachments and lang != "ta":
+        admin_reply = get_admin_content_reply(user_message)
+        if admin_reply:
+            return apply_reply_style(admin_reply, style), SOURCE_VERIFIED_KB
 
     if (
         user_message
         and is_contextual_follow_up(user_message)
         and not (attachments and (attachments.images or attachments.document_text))
     ):
+        prior_user_message = next(
+            (
+                str(item.get("text") or "")
+                for item in reversed(history or [])
+                if item.get("role") == "user" and item.get("text")
+            ),
+            "",
+        )
+        if prior_user_message:
+            from .admin_knowledge_helper import get_admin_pricing_reply
+
+            previous_price_reply = get_admin_pricing_reply(
+                prior_user_message,
+                _matches_website_price_intent(prior_user_message),
+            )
+            if previous_price_reply:
+                return apply_reply_style(previous_price_reply, style), SOURCE_VERIFIED_KB
+
+            admin_follow_up = get_admin_content_reply(prior_user_message)
+            if admin_follow_up:
+                return apply_reply_style(admin_follow_up, style), SOURCE_VERIFIED_KB
+
+            from .admin_knowledge_helper import get_inactive_admin_content_reply
+
+            inactive_follow_up = get_inactive_admin_content_reply(prior_user_message)
+            if inactive_follow_up:
+                return apply_reply_style(inactive_follow_up, style), SOURCE_VERIFIED_KB
+
+            if (
+                Product.objects.exists()
+                and match_product_id(prior_user_message)
+                and not get_admin_product(prior_user_message)
+            ):
+                return (
+                    "I can't find active Admin details for that product, so I can't confirm its current information.",
+                    SOURCE_VERIFIED_KB,
+                )
+
         contextual = get_contextual_follow_up_reply(user_message, history, style, lang)
         if contextual:
             return apply_reply_style(contextual, style), SOURCE_VERIFIED_KB
 
     # Answer website-budget questions before the broad eligibility detector.
     # Return the short, user-facing reply rather than raw Admin grounding records.
-    from .knowledge import _matches_website_price_intent
-
     website_price_intent = _matches_website_price_intent(user_message)
     if website_price_intent and not (
         attachments and (attachments.images or attachments.document_text)
@@ -302,13 +368,6 @@ def generate_reply(
         eligibility = handle_eligibility(user_message, history, lang)
         if eligibility:
             return apply_reply_style(eligibility, style), SOURCE_ELIGIBILITY
-    # Prefer matching active Admin products before course-name matching.
-    if user_message and not (
-        attachments and (attachments.images or attachments.document_text)
-    ):
-        admin_product = get_admin_product(user_message)
-        if admin_product:
-            return apply_reply_style(admin_product, style), SOURCE_VERIFIED_KB
     # Specific course-name questions use verified course facts first.
     if (
         user_message
@@ -322,22 +381,25 @@ def generate_reply(
         if GENERIC_FALLBACK_MARKER not in course_candidate:
             return apply_reply_style(course_candidate, style), SOURCE_VERIFIED_KB
 
+    if user_message and not (
+        attachments and (attachments.images or attachments.document_text)
+    ):
+        from .admin_knowledge_helper import get_inactive_admin_content_reply
+
+        inactive_reply = get_inactive_admin_content_reply(user_message)
+        if inactive_reply:
+            return apply_reply_style(inactive_reply, style), SOURCE_VERIFIED_KB
+
+        if Product.objects.exists() and match_product_id(user_message) and not get_admin_product(user_message):
+            return (
+                "I can't find active Admin details for that product, so I can't confirm its current information.",
+                SOURCE_VERIFIED_KB,
+            )
+
     ai_configured = _ai_providers_configured()
     ai_reply = _try_ai_reply(user_message, history, attachments, style, lang)
     if ai_reply:
         return apply_reply_style(enforce_verified_facts(ai_reply.strip()), style), SOURCE_AI
-
-    # Prefer a specific verified English KB answer when one exists.
-    # Keep AI available for questions the knowledge base cannot answer.
-    if user_message and lang != "ta" and not (
-        attachments and (attachments.images or attachments.document_text)
-    ):
-        kb_candidate = get_conversational_fallback(
-            user_message, style, lang, history=history
-        )
-        if GENERIC_FALLBACK_MARKER not in kb_candidate:
-            return apply_reply_style(kb_candidate, style), SOURCE_VERIFIED_KB
-
 
     if attachments and (attachments.images or attachments.document_text):
         names = ", ".join(attachments.display_labels) or "your file"
@@ -467,9 +529,13 @@ def public_content(request):
     """Expose active Admin-managed public content for the marketing website."""
     try:
         company = CompanyInformation.objects.filter(is_active=True).order_by("-updated_at").first()
-        products = Product.objects.filter(is_active=True).order_by("sort_order", "name")
-        services = Service.objects.filter(is_active=True).order_by("sort_order", "name")
-        faqs = FAQ.objects.filter(is_active=True).order_by("sort_order", "question")
+        company_configured = CompanyInformation.objects.exists()
+        products_configured = Product.objects.exists()
+        services_configured = Service.objects.exists()
+        faqs_configured = FAQ.objects.exists()
+        products = list(Product.objects.filter(is_active=True).order_by("sort_order", "name"))
+        services = list(Service.objects.filter(is_active=True).order_by("sort_order", "name"))
+        faqs = list(FAQ.objects.filter(is_active=True).order_by("sort_order", "question"))
     except DatabaseError:
         return Response({"error": "Public content is temporarily unavailable."}, status=503)
 
@@ -497,6 +563,10 @@ def public_content(request):
 
     return Response({
         "company": company_data,
+        "company_configured": company_configured,
+        "products_configured": products_configured,
+        "services_configured": services_configured,
+        "faqs_configured": faqs_configured,
         "products": [{
             "name": item.name,
             "description": item.description,
@@ -745,25 +815,25 @@ def message_feedback(request):
 
 ENQUIRY_CONFIRMATIONS = {
     Enquiry.TYPE_QUOTATION: (
-        "Enquiry Submitted â€” Get Quotation\n\n"
+        "Enquiry Submitted — Get Quotation\n\n"
         "Thank you. Our team will review your requirement and share a tailored "
         "proposal with scope, timeline, and indicative pricing.\n\n"
         "We will contact you at the email or phone you provided."
     ),
     Enquiry.TYPE_CONSULTATION: (
-        "Enquiry Submitted â€” Book a Consultation\n\n"
+        "Enquiry Submitted — Book a Consultation\n\n"
         "Thank you. A VIS solution consultant will reach out to discuss your "
         "goals and recommend the right next steps.\n\n"
         "We will contact you at the email or phone you provided."
     ),
     Enquiry.TYPE_DEMO: (
-        "Enquiry Submitted â€” Product Demo\n\n"
+        "Enquiry Submitted — Product Demo\n\n"
         "Thank you. Our team will arrange a guided demo for the product or "
         "service you selected.\n\n"
         "We will contact you at the email or phone you provided."
     ),
     Enquiry.TYPE_SALES: (
-        "Enquiry Submitted â€” Sales Team\n\n"
+        "Enquiry Submitted — Sales Team\n\n"
         "Thank you. Our sales team will contact you about your requirement."
     ),
     Enquiry.TYPE_ENROLL: (

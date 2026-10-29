@@ -99,8 +99,8 @@ def get_response_language_instruction(language: str) -> str:
             "RESPONSE LANGUAGE (critical):\n"
             "The user is writing in Tamil or Tanglish. Reply in natural Tamil (தமிழ்). "
             "You may mix simple English product names (Vetri Bills, Coach AI) where needed. "
-            "Keep exact verified facts unchanged: prices (₹9,999 + GST, ₹3,000 + GST), "
-            f"phone, email, addresses, and product names. "
+            "Keep verified phone numbers, emails, addresses, product names, and any "
+            "current Admin-sourced price facts unchanged. "
             "Do not invent facts — only translate/explain verified information below."
         )
     return (

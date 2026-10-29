@@ -7,4 +7,9 @@ backup-before-content-admin/
 # Local test output
 test-results.txt
 
+# Local environment files; keep example templates shareable.
+.env
+.env.*
+!.env.example
+
 *.before-*
