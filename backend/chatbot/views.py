@@ -122,8 +122,8 @@ def _try_groq_reply(user_message: str, prompt: str, history=None) -> str | None:
         return reply
     except GroqAPIError as exc:
         logger.warning(
-            "AI provider error: groq fallback HTTP=%s",
-            exc.code or "unknown",
+            "AI provider error: groq fallback detail=%s",
+            str(exc)[:240],
         )
         return None
     except Exception as exc:
